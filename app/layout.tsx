@@ -10,9 +10,18 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
+  const header = ( 
+    <header>
+      <div>
+        <h1>Jordi</h1>
+        <p>Welcome to my place</p>
+      </div>
+    </header>
+  );
+  
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>{children}{header}</body>
     </html>
-  )
+  );
 }
