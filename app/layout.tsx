@@ -20,7 +20,7 @@ export default function RootLayout({
         <Link href="/">
         <h1>Jordi</h1>
         </Link>
-        <p className='py-5 text-lg'>Welcome to my place</p>
+        <p className='py-5 text-lg'>Welcome to my place on the internet</p>
       </div>
     </header>
   );
