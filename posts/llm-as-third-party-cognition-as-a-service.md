@@ -1,7 +1,7 @@
 ---
 title: Expanding AI Horizons: LLMs as Comprehensive Third-Party Cognition Services
 date: 2023-02-01
-slug: expanding-ai-horizons-llms-as-comprehensive-third-party-cognition-services
+slug: llm-as-third-party-cognition-as-a-service
 excerpt: Delving into the extensive capabilities of large language models like GPT-4 as cognition services and exploring their transformative impact on various industries.
 ---
 

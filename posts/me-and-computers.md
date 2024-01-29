@@ -1,7 +1,7 @@
 ---
 title: My Ongoing Odyssey with Computers and Programming
 date: 2023-01-15
-slug: my-ongoing-odyssey-with-computers-and-programming
+slug: me-and-computers
 excerpt: Delving into the captivating journey of my exploration of computers and programming, from humble beginnings to embracing the ever-evolving world of technology.
 ---
 
