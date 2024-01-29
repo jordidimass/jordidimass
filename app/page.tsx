@@ -1,6 +1,5 @@
 import fs from 'fs';
 import Link from 'next/link';
-import matter from 'gray-matter';
 
 const getPostMetadata = () => { 
   const folder = "posts/";
