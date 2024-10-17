@@ -1,25 +1,10 @@
-import fs from 'fs';
-import Link from 'next/link';
-
-const getPostMetadata = () => { 
-  const folder = "posts/";
-  const files = fs.readdirSync('posts');
-  const markdownPosts = files.filter((fn) => fn.endsWith(".md"));
-  const slugs = markdownPosts.map((fn) => fn.replace(".md", ""));
-  return slugs;
-};
-
-const HomePage =() => {
-  const postMetadata = getPostMetadata();
-  const postPreviews = postMetadata.map((slug) => (
-    <div>
-      <Link href={`/posts/${slug}`}>
-      <h2>{slug}</h2>
-      </Link>
+export default function HomePage() {
+  return (
+    <div className="flex items-center h-screen px-8">
+      <div className="w-1/2">
+        <h1 className="text-4xl font-bold mb-4">Welcome to My Blog</h1>
+        <p className="text-lg">Your introductory text goes here.</p>
+      </div>
     </div>
-  ));
-
-  return <div>{postPreviews}</div>
-};
-
-export default HomePage;
+  );
+}

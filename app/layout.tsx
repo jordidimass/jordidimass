@@ -1,33 +1,21 @@
-import './globals.css'
-import Link from 'next/link'
-import type { Metadata } from 'next'
-import { Cormorant } from 'next/font/google'
+import './globals.css';
+import Navbar from '@/components/Navbar'; 
+import type { Metadata } from 'next';
+import { Cormorant } from 'next/font/google';
 
 const cormorant = Cormorant({
   weight: '400',
   subsets: ['latin'],
   display: 'swap',
-})
+});
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  const header = ( 
-    <header>
-      <div>
-        <Link href="/">
-        <h1>Jordi</h1>
-        </Link>
-        <p className='py-5 text-lg'>Welcome to my place on the internet</p>
-      </div>
-    </header>
-  );
-
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={cormorant.className}>{header}{children}</body>
+      <body className={cormorant.className}>
+        <Navbar />
+        {children}
+      </body>
     </html>
   );
 }
