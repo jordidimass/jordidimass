@@ -22,13 +22,14 @@ export function getPostBySlug(slug: string) {
 
   const metadata: PostMetadata = {
     title: data.title,
-    date: data.date,
+    date: new Date(data.date).toISOString(), 
     slug: data.slug,
     excerpt: data.excerpt,
   };
 
   return { metadata, content };
 }
+
 
 export function getAllPosts(): PostMetadata[] {
   const slugs = getPostSlugs();
