@@ -7,11 +7,11 @@ export default function Navbar() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   return (
-    <nav className="flex items-center justify-between p-4 bg-gray-100">
+    <nav className="flex items-center justify-between p-6 bg-gray-100">
       <Link href="/" className="text-2xl font-bold">
         ?
       </Link>
-      <ul className="flex space-x-6">
+      <ul className="flex space-x-6 gap-4">
         <li>
           <Link href="/blog" className="hover:text-blue-500">
             Blog
@@ -29,11 +29,7 @@ export default function Navbar() {
         >
           <button className="hover:text-blue-500 focus:outline-none">Connect</button>
           {dropdownOpen && (
-            <ul
-              className="absolute right-0 mt-2 w-40 bg-white border border-gray-200 rounded shadow-lg"
-              onMouseEnter={() => setDropdownOpen(true)}
-              onMouseLeave={() => setDropdownOpen(false)}
-            >
+            <ul className="absolute right-0 mt-2 w-40 bg-white border border-gray-200 rounded shadow-lg">
               <li>
                 <a
                   href="https://twitter.com/yourhandle"

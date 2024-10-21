@@ -1,4 +1,3 @@
-// app/posts/[slug]/page.tsx
 import { getPostBySlug, getPostSlugs } from '../../../lib/posts';
 import Markdown from 'markdown-to-jsx';
 
