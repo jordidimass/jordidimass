@@ -37,7 +37,6 @@ export default function Navbar() {
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 128 128"
                 className="w-8 h-8 transition-transform duration-300 ease-in-out hover:rotate-180"
-                style={{ }}
               >
                 <path
                   style={{ fill: '#ffffff' }}
@@ -52,7 +51,7 @@ export default function Navbar() {
                 <Link
                   key={item.name}
                   href={item.href}
-                  className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+                  className="text-[#FFBCBC] hover:text-white px-3 py-2 rounded-md text-lg font-medium"
                 >
                   {item.name}
                 </Link>
@@ -60,7 +59,7 @@ export default function Navbar() {
               <div className="relative">
                 <button
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium focus:outline-none"
+                  className="text-[#FFBCBC] hover:text-white px-3 py-2 rounded-md text-lg font-medium focus:outline-none"
                 >
                   Connect
                   <svg className="ml-1 h-4 w-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -68,15 +67,15 @@ export default function Navbar() {
                   </svg>
                 </button>
                 {isDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-gray-800 ring-1 ring-black ring-opacity-5">
+                  <div className="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-black/70 backdrop-blur-md ring-1 ring-black ring-opacity-5">
                     <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
                       {connectItems.map((item, index) => (
                         <React.Fragment key={item.title}>
                           {index === 7 && <div className="border-t border-gray-700 my-1"></div>}
                           <a
                             href={item.href}
-                            onClick={() => setIsOpen(false)} 
-                            className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white"
+                            onClick={() => setIsDropdownOpen(false)} // Close the dropdown on click
+                            className="block px-4 py-2 text-sm text-[#FFBCBC] hover:bg-gray-700 hover:text-white"
                             role="menuitem"
                           >
                             {item.title}
@@ -117,7 +116,7 @@ export default function Navbar() {
                 key={item.name}
                 href={item.href}
                 onClick={() => setIsOpen(false)} 
-                className="text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium"
+                className="text-[#FFBCBC] hover:text-white block px-3 py-2 rounded-md text-lg font-medium"
               >
                 {item.name}
               </Link>
@@ -130,7 +129,7 @@ export default function Navbar() {
                   <a
                     href={item.href}
                     onClick={() => setIsOpen(false)} 
-                    className="text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium"
+                    className="text-[#FFBCBC] hover:text-white block px-3 py-2 rounded-md text-lg font-medium"
                   >
                     {item.title}
                   </a>
