@@ -1,0 +1,9 @@
+{
+    "ignoreBuildStep": true,
+    "functions": {
+      "api/**/*.ts": {
+        "includeFiles": "src/**"
+      }
+    }
+  }
+  
