@@ -1,4 +1,4 @@
-import { getPostBySlug, getPostSlugs } from '@/lib/posts';
+import { getPostBySlug } from '@/lib/posts';
 import Markdown from 'markdown-to-jsx';
 
 export default async function PostPage({ params }: { params: Promise<{ slug: string }> }) {
