@@ -20,11 +20,7 @@ export default function AboutPage() {
           isHovered ? "opacity-100" : "opacity-75"
         }`}
       >
-        Hello! I&apos;m Jordi, a passionate developer with a love for creating
-        intuitive and dynamic user experiences. I enjoy working with modern
-        web technologies and am always eager to learn and explore new
-        challenges. In my free time, I love hiking, reading, and experimenting
-        with new recipes in the kitchen.
+       I am a Software Developer from Guatemala, with a passion for physics, systems, computer interfaces and computer science. I never stop learning and constantly expand my knowledge, as I believe that connecting with inspiring individuals and challenging projects fuels my growth. I am eager to collaborate with other developers and contribute to the web development community.
       </p>
     </div>
   );
