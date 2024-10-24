@@ -20,7 +20,7 @@ export default function AboutPage() {
           isHovered ? "opacity-100" : "opacity-75"
         }`}
       >
-        Hello! I'm Jordi, a passionate developer with a love for creating
+        Hello! I&apos;m Jordi, a passionate developer with a love for creating
         intuitive and dynamic user experiences. I enjoy working with modern
         web technologies and am always eager to learn and explore new
         challenges. In my free time, I love hiking, reading, and experimenting
