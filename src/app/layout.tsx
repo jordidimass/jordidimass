@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Navbar from '@/components/Navbar'; 
 import { Cormorant } from 'next/font/google';
+import { Analytics } from "@vercel/analytics/react"
 import "./globals.css";
 
 const cormorant = Cormorant({
