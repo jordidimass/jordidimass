@@ -1,12 +1,12 @@
-'use client'
+'use client';
 
-import React, { useState } from 'react'
-import Link from 'next/link'
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 
 const navItems = [
   { name: 'Blog', href: '/blog' },
   { name: 'About', href: '/about' },
-]
+];
 
 const connectItems = [
   { title: "VSCO gallery", href: "https://vsco.co/jordidimass/gallery" },
@@ -20,15 +20,36 @@ const connectItems = [
   { title: "Instagram", href: "https://instagram.com/jordidimass" },
   { title: "LinkedIn", href: "https://www.linkedin.com/in/jordidimass/" },
   { title: "GitHub", href: "https://github.com/jordidimass" },
-  { title: "Telegram", href: "https://t.me/jordidimass" }
-]
+  { title: "Telegram", href: "https://t.me/jordidimass" },
+];
 
 export default function Navbar() {
-  const [isOpen, setIsOpen] = useState(false)
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [isOpen, setIsOpen] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  // Scroll handler to toggle background transparency
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 50) {
+        setIsScrolled(true);
+      } else {
+        setIsScrolled(false);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   return (
-    <nav className="bg-gray-1000 border-b border-gray-800">
+    <nav
+      className={`fixed w-full top-0 z-50 transition-colors duration-300 ${
+        isScrolled
+          ? 'bg-black/40 backdrop-blur-md shadow-lg' 
+          : 'bg-[#111010]' 
+      }`}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center">
@@ -140,5 +161,5 @@ export default function Navbar() {
         </div>
       )}
     </nav>
-  )
+  );
 }

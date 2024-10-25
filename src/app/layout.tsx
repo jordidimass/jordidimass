@@ -22,7 +22,9 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${cormorant.className} antialiased`}>
         <Navbar />
-        {children}
+        <div className="pt-16">
+          {children}
+        </div>
       </body>
     </html>
   );
