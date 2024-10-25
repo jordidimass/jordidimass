@@ -6,30 +6,14 @@ import Link from 'next/link';
 const navItems = [
   { name: 'blog', href: '/blog' },
   { name: 'about', href: '/about' },
-];
-
-const connectItems = [
-  { title: "VSCO gallery", href: "https://vsco.co/jordidimass/gallery" },
-  { title: "occasional photographer", href: "https://unsplash.com/@jordidimass" },
-  { title: "music journey", href: "https://www.last.fm/user/jordidimass" },
-  { title: "spotify playlist", href: "https://open.spotify.com/user/jordidimass/playlists" },
-  { title: "some repos", href: "https://github.com/jordidimass?tab=repositories" },
-  { title: "book reviews", href: "https://goodreads.com/jordidimass" },
-  { title: "film diary", href: "https://letterboxd.com/jordidimass/" },
-  { title: "X", href: "https://X.com/jordidimass" },
-  { title: "Instagram", href: "https://instagram.com/jordidimass" },
-  { title: "LinkedIn", href: "https://www.linkedin.com/in/jordidimass/" },
-  { title: "GitHub", href: "https://github.com/jordidimass" },
-  { title: "Telegram", href: "https://t.me/jordidimass" },
+  { name: 'connect', href: '/connect' },
 ];
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const navRef = useRef<HTMLDivElement>(null);
 
-  // Scroll handler to toggle background transparency
   useEffect(() => {
     const handleScroll = () => {
       if (window.scrollY > 50) {
@@ -39,26 +23,24 @@ export default function Navbar() {
       }
     };
 
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  // Click outside handler to close dropdown
-  useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsDropdownOpen(false);
+      if (navRef.current && !navRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
       }
     };
 
+    window.addEventListener('scroll', handleScroll);
     document.addEventListener('mousedown', handleClickOutside);
+
     return () => {
+      window.removeEventListener('scroll', handleScroll);
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
 
   return (
     <nav
+      ref={navRef}
       className={`fixed w-full top-0 z-50 transition-colors duration-300 ${
         isScrolled
           ? 'bg-black/40 backdrop-blur-md shadow-lg' 
@@ -92,36 +74,6 @@ export default function Navbar() {
                   {item.name}
                 </Link>
               ))}
-              <div className="relative" ref={dropdownRef}>
-                <button
-                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className="text-[#FFBCBC] hover:text-white px-3 py-2 rounded-md text-lg font-medium focus:outline-none"
-                >
-                  Connect
-                  <svg className="ml-1 h-4 w-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                {isDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-black/70 backdrop-blur-md ring-1 ring-black ring-opacity-5">
-                    <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
-                      {connectItems.map((item, index) => (
-                        <React.Fragment key={item.title}>
-                          {index === 7 && <div className="border-t border-gray-700 my-1"></div>}
-                          <a
-                            href={item.href}
-                            onClick={() => setIsDropdownOpen(false)}
-                            className="block px-4 py-2 text-sm text-[#FFBCBC] hover:bg-gray-700 hover:text-white"
-                            role="menuitem"
-                          >
-                            {item.title}
-                          </a>
-                        </React.Fragment>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
             </div>
           </div>
           <div className="md:hidden">
@@ -157,21 +109,6 @@ export default function Navbar() {
                 {item.name}
               </Link>
             ))}
-            <div className="space-y-2">
-              <p className="px-3 text-sm font-medium text-gray-400">Connect</p>
-              {connectItems.map((item, index) => (
-                <React.Fragment key={item.title}>
-                  {index === 7 && <div className="border-t border-gray-700 my-2"></div>}
-                  <a
-                    href={item.href}
-                    onClick={() => setIsOpen(false)} 
-                    className="text-[#FFBCBC] hover:text-white block px-3 py-2 rounded-md text-lg font-medium"
-                  >
-                    {item.title}
-                  </a>
-                </React.Fragment>
-              ))}
-            </div>
           </div>
         </div>
       )}
