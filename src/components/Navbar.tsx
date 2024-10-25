@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 
 const navItems = [
@@ -27,6 +27,7 @@ export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
 
   // Scroll handler to toggle background transparency
   useEffect(() => {
@@ -40,6 +41,20 @@ export default function Navbar() {
 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Click outside handler to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, []);
 
   return (
@@ -77,7 +92,7 @@ export default function Navbar() {
                   {item.name}
                 </Link>
               ))}
-              <div className="relative">
+              <div className="relative" ref={dropdownRef}>
                 <button
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                   className="text-[#FFBCBC] hover:text-white px-3 py-2 rounded-md text-lg font-medium focus:outline-none"
@@ -95,7 +110,7 @@ export default function Navbar() {
                           {index === 7 && <div className="border-t border-gray-700 my-1"></div>}
                           <a
                             href={item.href}
-                            onClick={() => setIsDropdownOpen(false)} // Close the dropdown on click
+                            onClick={() => setIsDropdownOpen(false)}
                             className="block px-4 py-2 text-sm text-[#FFBCBC] hover:bg-gray-700 hover:text-white"
                             role="menuitem"
                           >
