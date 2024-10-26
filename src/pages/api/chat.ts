@@ -18,10 +18,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       messages: [{ role: "user", content: prompt }],
     });
 
-    const responseText = completion.choices[0]?.message?.content?.trim() ?? '';
-    return res.status(200).json({ response: responseText });
+    const responseText = completion.choices[0]?.message?.content?.trim();
+    if (responseText) {
+      return res.status(200).json({ response: responseText });
+    } else {
+      console.error("Incomplete response from OpenAI:", completion);
+      return res.status(500).json({ error: "Received an incomplete response from the API" });
+    }
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ error: "Failed to generate response" });
+    console.error("Error in OpenAI API call:", error);
+
+    const errorMessage = (error as Error).message || "Failed to generate response";
+    return res.status(500).json({ error: errorMessage });
   }
 }
