@@ -68,7 +68,7 @@ export default function ConnectPage() {
         color="#ffffff"
       />
       <div className={`flex mx-auto items-center flex-col w-full ${isMobile ? 'min-h-screen' : 'h-full'} justify-center pt-16 pb-16 px-8 max-w-2xl relative z-10 ${isMobile ? '' : 'overflow-y-auto'}`}> 
-        <Link href="/">
+        <Link href="/matrix">
           <Image
             className="rounded-full cursor-pointer"
             alt={data.name}
