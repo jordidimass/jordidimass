@@ -112,7 +112,7 @@ export default function Navbar() {
                   key={item.name}
                   href={item.href}
                   onClick={() => setIsOpen(false)} 
-                  className="text-[#FFBCBC] hover:text-white block px-3 py-2 rounded-md text-2xl font-medium text-center"
+                  className="text-[#FFBCBC] hover:text-white block px-3 py-2 rounded-md text-6xl font-medium text-center"
                 >
                   {item.name}
                 </Link>
