@@ -378,17 +378,30 @@ export default function MatrixComponent() {
           body: JSON.stringify({ prompt: question }), // Send the user's question
         });
   
-        const data = await response.json();
+        // Capture the response text for debugging
+        const responseText = await response.text();
+        console.log("Raw API response:", responseText); // Log raw response for debugging
   
-        if (response.ok) {
-          // Append the generated response to the terminal output
-          setTerminalOutput((prevOutput) => [...prevOutput, data.response]);
+        // Attempt to parse the response if not empty
+        if (responseText) {
+          const data = JSON.parse(responseText);
+          if (response.ok) {
+            // Append the generated response to the terminal output
+            setTerminalOutput((prevOutput) => [...prevOutput, data.response]);
+          } else {
+            // In case of an error, show a generic error message
+            setTerminalOutput((prevOutput) => [...prevOutput, "Error: Could not generate a response."]);
+          }
         } else {
-          // In case of an error, show a generic error message
-          setTerminalOutput((prevOutput) => [...prevOutput, "Error: Could not generate a response."]);
+          // Handle the case where responseText is empty
+          setTerminalOutput((prevOutput) => [...prevOutput, "Error: Received an empty response from API."]);
         }
       } catch (error: unknown) {
-        setTerminalOutput((prevOutput) => [...prevOutput, `Error: Failed to connect to API. ${(error as Error).message}`]);
+        console.error("Error in processCommand:", error);
+        setTerminalOutput((prevOutput) => [
+          ...prevOutput,
+          `Error: Failed to connect to API. ${error instanceof Error ? error.message : "Unknown error"}`,
+        ]);
       }
     } else {
       // Handle other commands as usual
@@ -513,8 +526,8 @@ export default function MatrixComponent() {
           break;
       }
     }
-  };    
-
+  };
+  
   return (
     <div className="bg-black min-h-screen font-mono text-[#0FFD20] overflow-hidden">
       <style jsx global>{`
