@@ -5,8 +5,19 @@ export default function AboutPage() {
   const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
-    document.body.style.overflow = 'hidden';
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) { 
+        document.body.style.overflow = 'hidden';
+      } else {
+        document.body.style.overflow = 'unset';
+      }
+    };
+
+    handleResize(); 
+    window.addEventListener('resize', handleResize);
+
     return () => {
+      window.removeEventListener('resize', handleResize);
       document.body.style.overflow = 'unset';
     };
   }, []);
