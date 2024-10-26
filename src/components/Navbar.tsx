@@ -43,7 +43,7 @@ export default function Navbar() {
       ref={navRef}
       className={`fixed w-full top-0 z-50 transition-colors duration-300 ${
         isScrolled
-          ? 'bg-black/40 backdrop-blur-md shadow-lg' 
+          ? 'bg-[#111010]/40 backdrop-blur-md shadow-lg' 
           : 'bg-[#111010]' 
       }`}
     >

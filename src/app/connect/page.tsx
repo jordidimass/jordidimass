@@ -1,3 +1,6 @@
+'use client';
+
+import { useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import XIcon from '@mui/icons-material/X';
@@ -39,6 +42,13 @@ function LinkCard({ href, title }: { href: string; title: string }) {
 }
 
 export default function ConnectPage() {
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, []);
+
   return (
     <div className="relative w-full h-screen overflow-hidden">
       <Particles
@@ -48,7 +58,7 @@ export default function ConnectPage() {
         ease={60}
         color="#ffffff"
       />
-      <div className="flex mx-auto items-center flex-col w-full h-full justify-center pt-16 pb-16 px-8 max-w-2xl relative z-10"> 
+      <div className="flex mx-auto items-center flex-col w-full h-full justify-center pt-16 pb-16 px-8 max-w-2xl relative z-10 overflow-y-auto"> 
         <Link href="/">
           <Image
             className="rounded-full cursor-pointer"
