@@ -287,31 +287,32 @@ export default function MatrixComponent() {
     }
   };
 
-  const handleMouseMove = (e: MouseEvent | TouchEvent) => {
-    const clientX = e instanceof MouseEvent ? e.clientX : e.touches[0].clientX;
-    const clientY = e instanceof MouseEvent ? e.clientY : e.touches[0].clientY;
-
-    if (isDraggingTerminal) {
-      setTerminalPosition({
-        x: clientX - dragOffset.x,
-        y: clientY - dragOffset.y,
-      });
-    } else if (isResizingTerminal) {
-      const newWidth = clientX - terminalPosition.x + dragOffset.x;
-      const newHeight = clientY - terminalPosition.y + dragOffset.y;
-      setTerminalSize({
-        width: Math.max(200, newWidth),
-        height: Math.max(100, newHeight),
-      });
-    }
-  };
-
-  const handleMouseUp = () => {
-    setIsDraggingTerminal(false);
-    setIsResizingTerminal(false);
-  };
-
+  // Move handleMouseMove and handleMouseUp inside the useEffect
   useEffect(() => {
+    const handleMouseMove = (e: MouseEvent | TouchEvent) => {
+      const clientX = e instanceof MouseEvent ? e.clientX : e.touches[0].clientX;
+      const clientY = e instanceof MouseEvent ? e.clientY : e.touches[0].clientY;
+
+      if (isDraggingTerminal) {
+        setTerminalPosition({
+          x: clientX - dragOffset.x,
+          y: clientY - dragOffset.y,
+        });
+      } else if (isResizingTerminal) {
+        const newWidth = clientX - terminalPosition.x + dragOffset.x;
+        const newHeight = clientY - terminalPosition.y + dragOffset.y;
+        setTerminalSize({
+          width: Math.max(200, newWidth),
+          height: Math.max(100, newHeight),
+        });
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsDraggingTerminal(false);
+      setIsResizingTerminal(false);
+    };
+
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseup", handleMouseUp);
     document.addEventListener("touchmove", handleMouseMove);
@@ -322,7 +323,7 @@ export default function MatrixComponent() {
       document.removeEventListener("touchmove", handleMouseMove);
       document.removeEventListener("touchend", handleMouseUp);
     };
-  }, [isDraggingTerminal, isResizingTerminal]);
+  }, [isDraggingTerminal, isResizingTerminal, dragOffset, terminalPosition]);
 
   const handleTerminalInput = (e: React.KeyboardEvent<HTMLInputElement>) => {
     // Handle arrow keys for command history navigation
@@ -386,8 +387,8 @@ export default function MatrixComponent() {
           // In case of an error, show a generic error message
           setTerminalOutput((prevOutput) => [...prevOutput, "Error: Could not generate a response."]);
         }
-      } catch (error) {
-        setTerminalOutput((prevOutput) => [...prevOutput, "Error: Failed to connect to API."]);
+      } catch (error: unknown) {
+        setTerminalOutput((prevOutput) => [...prevOutput, `Error: Failed to connect to API. ${(error as Error).message}`]);
       }
     } else {
       // Handle other commands as usual
