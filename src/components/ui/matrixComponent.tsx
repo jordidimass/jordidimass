@@ -394,30 +394,23 @@ export default function MatrixComponent() {
       // Handle other commands as usual
       switch (lowerCommand) {
         case "help":
-          if (window.innerWidth >= 768) {
-            setTerminalOutput([
-              ...terminalOutput,
-              "Available commands:",
-              "help          - Show available commands and their descriptions.",
-              "clear         - Clear the terminal screen.",
-              "characters    - List the characters from the Matrix.",
-              "play-track    - Start playing the current audio track.",
-              "pause-track   - Pause the currently playing track.",
-              "now-playing   - Display the current track and its status.",
-              "toggle-matrix - Toggle the Matrix animation on or off.",
-              "next-track    - Switch to the next track in the playlist.",
-              "prev-track    - Switch to the previous track in the playlist.",
-              "pill-choice   - Make the red or blue pill choice.",
-              "ask           - Ask any question in natural language. Type 'ask' and then your prompt.",
-              "exit          - Exit the Matrix interface and return to the previous page.",
-              "whoami        - Display information about the user of this system.",
-            ]);
-          } else {
-            setTerminalOutput([
-              ...terminalOutput,
-              "Available commands: help, clear, characters, play-track, pause-track, now-playing, toggle-matrix, next-track, prev-track, pill-choice, ask, exit, whoami",
-            ]);
-          }
+          setTerminalOutput([
+            ...terminalOutput,
+            "Available commands:",
+            "help          - Show available commands and their descriptions.",
+            "clear         - Clear the terminal screen.",
+            "characters    - List the characters from the Matrix.",
+            "play-track    - Start playing the current audio track.",
+            "pause-track   - Pause the currently playing track.",
+            "now-playing   - Display the current track and its status.",
+            "toggle-matrix - Toggle the Matrix animation on or off.",
+            "next-track    - Switch to the next track in the playlist.",
+            "prev-track    - Switch to the previous track in the playlist.",
+            "pill-choice   - Make the red or blue pill choice.",
+            "ask           - Ask any question in natural language. Type 'ask' and then your prompt.",
+            "exit          - Exit the Matrix interface and return to the previous page.",
+            "whoami        - Display information about the user of this system.",
+          ]);
           break;
   
         case "clear":
