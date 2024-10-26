@@ -32,17 +32,24 @@ export default function Navbar() {
     window.addEventListener('scroll', handleScroll);
     document.addEventListener('mousedown', handleClickOutside);
 
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+
     return () => {
       window.removeEventListener('scroll', handleScroll);
       document.removeEventListener('mousedown', handleClickOutside);
+      document.body.style.overflow = '';
     };
-  }, []);
+  }, [isOpen]); 
 
   return (
     <nav
       ref={navRef}
       className={`fixed w-full top-0 z-50 transition-colors duration-300 ${
-        isScrolled
+        isScrolled && !isOpen
           ? 'bg-[#111010]/40 backdrop-blur-md shadow-lg' 
           : 'bg-[#111010]' 
       }`}
@@ -94,28 +101,26 @@ export default function Navbar() {
         </div>
       </div>
 
-      <div 
-        className={`fixed inset-0 z-40 bg-[#111010]/40 backdrop-blur-md shadow-lg md:hidden transition-opacity duration-300 ${
-          isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-        }`}
-      >
-        <div className={`flex items-center justify-center h-full transition-all duration-300 ${
-          isOpen ? 'scale-100 opacity-100' : 'scale-95 opacity-0'
-        }`}>
-          <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-            {navItems.map((item) => (
-              <Link
-                key={item.name}
-                href={item.href}
-                onClick={() => setIsOpen(false)} 
-                className="text-[#FFBCBC] hover:text-white block px-3 py-2 rounded-md text-2xl font-medium text-center"
-              >
-                {item.name}
-              </Link>
-            ))}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 z-40 bg-[#111010]/40 backdrop-blur-md shadow-lg md:hidden"
+        >
+          <div className="flex items-center justify-center min-h-screen">
+            <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+              {navItems.map((item) => (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  onClick={() => setIsOpen(false)} 
+                  className="text-[#FFBCBC] hover:text-white block px-3 py-2 rounded-md text-2xl font-medium text-center"
+                >
+                  {item.name}
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </nav>
   );
 }
