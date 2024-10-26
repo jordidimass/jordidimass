@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import XIcon from '@mui/icons-material/X';
@@ -42,26 +42,23 @@ function LinkCard({ href, title }: { href: string; title: string }) {
 }
 
 export default function ConnectPage() {
+  const [isMobile, setIsMobile] = useState(false);
+
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth >= 1024) { 
-        document.body.style.overflow = 'hidden';
-      } else {
-        document.body.style.overflow = 'unset';
-      }
+      setIsMobile(window.innerWidth < 1024);
     };
 
-    handleResize();  
+    handleResize();
     window.addEventListener('resize', handleResize);
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      document.body.style.overflow = 'unset';
     };
   }, []);
 
   return (
-    <div className="relative w-full h-screen overflow-hidden">
+    <div className={`relative w-full ${isMobile ? 'min-h-screen' : 'h-screen overflow-hidden'}`}>
       <Particles
         className="absolute inset-0 -z-10"
         quantity={450}
@@ -69,7 +66,7 @@ export default function ConnectPage() {
         ease={60}
         color="#ffffff"
       />
-      <div className="flex mx-auto items-center flex-col w-full h-full justify-center pt-16 pb-16 px-8 max-w-2xl relative z-10 overflow-y-auto"> 
+      <div className={`flex mx-auto items-center flex-col w-full ${isMobile ? 'min-h-screen' : 'h-full'} justify-center pt-16 pb-16 px-8 max-w-2xl relative z-10 ${isMobile ? '' : 'overflow-y-auto'}`}> 
         <Link href="/">
           <Image
             className="rounded-full cursor-pointer"
