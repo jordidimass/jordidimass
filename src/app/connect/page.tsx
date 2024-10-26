@@ -9,6 +9,7 @@ import LinkedInIcon from '@mui/icons-material/LinkedIn';
 import InstagramIcon from '@mui/icons-material/Instagram';
 import TelegramIcon from '@mui/icons-material/Telegram';
 import Particles from '@/components/ui/particles';
+import { motion } from 'framer-motion';
 
 const data = {
     name: "Jordi Dimas",
@@ -35,7 +36,7 @@ function LinkCard({ href, title }: { href: string; title: string }) {
   return (
     <a href={href} target="_blank" rel="noopener noreferrer" className="flex text-lg items-center p-4 bg-gray-800 bg-opacity-30 backdrop-filter backdrop-blur-sm w-full md:w-[70%] rounded-md hover:scale-105 transition-all border border-gray-600 mb-3 duration-300">
       <div className="flex flex-col text-center w-full">
-        <h2 className="font-medium text-gray-100">{title}</h2>
+        <h2 className="text-2xl text-gray-100">{title}</h2>
       </div>
     </a>
   );
@@ -80,44 +81,30 @@ export default function ConnectPage() {
         {data.links.map((link) => (
           <LinkCard key={link.href} href={link.href} title={link.title} />
         ))}
-        <div className="flex justify-center gap-7 w-full m-5 text-white">
-          {data.socials.map((link) => {
-            if (link.href.includes('X')) {
-              return (
-                <a href={link.href} key={link.href} target="_blank" rel="noopener noreferrer">
-                  <XIcon className="w-10 h-10"/>
-                </a>
-              );
-            }
-            if (link.href.includes('github')) {
-              return (
-                <a href={link.href} key={link.href} target="_blank" rel="noopener noreferrer">
-                  <GitHubIcon className="w-10 h-10"/>
-                </a>
-              );
-            }
-            if (link.href.includes('linkedin')) {
-              return (
-                <a href={link.href} key={link.href} target="_blank" rel="noopener noreferrer">
-                  <LinkedInIcon className="w-10 h-10"/>
-                </a>
-              );
-            }
-            if (link.href.includes('instagram')) {
-              return (
-                <a href={link.href} key={link.href} target="_blank" rel="noopener noreferrer">
-                  <InstagramIcon className="w-10 h-10"/>
-                </a>
-              );
-            }
-            if (link.href.includes('t.me')) {
-              return (
-                <a href={link.href} key={link.href} target="_blank" rel="noopener noreferrer">
-                  <TelegramIcon className="w-10 h-10"/>
-                </a>
-              );
-            }
-          })}
+        <div className="flex justify-center w-full m-5 text-white">
+          <motion.div className="flex items-end gap-4 bg-gray-800 bg-opacity-30 backdrop-filter backdrop-blur-sm p-2 rounded-full">
+            {data.socials.map((link) => {
+              let Icon;
+              if (link.href.includes('X')) Icon = XIcon;
+              else if (link.href.includes('github')) Icon = GitHubIcon;
+              else if (link.href.includes('linkedin')) Icon = LinkedInIcon;
+              else if (link.href.includes('instagram')) Icon = InstagramIcon;
+              else if (link.href.includes('t.me')) Icon = TelegramIcon;
+              
+              return Icon ? (
+                <motion.a
+                  href={link.href}
+                  key={link.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  whileHover={{ scale: 1.5 }}
+                  whileTap={{ scale: 0.9 }}
+                >
+                  <Icon className="w-8 h-8 transition-all duration-200" />
+                </motion.a>
+              ) : null;
+            })}
+          </motion.div>
         </div>
       </div>  
     </div>
