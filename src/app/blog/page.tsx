@@ -6,14 +6,14 @@ export default function BlogPage() {
 
   return (
     <div className="max-w-4xl mx-auto py-12 px-6 text-[#FFBCBC]">
-      <h1 className="text-4xl font-light tracking-widest uppercase mb-12 text-right">
+      <h1 className="text-4xl font-light tracking-widest mb-12 text-right">
         blog
       </h1>
       {posts.map((post) => (
         <div key={post.slug} className="mb-8">
           <Link
             href={`/posts/${post.slug}`}
-            className="block text-2xl font-light tracking-widest uppercase hover:text-[#ffffff] transition-all duration-300 mb-2"
+            className="block text-2xl font-light tracking-widest  hover:text-[#ffffff] transition-all duration-300 mb-2"
           >
             {post.title}
           </Link>
