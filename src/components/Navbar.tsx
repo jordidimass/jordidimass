@@ -79,39 +79,43 @@ export default function Navbar() {
           <div className="md:hidden">
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
+              className="relative z-50 w-8 h-8 flex items-center justify-center focus:outline-none"
+              aria-label="Toggle Menu"
             >
-              <span className="sr-only">Open main menu</span>
-              {isOpen ? (
-                <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              ) : (
-                <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              )}
+              <div className="relative flex overflow-hidden items-center justify-center w-[20px] h-[20px] transform transition-all duration-200">
+                <div className={`flex flex-col justify-between w-[20px] h-[20px] transform transition-all duration-300 origin-center overflow-hidden ${isOpen ? 'translate-x-1.5' : ''}`}>
+                  <div className={`bg-white h-[2px] w-7 transform transition-all duration-300 origin-left ${isOpen ? 'rotate-[42deg] w-2/3 -translate-y-1' : ''}`}></div>
+                  <div className={`bg-white h-[2px] w-7 rounded transform transition-all duration-300 ${isOpen ? 'opacity-0' : ''}`}></div>
+                  <div className={`bg-white h-[2px] w-7 transform transition-all duration-300 origin-left ${isOpen ? '-rotate-[42deg] w-2/3 translate-y-1' : ''}`}></div>
+                </div>
+              </div>
             </button>
           </div>
         </div>
       </div>
 
-      {isOpen && (
-        <div className="md:hidden">
+      <div 
+        className={`fixed inset-0 z-40 bg-[#111010]/40 backdrop-blur-md shadow-lg md:hidden transition-opacity duration-300 ${
+          isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+      >
+        <div className={`flex items-center justify-center h-full transition-all duration-300 ${
+          isOpen ? 'scale-100 opacity-100' : 'scale-95 opacity-0'
+        }`}>
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
             {navItems.map((item) => (
               <Link
                 key={item.name}
                 href={item.href}
                 onClick={() => setIsOpen(false)} 
-                className="text-[#FFBCBC] hover:text-white block px-3 py-2 rounded-md text-lg font-medium"
+                className="text-[#FFBCBC] hover:text-white block px-3 py-2 rounded-md text-2xl font-medium text-center"
               >
                 {item.name}
               </Link>
             ))}
           </div>
         </div>
-      )}
+      </div>
     </nav>
   );
 }
