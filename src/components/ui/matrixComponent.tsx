@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { X, Minus, Maximize2 } from "lucide-react";
+import { X, Minus, Maximize2, Play, Pause, SkipBack, SkipForward } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 type TrackOption = "clubbed" | "spybreak" | "prime_audio_soup" | "mindfields";
@@ -28,7 +28,7 @@ export default function MatrixComponent() {
     "Follow the white rabbit.",
     "Knock, knock, it's me jordi.",
   ]);
-  const [currentTrack, setCurrentTrack] = useState<TrackOption>("clubbed");
+  const [currentTrack, setCurrentTrack] = useState<TrackOption>("mindfields");
 
   // Command history states
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
@@ -201,7 +201,7 @@ export default function MatrixComponent() {
     setIsMatrixAnimating(!isMatrixAnimating);
   };
 
-  const goToNextTrack = () => {
+  const goToNextTrack = async () => {
     const trackList: Array<TrackOption> = [
       "clubbed",
       "spybreak",
@@ -213,6 +213,8 @@ export default function MatrixComponent() {
     const nextTrack = trackList[nextTrackIndex];
 
     if (currentTrack !== nextTrack) {
+      const wasPlaying = isAudioPlaying;
+      setIsAudioPlaying(false);
       setCurrentTrack(nextTrack);
 
       if (audioRef.current) {
@@ -220,17 +222,21 @@ export default function MatrixComponent() {
         audioRef.current.src = tracks[nextTrack].src;
         audioRef.current.currentTime = 0;
 
-        audioRef.current.load();
-        if (isAudioPlaying && audioRef.current) {
-          audioRef.current.play().catch((error) => {
-            console.warn("Playback was prevented due to autoplay policy: ", error);
-          });
+        try {
+          await audioRef.current.load();
+          if (wasPlaying) {
+            await audioRef.current.play();
+            setIsAudioPlaying(true);
+          }
+        } catch (error) {
+          console.warn("Playback error:", error);
+          setIsAudioPlaying(false);
         }
       }
     }
   };
 
-  const goToPrevTrack = () => {
+  const goToPrevTrack = async () => {
     const trackList: Array<TrackOption> = [
       "clubbed",
       "spybreak",
@@ -242,6 +248,8 @@ export default function MatrixComponent() {
     const prevTrack = trackList[prevTrackIndex];
 
     if (currentTrack !== prevTrack) {
+      const wasPlaying = isAudioPlaying;
+      setIsAudioPlaying(false);
       setCurrentTrack(prevTrack);
 
       if (audioRef.current) {
@@ -249,11 +257,15 @@ export default function MatrixComponent() {
         audioRef.current.src = tracks[prevTrack].src;
         audioRef.current.currentTime = 0;
 
-        audioRef.current.load();
-        if (isAudioPlaying && audioRef.current) {
-          audioRef.current.play().catch((error) => {
-            console.warn("Playback was prevented due to autoplay policy: ", error);
-          });
+        try {
+          await audioRef.current.load();
+          if (wasPlaying) {
+            await audioRef.current.play();
+            setIsAudioPlaying(true);
+          }
+        } catch (error) {
+          console.warn("Playback error:", error);
+          setIsAudioPlaying(false);
         }
       }
     }
@@ -362,7 +374,6 @@ export default function MatrixComponent() {
   const processCommand = async (command: string) => {
     const lowerCommand = command.toLowerCase().trim();
   
-    // Check if the command is a natural language query using "ask"
     if (lowerCommand.startsWith("ask ")) {
       const question = command.slice(4); // Remove the "ask " prefix from the user input
   
@@ -401,7 +412,6 @@ export default function MatrixComponent() {
         ]);
       }
     } else {
-      // Handle other commands as usual
       switch (lowerCommand) {
         case "help":
           setTerminalOutput([
@@ -411,23 +421,58 @@ export default function MatrixComponent() {
             "help          - Show available commands and their descriptions.",
             "clear         - Clear the terminal screen.",
             "characters    - List the characters from the Matrix.",
-            "play-track    - Start playing the current audio track.",
-            "pause-track   - Pause the currently playing track.",
-            "now-playing   - Display the current track and its status.",
+            "play         - Start playing the audio track and show controls.",
+            "pause        - Pause the current track.",
+            "next         - Switch to the next track.",
+            "prev         - Switch to the previous track.",
             "toggle-matrix - Toggle the Matrix animation on or off.",
-            "next-track    - Switch to the next track in the playlist.",
-            "prev-track    - Switch to the previous track in the playlist.",
             "pill-choice   - Make the red or blue pill choice.",
             "ask <query>   - Ask the Matrix AI a question in natural language.",
             "exit          - Exit the Matrix interface and return to the previous page.",
             "whoami        - Display information about the user of this system.",
           ]);
           break;
-  
+
+        case "play":
+          if (!showMusicWindow) {
+            setShowMusicWindow(true);
+          }
+          if (!isAudioPlaying) {
+            toggleAudio();
+          }
+          setTerminalOutput([
+            ...terminalOutput,
+            `Playing: ${tracks[currentTrack].title}`,
+          ]);
+          break;
+
+        case "pause":
+          if (isAudioPlaying) {
+            toggleAudio();
+          }
+          setTerminalOutput([...terminalOutput, "Audio paused."]);
+          break;
+
+        case "next":
+          await goToNextTrack();
+          setTerminalOutput([
+            ...terminalOutput,
+            `Switched to: ${tracks[currentTrack].title}`,
+          ]);
+          break;
+
+        case "prev":
+          await goToPrevTrack();
+          setTerminalOutput([
+            ...terminalOutput,
+            `Switched to: ${tracks[currentTrack].title}`,
+          ]);
+          break;
+
         case "clear":
           setTerminalOutput([]);
           break;
-  
+
         case "characters":
           setTerminalOutput([
             ...terminalOutput,
@@ -436,47 +481,7 @@ export default function MatrixComponent() {
             "Agent Smith - Sentient program of the Matrix",
           ]);
           break;
-  
-        case "next-track":
-          goToNextTrack();
-          setTerminalOutput((prevOutput) => [
-            ...prevOutput,
-            `Switched to next track: ${tracks[currentTrack].title}`,
-            `Now playing: ${tracks[currentTrack].title}`,
-          ]);
-          break;
-  
-        case "prev-track":
-          goToPrevTrack();
-          setTerminalOutput((prevOutput) => [
-            ...prevOutput,
-            `Switched to previous track: ${tracks[currentTrack].title}`,
-            `Now playing: ${tracks[currentTrack].title}`,
-          ]);
-          break;
-  
-        case "play-track":
-          toggleAudio();
-          setTerminalOutput((prevOutput) => [
-            ...prevOutput,
-            `Playing: ${tracks[currentTrack].title}`,
-          ]);
-          break;
-  
-        case "pause-track":
-          toggleAudio();
-          setTerminalOutput((prevOutput) => [...prevOutput, "Audio paused."]);
-          break;
-  
-        case "now-playing":
-          setTerminalOutput((prevOutput) => [
-            ...prevOutput,
-            `Now playing: ${tracks[currentTrack].title}`,
-            `Status: ${isAudioPlaying ? "Playing" : "Paused"}`,
-            `Time remaining: ${formatTime(remainingTime)}`,
-          ]);
-          break;
-  
+
         case "toggle-matrix":
           toggleMatrixAnimation();
           setTerminalOutput((prevOutput) => [
@@ -484,7 +489,7 @@ export default function MatrixComponent() {
             isMatrixAnimating ? "Pausing Matrix animation." : "Resuming Matrix animation.",
           ]);
           break;
-  
+
         case "pill-choice":
           setTerminalOutput((prevOutput) => [
             ...prevOutput,
@@ -493,30 +498,30 @@ export default function MatrixComponent() {
             "Which pill do you choose? (Type 'red' or 'blue')",
           ]);
           break;
-  
+
         case "red":
           setTerminalOutput((prevOutput) => [
             ...prevOutput,
             "Remember... all I'm offering is the truth. Nothing more.",
           ]);
           break;
-  
+
         case "blue":
           setTerminalOutput((prevOutput) => [...prevOutput, "The Matrix has you..."]);
           break;
-  
+
         case "exit":
           setTerminalOutput((prevOutput) => [...prevOutput, "Exiting the Matrix..."]);
           setTimeout(() => handleExit(), 2000);
           break;
-  
+
         case "whoami":
           setTerminalOutput((prevOutput) => [
             ...prevOutput,
             "my name is jordi, thanks for visiting my website",
           ]);
           break;
-  
+
         default:
           setTerminalOutput((prevOutput) => [...prevOutput, "Command not recognized. Type 'help' for available commands."]);
           break;
@@ -524,6 +529,62 @@ export default function MatrixComponent() {
     }
   };
   
+  const [musicWindowPosition, setMusicWindowPosition] = useState(() => ({
+    x: window.innerWidth - 320, // 300px width + 20px margin
+    y: 20 // 20px margin from top
+  }));
+  const [musicWindowSize] = useState({ width: 300, height: 150 });
+  const [isDraggingMusicWindow, setIsDraggingMusicWindow] = useState(false);
+  const musicWindowRef = useRef<HTMLDivElement>(null);
+
+  // Add this effect to handle music window dragging
+  useEffect(() => {
+    const handleMusicWindowMove = (e: MouseEvent | TouchEvent) => {
+      if (isDraggingMusicWindow) {
+        const clientX = e instanceof MouseEvent ? e.clientX : e.touches[0].clientX;
+        const clientY = e instanceof MouseEvent ? e.clientY : e.touches[0].clientY;
+        
+        setMusicWindowPosition({
+          x: clientX - dragOffset.x,
+          y: clientY - dragOffset.y,
+        });
+      }
+    };
+
+    const handleMusicWindowUp = () => {
+      setIsDraggingMusicWindow(false);
+    };
+
+    document.addEventListener("mousemove", handleMusicWindowMove);
+    document.addEventListener("mouseup", handleMusicWindowUp);
+    document.addEventListener("touchmove", handleMusicWindowMove);
+    document.addEventListener("touchend", handleMusicWindowUp);
+
+    return () => {
+      document.removeEventListener("mousemove", handleMusicWindowMove);
+      document.removeEventListener("mouseup", handleMusicWindowUp);
+      document.removeEventListener("touchmove", handleMusicWindowMove);
+      document.removeEventListener("touchend", handleMusicWindowUp);
+    };
+  }, [isDraggingMusicWindow, dragOffset]);
+
+  // Add this handler for music window dragging
+  const handleMusicWindowMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
+    const rect = musicWindowRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const clientX = e.type === "mousedown" ? (e as React.MouseEvent).clientX : (e as React.TouchEvent).touches[0].clientX;
+    const clientY = e.type === "mousedown" ? (e as React.MouseEvent).clientY : (e as React.TouchEvent).touches[0].clientY;
+
+    setDragOffset({
+      x: clientX - rect.left,
+      y: clientY - rect.top,
+    });
+    setIsDraggingMusicWindow(true);
+  };
+
+  const [showMusicWindow, setShowMusicWindow] = useState(false);
+
   return (
     <div className="bg-black min-h-screen font-mono text-[#0FFD20] overflow-hidden">
       <style jsx global>{`
@@ -596,6 +657,68 @@ export default function MatrixComponent() {
           onTouchStart={(e) => handleMouseDown(e, "resize")}
         />
       </div>
+
+      {/* Music Control Window - Now conditionally rendered */}
+      {showMusicWindow && (
+        <div
+          ref={musicWindowRef}
+          className="absolute bg-black border border-[#0FFD20] shadow-lg"
+          style={{
+            left: `${musicWindowPosition.x}px`,
+            top: `${musicWindowPosition.y}px`,
+            width: `${musicWindowSize.width}px`,
+            height: `${musicWindowSize.height}px`,
+            boxShadow: "0 0 10px #0FFD20",
+          }}
+        >
+          <div
+            className="flex justify-between items-center p-1 border-b border-[#0FFD20] cursor-move"
+            onMouseDown={handleMusicWindowMouseDown}
+            onTouchStart={handleMusicWindowMouseDown}
+          >
+            <span className="text-xs uppercase">MλTRIX AUDIO</span>
+            <button
+              className="text-[#0FFD20] hover:text-white"
+              aria-label="Close"
+              onClick={() => setShowMusicWindow(false)}
+            >
+              <X size={12} />
+            </button>
+          </div>
+          <div className="p-4 flex flex-col items-center space-y-4">
+            <div className="text-sm text-center w-full overflow-hidden whitespace-nowrap">
+              {tracks[currentTrack].title}
+            </div>
+            <div className="flex items-center space-x-6">
+              <button
+                onClick={goToPrevTrack}
+                className="text-[#0FFD20] hover:text-white transition-colors"
+                aria-label="Previous track"
+              >
+                <SkipBack size={20} />
+              </button>
+              <button
+                onClick={toggleAudio}
+                className="text-[#0FFD20] hover:text-white transition-colors"
+                aria-label={isAudioPlaying ? "Pause" : "Play"}
+              >
+                {isAudioPlaying ? <Pause size={24} /> : <Play size={24} />}
+              </button>
+              <button
+                onClick={goToNextTrack}
+                className="text-[#0FFD20] hover:text-white transition-colors"
+                aria-label="Next track"
+              >
+                <SkipForward size={20} />
+              </button>
+            </div>
+            <div className="text-xs">
+              {formatTime(remainingTime)}
+            </div>
+          </div>
+        </div>
+      )}
+
       <audio ref={audioRef} src={tracks[currentTrack].src} loop />
       <div className="fixed bottom-0 left-0 w-full h-2 md:h-4 bg-black border-t-2 border-[#0FFD20] z-10">
         <div
