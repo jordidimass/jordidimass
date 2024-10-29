@@ -6,6 +6,10 @@ const openai = new OpenAI({
 });
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (!process.env.OPENAI_API_KEY) {
+    return res.status(500).json({ error: "OpenAI API key not configured" });
+  }
+
   const { prompt } = req.body;
 
   if (!prompt) {
@@ -22,12 +26,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (responseText) {
       return res.status(200).json({ response: responseText });
     } else {
-      console.error("Incomplete response from OpenAI:", completion);
       return res.status(500).json({ error: "Received an incomplete response from the API" });
     }
   } catch (error) {
-    console.error("Error in OpenAI API call:", error);
-
     const errorMessage = (error as Error).message || "Failed to generate response";
     return res.status(500).json({ error: errorMessage });
   }

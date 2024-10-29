@@ -370,7 +370,7 @@ export default function MatrixComponent() {
   
       try {
         // Send the question to OpenAI API (through your /api/chat endpoint)
-        const response = await fetch("/pages/api/chat", {
+        const response = await fetch("/api/chat", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -380,9 +380,7 @@ export default function MatrixComponent() {
   
         // Capture the response text for debugging
         const responseText = await response.text();
-        console.log("Raw API response:", responseText); // Log raw response for debugging
-  
-        // Attempt to parse the response if not empty
+
         if (responseText) {
           const data = JSON.parse(responseText);
           if (response.ok) {
@@ -397,7 +395,6 @@ export default function MatrixComponent() {
           setTerminalOutput((prevOutput) => [...prevOutput, "Error: Received an empty response from API."]);
         }
       } catch (error: unknown) {
-        console.error("Error in processCommand:", error);
         setTerminalOutput((prevOutput) => [
           ...prevOutput,
           `Error: Failed to connect to API. ${error instanceof Error ? error.message : "Unknown error"}`,
