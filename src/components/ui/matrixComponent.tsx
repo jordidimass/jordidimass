@@ -406,6 +406,7 @@ export default function MatrixComponent() {
         case "help":
           setTerminalOutput([
             ...terminalOutput,
+            "Matrix Terminal v1.0.0",
             "Available commands:",
             "help          - Show available commands and their descriptions.",
             "clear         - Clear the terminal screen.",
@@ -417,7 +418,7 @@ export default function MatrixComponent() {
             "next-track    - Switch to the next track in the playlist.",
             "prev-track    - Switch to the previous track in the playlist.",
             "pill-choice   - Make the red or blue pill choice.",
-            "ask           - Ask any question in natural language. Type 'ask' and then your prompt.",
+            "ask <query>   - Ask the Matrix AI a question in natural language.",
             "exit          - Exit the Matrix interface and return to the previous page.",
             "whoami        - Display information about the user of this system.",
           ]);
@@ -512,9 +513,7 @@ export default function MatrixComponent() {
         case "whoami":
           setTerminalOutput((prevOutput) => [
             ...prevOutput,
-            "I am a Software Developer from Guatemala, with a passion for physics, systems, computer interfaces and computer science.",
-            "I never stop learning and constantly expand my knowledge, as I believe that connecting with inspiring individuals and challenging projects fuels my growth.",
-            "I am eager to collaborate with other developers and contribute to the web development community.",
+            "my name is jordi, thanks for visiting my website",
           ]);
           break;
   
