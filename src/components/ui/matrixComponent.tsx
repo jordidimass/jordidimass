@@ -529,11 +529,27 @@ export default function MatrixComponent() {
     }
   };
   
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   const [musicWindowPosition, setMusicWindowPosition] = useState(() => ({
-    x: window.innerWidth - 320, // 300px width + 20px margin
-    y: 20 // 20px margin from top
+    x: isMobile ? 0 : window.innerWidth - 320,
+    y: isMobile ? 0 : 20
   }));
-  const [musicWindowSize] = useState({ width: 300, height: 150 });
+  const [musicWindowSize] = useState(() => ({
+    width: isMobile ? window.innerWidth : 300,
+    height: isMobile ? 80 : 150
+  }));
   const [isDraggingMusicWindow, setIsDraggingMusicWindow] = useState(false);
   const musicWindowRef = useRef<HTMLDivElement>(null);
 
@@ -662,19 +678,24 @@ export default function MatrixComponent() {
       {showMusicWindow && (
         <div
           ref={musicWindowRef}
-          className="absolute bg-black border border-[#0FFD20] shadow-lg"
+          className={`absolute bg-black border border-[#0FFD20] shadow-lg ${
+            isMobile ? 'fixed top-0 left-0 w-full border-t-0 border-x-0' : ''
+          }`}
           style={{
-            left: `${musicWindowPosition.x}px`,
-            top: `${musicWindowPosition.y}px`,
-            width: `${musicWindowSize.width}px`,
-            height: `${musicWindowSize.height}px`,
+            left: isMobile ? 0 : `${musicWindowPosition.x}px`,
+            top: isMobile ? 0 : `${musicWindowPosition.y}px`,
+            width: isMobile ? '100%' : `${musicWindowSize.width}px`,
+            height: `${isMobile ? 60 : musicWindowSize.height}px`,
             boxShadow: "0 0 10px #0FFD20",
+            zIndex: 1000,
           }}
         >
           <div
-            className="flex justify-between items-center p-1 border-b border-[#0FFD20] cursor-move"
-            onMouseDown={handleMusicWindowMouseDown}
-            onTouchStart={handleMusicWindowMouseDown}
+            className={`flex justify-between items-center p-1 ${
+              isMobile ? '' : 'border-b'
+            } border-[#0FFD20] ${isMobile ? '' : 'cursor-move'}`}
+            onMouseDown={isMobile ? undefined : handleMusicWindowMouseDown}
+            onTouchStart={isMobile ? undefined : handleMusicWindowMouseDown}
           >
             <span className="text-xs uppercase">MλTRIX AUDIO</span>
             <button
@@ -685,8 +706,8 @@ export default function MatrixComponent() {
               <X size={12} />
             </button>
           </div>
-          <div className="p-4 flex flex-col items-center space-y-4">
-            <div className="text-sm text-center w-full overflow-hidden whitespace-nowrap">
+          <div className={`flex items-center ${isMobile ? 'justify-between px-4' : 'flex-col space-y-4 p-4'}`}>
+            <div className={`text-sm ${isMobile ? 'flex-1 truncate mr-4' : 'text-center w-full overflow-hidden whitespace-nowrap'}`}>
               {tracks[currentTrack].title}
             </div>
             <div className="flex items-center space-x-6">
@@ -695,26 +716,28 @@ export default function MatrixComponent() {
                 className="text-[#0FFD20] hover:text-white transition-colors"
                 aria-label="Previous track"
               >
-                <SkipBack size={20} />
+                <SkipBack size={isMobile ? 16 : 20} />
               </button>
               <button
                 onClick={toggleAudio}
                 className="text-[#0FFD20] hover:text-white transition-colors"
                 aria-label={isAudioPlaying ? "Pause" : "Play"}
               >
-                {isAudioPlaying ? <Pause size={24} /> : <Play size={24} />}
+                {isAudioPlaying ? <Pause size={isMobile ? 20 : 24} /> : <Play size={isMobile ? 20 : 24} />}
               </button>
               <button
                 onClick={goToNextTrack}
                 className="text-[#0FFD20] hover:text-white transition-colors"
                 aria-label="Next track"
               >
-                <SkipForward size={20} />
+                <SkipForward size={isMobile ? 16 : 20} />
               </button>
             </div>
-            <div className="text-xs">
-              {formatTime(remainingTime)}
-            </div>
+            {!isMobile && (
+              <div className="text-xs">
+                {formatTime(remainingTime)}
+              </div>
+            )}
           </div>
         </div>
       )}
