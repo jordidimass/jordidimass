@@ -59,7 +59,7 @@ export default function ConnectPage() {
   }, []);
 
   return (
-    <div className={`relative w-full ${isMobile ? 'min-h-screen' : 'h-screen overflow-hidden'}`}>
+    <div className="relative w-full min-h-screen overflow-auto">
       <Particles
         className="absolute inset-0 -z-10"
         quantity={450}
@@ -67,7 +67,7 @@ export default function ConnectPage() {
         ease={60}
         color="#ffffff"
       />
-      <div className={`flex mx-auto items-center flex-col w-full ${isMobile ? 'min-h-screen' : 'h-full'} justify-center pt-16 pb-16 px-8 max-w-2xl relative z-10 ${isMobile ? '' : 'overflow-y-auto'}`}> 
+      <div className="flex mx-auto items-center flex-col w-full px-8 max-w-2xl relative z-10 py-16"> 
         <Link href="/matrix">
           <Image
             className="rounded-full cursor-pointer"
