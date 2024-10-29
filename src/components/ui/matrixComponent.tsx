@@ -542,14 +542,8 @@ export default function MatrixComponent() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  const [musicWindowPosition, setMusicWindowPosition] = useState(() => ({
-    x: isMobile ? 0 : window.innerWidth - 320,
-    y: isMobile ? 0 : 20
-  }));
-  const [musicWindowSize] = useState(() => ({
-    width: isMobile ? window.innerWidth : 300,
-    height: isMobile ? 80 : 150
-  }));
+  const [musicWindowPosition, setMusicWindowPosition] = useState({ x: 0, y: 0 });
+  const [musicWindowSize, setMusicWindowSize] = useState({ width: 300, height: 150 });
   const [isDraggingMusicWindow, setIsDraggingMusicWindow] = useState(false);
   const musicWindowRef = useRef<HTMLDivElement>(null);
 
@@ -600,6 +594,25 @@ export default function MatrixComponent() {
   };
 
   const [showMusicWindow, setShowMusicWindow] = useState(false);
+
+  useEffect(() => {
+    const updateMusicWindowPosition = () => {
+      const isMobileView = window.innerWidth <= 768;
+      setMusicWindowPosition({
+        x: isMobileView ? 0 : window.innerWidth - 320,
+        y: isMobileView ? 0 : 20
+      });
+      setMusicWindowSize({
+        width: isMobileView ? window.innerWidth : 300,
+        height: isMobileView ? 80 : 150
+      });
+    };
+
+    updateMusicWindowPosition();
+    window.addEventListener('resize', updateMusicWindowPosition);
+    
+    return () => window.removeEventListener('resize', updateMusicWindowPosition);
+  }, []);
 
   return (
     <div className="bg-black min-h-screen font-mono text-[#0FFD20] overflow-hidden">
