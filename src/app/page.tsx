@@ -22,8 +22,8 @@ export default function HomePage() {
   }, []);
 
   return (
-    <div className="flex bg-[#111010] items-center h-screen px-8">
-      <div className="w-1/2 ">
+    <div className="fixed inset-0 flex bg-[#111010] items-center px-8">
+      <div className="w-full lg:w-1/2">
         <h1 className="text-4xl font-bold mb-4 text-white">welcome to my place on the internet</h1>
         <p className="text-lg text-white">hi, i&apos;m jordi, tech and science lover, living in the hyperreality making web products for the real life. </p>
       </div>
