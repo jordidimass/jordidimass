@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { X, Minus, Maximize2, Play, Pause, SkipBack, SkipForward } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-type TrackOption = "clubbed" | "spybreak" | "prime_audio_soup" | "mindfields";
+type TrackOption = "clubbed" | "spybreak" | "prime_audio_soup" | "mindfields" | "happiness" | "windowlicker" | "blockrockin" | "places";
 
 export default function MatrixComponent() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -50,6 +50,22 @@ export default function MatrixComponent() {
     mindfields: {
       src: "https://utfs.io/f/ixJ6E8OWunhtmm3vSvRyF8KulPTUo67dnL4INgSpMAQYijsO",
       title: "The Prodigy - Mindfields",
+    },
+    happiness: {
+      src: "https://utfs.io/f/ixJ6E8OWunhtIPXczr8laWqQYFwevXfK7jATzpd4kC8U6nmB",
+      title: "Porter Robinson - Is There Really No Happiness",
+    },
+    windowlicker: {
+      src: "https://utfs.io/f/ixJ6E8OWunhtQ0wKJ5dcVUsfKamM5tSYiB4I8WeLb6vdNRH1",
+      title: "Aphex Twin - Window Licker",
+    },
+    blockrockin: {
+      src: "https://utfs.io/f/ixJ6E8OWunhtercQIBAJq6FUBPuV5HhcC9ofZYgbwDGz4Rk7",
+      title: "The Chemical Brothers - Block Rockin Beats",
+    },
+    places: {
+      src: "https://utfs.io/f/ixJ6E8OWunht7OpTmau8RVJD3Q0PjrEsGu1wmTFiZLUpekCM",
+      title: "Fred again.. & Anderson .Paak - places to be",
     },
   };
 
@@ -207,6 +223,10 @@ export default function MatrixComponent() {
       "spybreak",
       "prime_audio_soup",
       "mindfields",
+      "happiness",
+      "windowlicker",
+      "blockrockin",
+      "places",
     ];
 
     const nextTrackIndex = (trackList.indexOf(currentTrack) + 1) % trackList.length;
@@ -242,6 +262,10 @@ export default function MatrixComponent() {
       "spybreak",
       "prime_audio_soup",
       "mindfields",
+      "happiness",
+      "windowlicker",
+      "blockrockin",
+      "places",
     ];
 
     const prevTrackIndex = (trackList.indexOf(currentTrack) - 1 + trackList.length) % trackList.length;
