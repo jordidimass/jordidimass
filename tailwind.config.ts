@@ -50,16 +50,42 @@ const config: Config = {
           '4': 'hsl(var(--chart-4))',
           '5': 'hsl(var(--chart-5))'
         },
-        readingTextDark: '#ac8b8b'
+        readingTextDark: '#AC8B8B'
       },
       borderRadius: {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)'
-      }
-    }
+      },
+      typography: {
+        DEFAULT: {
+          css: {
+            color: '#AC8B8B',
+            fontSize: '24px',
+            h1: {
+              color: '#AC8B8B',
+            },
+            h2: {
+              color: '#AC8B8B',
+            },
+            h3: {
+              color: '#AC8B8B',
+            },
+            strong: {
+              color: '#AC8B8B',
+            },
+            a: {
+              color: '#AC8B8B',
+              '&:hover': {
+                color: '#ffffff',
+              },
+            },
+          },
+        },
+      },
+    },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [require("tailwindcss-animate"), require("@tailwindcss/typography")],
 };
 
 export default config;
