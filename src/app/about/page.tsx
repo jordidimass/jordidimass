@@ -8,9 +8,6 @@ interface Skill {
 }
 
 export default function AboutPage() {
-  const [activeSection, setActiveSection] = useState<string | null>(null);
-  const [isMounted, setIsMounted] = useState(false);
-
   const skills: Skill[] = [
     { name: "TypeScript", category: "languages" },
     { name: "Rust", category: "languages" },
@@ -22,10 +19,6 @@ export default function AboutPage() {
     { name: "Git", category: "tools" },
     
   ];
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   return (
     <div className="min-h-screen bg-[#121212] text-[#AC8B8B] p-8">
@@ -96,9 +89,9 @@ export default function AboutPage() {
           transition={{ duration: 0.8, delay: 0.6 }}
           className="space-y-6"
         >
-          <h2 className="text-2xl font-light tracking-widest">let's build together</h2>
+          <h2 className="text-2xl font-light tracking-widest">let&apos;s build together</h2>
           <p className="text-xl font-light leading-relaxed">
-            I'm always open to collaborating on innovative projects and connecting with 
+            I&apos;m always open to collaborating on innovative projects and connecting with 
             fellow developers who share a passion for crafting exceptional digital experiences.
           </p>
         </motion.section>
