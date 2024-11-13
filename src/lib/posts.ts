@@ -11,6 +11,12 @@ export interface Post {
   content: string;
 }
 
+export type PostMetadata = {
+  slug: string;
+  title: string;
+  date: string;
+};
+
 export function getAllPosts() {
   // Ensure the directory exists
   if (!fs.existsSync(postsDirectory)) {

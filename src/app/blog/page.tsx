@@ -1,7 +1,7 @@
 import { getAllPosts } from '../../lib/posts';
-import Link from 'next/link';
+import AnimatedBlogPost from '@/components/AnimatedBlogPost';
 
-export default function BlogPage() {
+export default async function BlogPage() {
   const posts = getAllPosts();
 
   return (
@@ -9,21 +9,8 @@ export default function BlogPage() {
       <h1 className="text-4xl font-light tracking-widest mb-12 text-right">
         blog
       </h1>
-      {posts.map((post) => (
-        <div key={post.slug} className="mb-8">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-            <Link
-              href={`/posts/${post.slug}`}
-              className="text-2xl font-light tracking-widest hover:text-[#ffffff] transition-all duration-300"
-            >
-              {post.title}
-            </Link>
-            <p className="text-sm italic text-gray-400 mt-2 md:mt-0">
-              {new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'long', day: 'numeric' }).format(new Date(post.date))}
-            </p>
-          </div>
-          <hr className="border-gray-600 my-4" />
-        </div>
+      {posts.map((post, index) => (
+        <AnimatedBlogPost key={post.slug} post={post} index={index} />
       ))}
     </div>
   );
