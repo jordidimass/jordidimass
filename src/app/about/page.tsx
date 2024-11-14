@@ -60,7 +60,7 @@ export default function AboutPage() {
           transition={{ duration: 0.8, delay: 0.4 }}
           className="space-y-6"
         >
-          <h2 className="text-2xl font-light tracking-widest">toolkit</h2>
+          <h2 className="text-2xl font-light tracking-widest">currenttoolkit</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {skills.map((skill, index) => (
               <motion.div

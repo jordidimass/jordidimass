@@ -50,8 +50,8 @@ export default function Navbar() {
       ref={navRef}
       className={`fixed w-full top-0 z-50 transition-colors duration-300 ${
         isScrolled && !isOpen
-          ? 'bg-[#111010]/40 backdrop-blur-md shadow-lg' 
-          : 'bg-[#111010]' 
+          ? 'bg-[#111010]/40 backdrop-blur-sm' 
+          : 'bg-transparent'
       }`}
     >
       <div className="max-w-2xl mx-auto px-6 py-2 sm:px-6 lg:px-8">
@@ -103,7 +103,7 @@ export default function Navbar() {
 
       {isOpen && (
         <div 
-          className="fixed inset-0 z-40 bg-[#111010]/40 backdrop-blur-md shadow-lg md:hidden"
+          className="fixed inset-0 z-40 bg-[#111010]/40 backdrop-blur-sm shadow-lg md:hidden"
         >
           <div className="flex items-center justify-center min-h-screen">
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
