@@ -10,15 +10,17 @@ import { profileData } from '@/config/profile';
 
 export default function ConnectPage() {
   return (
-    <div className="fixed inset-0 w-screen h-screen overflow-hidden">
-      <Particles
-        className="absolute inset-0 -z-10"
-        quantity={450}
-        staticity={10}
-        ease={60}
-        color="#ffffff"
-      />
-      <div className="flex mx-auto items-center justify-center flex-col w-full h-full px-8 max-w-2xl relative z-10 pt-16"> 
+    <div className="relative min-h-screen w-full">
+      <div className="fixed inset-0 w-full h-full">
+        <Particles
+          className="absolute inset-0 -z-10"
+          quantity={450}
+          staticity={10}
+          ease={60}
+          color="#ffffff"
+        />
+      </div>
+      <div className="relative flex mx-auto items-center justify-start flex-col w-full min-h-screen px-8 max-w-2xl z-10 pt-24 md:pt-8 pb-8"> 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
