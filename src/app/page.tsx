@@ -82,6 +82,14 @@ const GalaxyBackground = () => {
               opacity: [0.2, 0.8, 0.2],
               scale: [1, 1.2, 1],
             }}
+            whileHover={{
+              scale: 3,
+              fill: "#FFBCBC",
+              transition: {
+                duration: 0.3,
+                ease: "easeOut"
+              }
+            }}
             transition={{
               duration: 3,
               repeat: Infinity,
