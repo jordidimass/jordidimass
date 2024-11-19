@@ -228,6 +228,21 @@ export default function ChessWindow({ onClose, isMobile }: ChessWindowProps) {
   const [playerColor, setPlayerColor] = useState<PlayerColor>(null);
   const [showDialog, setShowDialog] = useState<DialogType>('setup');
 
+  useEffect(() => {
+    // Add touch feedback styles
+    const style = document.createElement('style');
+    style.textContent = `
+      .touch-feedback {
+        background-color: rgba(15, 253, 32, 0.4) !important;
+        transition: background-color 0.2s;
+      }
+    `;
+    document.head.appendChild(style);
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
   function initializeBoard() {
     const initialBoard = Array(8).fill(null).map(() => Array(8).fill(null));
     
@@ -335,6 +350,15 @@ export default function ChessWindow({ onClose, isMobile }: ChessWindowProps) {
   };
 
   const handleSquareClick = (row: number, col: number) => {
+    // Add touch feedback for mobile
+    if (isMobile) {
+      const square = document.querySelector(`[data-position="${row}-${col}"]`);
+      if (square) {
+        square.classList.add('touch-feedback');
+        setTimeout(() => square.classList.remove('touch-feedback'), 200);
+      }
+    }
+
     if (!selectedPiece) {
       const piece = board[row][col];
       if (!piece) return;
@@ -555,13 +579,20 @@ export default function ChessWindow({ onClose, isMobile }: ChessWindowProps) {
               row.map((piece, colIndex) => (
                 <div
                   key={`${rowIndex}-${colIndex}`}
+                  data-position={`${rowIndex}-${colIndex}`}
                   className={`
                     w-full pb-[100%] relative border border-[#0FFD20] cursor-pointer
                     ${((rowIndex + colIndex) % 2 === 0) ? 'bg-black' : 'bg-[#0FFD20] bg-opacity-20'}
                     ${selectedPiece?.row === rowIndex && selectedPiece?.col === colIndex ? 'bg-[#0FFD20] bg-opacity-40' : ''}
                     hover:bg-[#0FFD20] hover:bg-opacity-30
+                    active:bg-[#0FFD20] active:bg-opacity-40
+                    touch-feedback:bg-[#0FFD20] touch-feedback:bg-opacity-40
                   `}
                   onClick={() => handleSquareClick(rowIndex, colIndex)}
+                  onTouchStart={(e) => {
+                    e.preventDefault(); // Prevent double-firing with click event
+                    handleSquareClick(rowIndex, colIndex);
+                  }}
                 >
                   <div className="absolute inset-0 flex items-center justify-center text-4xl select-none">
                     {piece}
