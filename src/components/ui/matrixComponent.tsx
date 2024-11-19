@@ -443,7 +443,7 @@ export default function MatrixComponent() {
             "Matrix Terminal v1.0.0",
             "Available commands:",
             "help          - Show available commands and their descriptions.",
-            "clear         - Clear the terminal screen.",
+            "clear         - Clear the terminal screen. (Shortcut: Cmd/Ctrl + K)",
             "characters    - List the characters from the Matrix.",
             "play         - Start playing the audio track and show controls.",
             "pause        - Pause the current track.",
