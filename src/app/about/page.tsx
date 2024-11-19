@@ -93,6 +93,20 @@ export default function AboutPage() {
             i'm always open to collaborating on innovative projects and connecting with 
             fellow developers who share a passion for crafting exceptional digital experiences.
           </p>
+          
+          {/* New button section */}
+          <div className="mt-8">
+            <h3 className="text-xl font-light tracking-widest mb-4">let's chat</h3>
+            <a 
+              href="https://cal.com/jordidimass" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="inline-block px-6 py-3 text-[#FFBCBC] bg-transparent border-2 border-[#AC8B8B] 
+                       rounded-lg hover:bg-[#AC8B8B] hover:text-[#121212] transition-colors duration-300"
+            >
+              book a meeting
+            </a>
+          </div>
         </motion.section>
       </div>
     </div>

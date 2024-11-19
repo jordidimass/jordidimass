@@ -13,6 +13,7 @@ type Position = { row: number; col: number };
 type GameMode = 'human' | 'ai' | null;
 type PlayerColor = 'white' | 'black' | null;
 type DialogType = 'setup' | 'endgame' | null;
+type Difficulty = 'easy' | 'hard' | null;
 
 const isWhitePiece = (piece: Piece) => piece && '♙♖♘♗♕♔'.includes(piece);
 const isBlackPiece = (piece: Piece) => piece && '♟♜♞♝♛♚'.includes(piece);
@@ -201,17 +202,144 @@ const getAllPossibleMoves = (board: (Piece)[][], isWhiteTurn: boolean) => {
   return moves;
 };
 
-const makeAIMove = (board: (Piece)[][], isWhiteTurn: boolean) => {
+const makeAIMove = (board: (Piece)[][], isWhiteTurn: boolean, difficulty: Difficulty = 'easy') => {
   const possibleMoves = getAllPossibleMoves(board, isWhiteTurn);
   
   if (possibleMoves.length === 0) return null;
 
-  // Sort moves by score and add some randomness for variety
-  possibleMoves.sort((a, b) => b.score - a.score);
-  const topMoves = possibleMoves.slice(0, Math.min(3, possibleMoves.length));
-  const selectedMove = topMoves[Math.floor(Math.random() * topMoves.length)];
-  
-  return selectedMove;
+  if (difficulty === 'hard') {
+    // In hard mode, look deeper and be more aggressive
+    possibleMoves.forEach(move => {
+      // Make temporary move
+      const tempBoard = board.map(row => [...row]);
+      const piece = tempBoard[move.from.row][move.from.col];
+      tempBoard[move.to.row][move.to.col] = piece;
+      tempBoard[move.from.row][move.from.col] = null;
+
+      // Look ahead one move
+      const opponentMoves = getAllPossibleMoves(tempBoard, !isWhiteTurn);
+      const bestOpponentMove = opponentMoves.reduce((best, current) => 
+        current.score > best.score ? current : best, 
+        opponentMoves[0] || { score: -Infinity }
+      );
+
+      // Adjust score based on opponent's best move
+      move.score -= (bestOpponentMove?.score || 0) * 0.5;
+
+      // Additional strategic considerations for hard mode
+      // Bonus for controlling center
+      if (move.to.row >= 2 && move.to.row <= 5 && move.to.col >= 2 && move.to.col <= 5) {
+        move.score += 1;
+      }
+      // Bonus for protecting king
+      if (isKing(board[move.from.row][move.from.col])) {
+        move.score -= 2; // Discourage moving king unless necessary
+      }
+      // Bonus for developing pieces early
+      if (isWhiteTurn && move.from.row === 7 || !isWhiteTurn && move.from.row === 0) {
+        move.score += 0.5;
+      }
+    });
+
+    // Sort by score and pick from top 2 moves only
+    possibleMoves.sort((a, b) => b.score - a.score);
+    return possibleMoves[0]; // In hard mode, always pick the best move
+  } else {
+    // Easy mode - existing logic
+    possibleMoves.sort((a, b) => b.score - a.score);
+    const topMoves = possibleMoves.slice(0, Math.min(3, possibleMoves.length));
+    return topMoves[Math.floor(Math.random() * topMoves.length)];
+  }
+};
+
+// Minimax Algorithm with Alpha-Beta Pruning
+const minimax = (
+  board: (Piece)[][],
+  depth: number,
+  isMaximizing: boolean,
+  isWhiteTurn: boolean,
+  alpha: number,
+  beta: number
+): number => {
+  if (depth === 0) {
+    // Evaluate the board at the current state
+    return board.reduce((score, row) =>
+      score +
+      row.reduce((rowScore, piece) => rowScore + evaluatePiece(piece), 0),
+      0
+    );
+  }
+
+  const possibleMoves = getAllPossibleMoves(board, isWhiteTurn);
+
+  if (possibleMoves.length === 0) {
+    // No moves available
+    return isInCheck(board, isWhiteTurn) ? (isMaximizing ? -Infinity : Infinity) : 0;
+  }
+
+  let bestScore = isMaximizing ? -Infinity : Infinity;
+
+  for (const move of possibleMoves) {
+    // Make the move temporarily
+    const tempBoard = board.map((row) => [...row]);
+    const piece = tempBoard[move.from.row][move.from.col];
+    tempBoard[move.to.row][move.to.col] = piece;
+    tempBoard[move.from.row][move.from.col] = null;
+
+    // Recurse into the next depth
+    const score = minimax(
+      tempBoard,
+      depth - 1,
+      !isMaximizing,
+      !isWhiteTurn,
+      alpha,
+      beta
+    );
+
+    if (isMaximizing) {
+      bestScore = Math.max(bestScore, score);
+      alpha = Math.max(alpha, score);
+    } else {
+      bestScore = Math.min(bestScore, score);
+      beta = Math.min(beta, score);
+    }
+
+    if (beta <= alpha) {
+      break; // Alpha-beta pruning
+    }
+  }
+
+  return bestScore;
+};
+
+const makeExtremelyHardAIMove = (
+  board: (Piece)[][],
+  isWhiteTurn: boolean
+): { from: Position; to: Position } | null => {
+  const possibleMoves = getAllPossibleMoves(board, isWhiteTurn);
+
+  if (possibleMoves.length === 0) return null;
+
+  let bestMove = null;
+  let bestScore = -Infinity;
+
+  for (const move of possibleMoves) {
+    // Make the move temporarily
+    const tempBoard = board.map((row) => [...row]);
+    const piece = tempBoard[move.from.row][move.from.col];
+    tempBoard[move.to.row][move.to.col] = piece;
+    tempBoard[move.from.row][move.from.col] = null;
+
+    // Evaluate the move using minimax
+    const score = minimax(tempBoard, 3, false, !isWhiteTurn, -Infinity, Infinity);
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestMove = move;
+    }
+  }
+
+  return bestMove;
 };
 
 export default function ChessWindow({ onClose, isMobile }: ChessWindowProps) {
@@ -227,6 +355,7 @@ export default function ChessWindow({ onClose, isMobile }: ChessWindowProps) {
   const [gameMode, setGameMode] = useState<GameMode>(null);
   const [playerColor, setPlayerColor] = useState<PlayerColor>(null);
   const [showDialog, setShowDialog] = useState<DialogType>('setup');
+  const [difficulty, setDifficulty] = useState<Difficulty>(null);
 
   useEffect(() => {
     // Add touch feedback styles
@@ -438,9 +567,10 @@ export default function ChessWindow({ onClose, isMobile }: ChessWindowProps) {
     }
   }, [gameState]);
 
-  const handleGameStart = (mode: GameMode, color: PlayerColor) => {
+  const handleGameStart = (mode: GameMode, color: PlayerColor, diff: Difficulty = 'easy') => {
     setGameMode(mode);
     setPlayerColor(color);
+    setDifficulty(diff);
     setBoard(initializeBoard());
     setIsWhiteTurn(true);
     setGameState('playing');
@@ -448,7 +578,7 @@ export default function ChessWindow({ onClose, isMobile }: ChessWindowProps) {
 
     if (mode === 'ai' && color === 'black') {
       setTimeout(() => {
-        const aiMove = makeAIMove(initializeBoard(), true);
+        const aiMove = makeAIMove(initializeBoard(), true, diff);
         if (aiMove) {
           const { from, to } = aiMove;
           const newBoard = [...initializeBoard()];
@@ -468,7 +598,7 @@ export default function ChessWindow({ onClose, isMobile }: ChessWindowProps) {
   useEffect(() => {
     if (
       gameMode === 'ai' && 
-      gameState !== 'checkmate' && // Only stop on checkmate
+      gameState !== 'checkmate' && 
       playerColor && 
       showDialog === null
     ) {
@@ -476,7 +606,13 @@ export default function ChessWindow({ onClose, isMobile }: ChessWindowProps) {
       
       if (isAITurn) {
         const timeoutId = setTimeout(() => {
-          const aiMove = makeAIMove(board, isWhiteTurn);
+          let aiMove: { from: Position; to: Position } | null = null;
+
+          if (difficulty === 'hard') {
+            aiMove = makeExtremelyHardAIMove(board, isWhiteTurn);
+          } else {
+            aiMove = makeAIMove(board, isWhiteTurn, difficulty);
+          }
           
           if (aiMove) {
             const { from, to } = aiMove;
@@ -514,7 +650,7 @@ export default function ChessWindow({ onClose, isMobile }: ChessWindowProps) {
         return () => clearTimeout(timeoutId);
       }
     }
-  }, [gameMode, playerColor, isWhiteTurn, board, gameState, showDialog]);
+  }, [gameMode, playerColor, isWhiteTurn, board, gameState, showDialog, difficulty]);
 
   const BackToTerminalButton = () => {
     if (!isMobile) return null;
@@ -634,36 +770,58 @@ export default function ChessWindow({ onClose, isMobile }: ChessWindowProps) {
                     </div>
                     
                     {gameMode === 'ai' && (
-                      <div className="space-y-3">
-                        <p className="text-[#0FFD20] text-sm mb-2">Select Your Color:</p>
-                        <div className="grid grid-cols-2 gap-3">
-                          <button
-                            className={`p-2 border border-[#0FFD20] hover:bg-[#0FFD20] hover:bg-opacity-20 transition-colors
-                              ${playerColor === 'white' ? 'bg-[#0FFD20] bg-opacity-20' : ''}`}
-                            onClick={() => setPlayerColor('white')}
-                          >
-                            White ♔
-                          </button>
-                          <button
-                            className={`p-2 border border-[#0FFD20] hover:bg-[#0FFD20] hover:bg-opacity-20 transition-colors
-                              ${playerColor === 'black' ? 'bg-[#0FFD20] bg-opacity-20' : ''}`}
-                            onClick={() => setPlayerColor('black')}
-                          >
-                            Black ♚
-                          </button>
+                      <>
+                        <div className="space-y-3">
+                          <p className="text-[#0FFD20] text-sm mb-2">Select Difficulty:</p>
+                          <div className="grid grid-cols-2 gap-3">
+                            <button
+                              className={`p-2 border border-[#0FFD20] hover:bg-[#0FFD20] hover:bg-opacity-20 transition-colors
+                                ${difficulty === 'easy' ? 'bg-[#0FFD20] bg-opacity-20' : ''}`}
+                              onClick={() => setDifficulty('easy')}
+                            >
+                              Easy Mode
+                            </button>
+                            <button
+                              className={`p-2 border border-[#0FFD20] hover:bg-[#0FFD20] hover:bg-opacity-20 transition-colors
+                                ${difficulty === 'hard' ? 'bg-[#0FFD20] bg-opacity-20' : ''}`}
+                              onClick={() => setDifficulty('hard')}
+                            >
+                              Hard Mode
+                            </button>
+                          </div>
                         </div>
-                      </div>
+                        
+                        <div className="space-y-3">
+                          <p className="text-[#0FFD20] text-sm mb-2">Select Your Color:</p>
+                          <div className="grid grid-cols-2 gap-3">
+                            <button
+                              className={`p-2 border border-[#0FFD20] hover:bg-[#0FFD20] hover:bg-opacity-20 transition-colors
+                                ${playerColor === 'white' ? 'bg-[#0FFD20] bg-opacity-20' : ''}`}
+                              onClick={() => setPlayerColor('white')}
+                            >
+                              White ♔
+                            </button>
+                            <button
+                              className={`p-2 border border-[#0FFD20] hover:bg-[#0FFD20] hover:bg-opacity-20 transition-colors
+                                ${playerColor === 'black' ? 'bg-[#0FFD20] bg-opacity-20' : ''}`}
+                              onClick={() => setPlayerColor('black')}
+                            >
+                              Black ♚
+                            </button>
+                          </div>
+                        </div>
+                      </>
                     )}
                     
                     <button
                       className={`w-full p-2 border border-[#0FFD20] hover:bg-[#0FFD20] hover:text-black transition-colors
-                        ${(!gameMode || (gameMode === 'ai' && !playerColor)) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        ${(!gameMode || (gameMode === 'ai' && (!playerColor || !difficulty))) ? 'opacity-50 cursor-not-allowed' : ''}`}
                       onClick={() => {
-                        if (gameMode && (gameMode === 'human' || playerColor)) {
-                          handleGameStart(gameMode, playerColor);
+                        if (gameMode && (gameMode === 'human' || (playerColor && difficulty))) {
+                          handleGameStart(gameMode, playerColor, difficulty);
                         }
                       }}
-                      disabled={!gameMode || (gameMode === 'ai' && !playerColor)}
+                      disabled={!gameMode || (gameMode === 'ai' && (!playerColor || !difficulty))}
                     >
                       Start Game
                     </button>

@@ -159,7 +159,7 @@ export default function HomePage() {
           <h1 className="text-4xl lg:text-5xl font-bold mb-4 lg:mb-6 text-white leading-tight">
             welcome to my place<br />on the internet
           </h1>
-          <p className="text-lg lg:text-xl text-gray-300 leading-relaxed">
+          <p className="text-2xl lg:text-2xl text-gray-300 leading-relaxed">
             hi, i&apos;m jordi, tech and science lover,<br />
             living in the hyperreality making web<br />
             products for the real life.
