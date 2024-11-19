@@ -14,12 +14,12 @@ export const profileData: ProfileData = {
   name: "Jordi Dimas",
   avatar: "https://utfs.io/f/c07cbb6c-bf22-46bc-bdc3-c711408f5856-1xaifo.jpg",
   links: [
-    { title: "VSCO gallery", href: "https://vsco.co/jordidimass/gallery" },
     { title: "occasional photographer", href: "https://unsplash.com/@jordidimass" },
-    { title: "music journey", href: "https://last.fm/user/jordidimass" },
-    { title: "spotify playlist", href: "https://open.spotify.com/user/jordidimass/playlists" },
+    { title: "VSCO gallery", href: "https://vsco.co/jordidimass/gallery" },
     { title: "some repos", href: "https://github.com/jordidimass?tab=repositories" },
     { title: "book reviews", href: "https://goodreads.com/jordidimass" },
+    { title: "music journey", href: "https://last.fm/user/jordidimass" },
+    { title: "spotify playlist", href: "https://open.spotify.com/user/jordidimass/playlists" },
     { title: "film diary", href: "https://letterboxd.com/jordidimass/" }
   ],
   socials: [
