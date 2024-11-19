@@ -10,6 +10,9 @@ interface ChessWindowProps {
 
 type Piece = '♟' | '♙' | '♜' | '♖' | '♞' | '♘' | '♝' | '♗' | '♛' | '♕' | '♚' | '♔' | null;
 type Position = { row: number; col: number };
+type GameMode = 'human' | 'ai' | null;
+type PlayerColor = 'white' | 'black' | null;
+type DialogType = 'setup' | 'endgame' | null;
 
 const isWhitePiece = (piece: Piece) => piece && '♙♖♘♗♕♔'.includes(piece);
 const isBlackPiece = (piece: Piece) => piece && '♟♜♞♝♛♚'.includes(piece);
@@ -34,6 +37,9 @@ export default function ChessWindow({ onClose, isMobile }: ChessWindowProps) {
     white: [],
     black: []
   });
+  const [gameMode, setGameMode] = useState<GameMode>(null);
+  const [playerColor, setPlayerColor] = useState<PlayerColor>(null);
+  const [showDialog, setShowDialog] = useState<DialogType>('setup');
 
   function initializeBoard() {
     const initialBoard = Array(8).fill(null).map(() => Array(8).fill(null));
@@ -311,6 +317,29 @@ export default function ChessWindow({ onClose, isMobile }: ChessWindowProps) {
     }
   };
 
+  const resetGame = () => {
+    setBoard(initializeBoard());
+    setIsWhiteTurn(true);
+    setGameState('playing');
+    setCapturedPieces({ white: [], black: [] });
+    setSelectedPiece(null);
+    setShowDialog('setup');
+  };
+
+  useEffect(() => {
+    if (gameState === 'checkmate') {
+      setTimeout(() => {
+        setShowDialog('endgame');
+      }, 1500); // Show dialog 1.5s after checkmate to let player see the final position
+    }
+  }, [gameState]);
+
+  const handleGameStart = (mode: GameMode, color: PlayerColor) => {
+    setGameMode(mode);
+    setPlayerColor(color);
+    setShowDialog(null);
+  };
+
   return (
     <div
       ref={windowRef}
@@ -376,6 +405,100 @@ export default function ChessWindow({ onClose, isMobile }: ChessWindowProps) {
           ))}
         </div>
       </div>
+      
+      {/* Game Setup/End Dialog */}
+      {showDialog && (
+        <div className="absolute inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
+          <div className="bg-black border border-[#0FFD20] p-6 shadow-lg max-w-sm w-full mx-4">
+            {showDialog === 'setup' ? (
+              <>
+                <h2 className="text-[#0FFD20] text-xl font-bold mb-6 text-center">
+                  MλTRIX CHESS
+                </h2>
+                <div className="space-y-6">
+                  <div className="space-y-3">
+                    <p className="text-[#0FFD20] text-sm mb-2">Select Game Mode:</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        className={`p-2 border border-[#0FFD20] hover:bg-[#0FFD20] hover:bg-opacity-20 transition-colors
+                          ${gameMode === 'human' ? 'bg-[#0FFD20] bg-opacity-20' : ''}`}
+                        onClick={() => setGameMode('human')}
+                      >
+                        Human vs Human
+                      </button>
+                      <button
+                        className={`p-2 border border-[#0FFD20] hover:bg-[#0FFD20] hover:bg-opacity-20 transition-colors
+                          ${gameMode === 'ai' ? 'bg-[#0FFD20] bg-opacity-20' : ''}`}
+                        onClick={() => setGameMode('ai')}
+                      >
+                        Play vs AI
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {gameMode === 'ai' && (
+                    <div className="space-y-3">
+                      <p className="text-[#0FFD20] text-sm mb-2">Select Your Color:</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          className={`p-2 border border-[#0FFD20] hover:bg-[#0FFD20] hover:bg-opacity-20 transition-colors
+                            ${playerColor === 'white' ? 'bg-[#0FFD20] bg-opacity-20' : ''}`}
+                          onClick={() => setPlayerColor('white')}
+                        >
+                          White ♔
+                        </button>
+                        <button
+                          className={`p-2 border border-[#0FFD20] hover:bg-[#0FFD20] hover:bg-opacity-20 transition-colors
+                            ${playerColor === 'black' ? 'bg-[#0FFD20] bg-opacity-20' : ''}`}
+                          onClick={() => setPlayerColor('black')}
+                        >
+                          Black ♚
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <button
+                    className={`w-full p-2 border border-[#0FFD20] hover:bg-[#0FFD20] hover:text-black transition-colors
+                      ${(!gameMode || (gameMode === 'ai' && !playerColor)) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    onClick={() => {
+                      if (gameMode && (gameMode === 'human' || playerColor)) {
+                        handleGameStart(gameMode, playerColor);
+                      }
+                    }}
+                    disabled={!gameMode || (gameMode === 'ai' && !playerColor)}
+                  >
+                    Start Game
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 className="text-[#0FFD20] text-xl font-bold mb-6 text-center">
+                  Game Over
+                </h2>
+                <p className="text-[#0FFD20] text-center mb-6">
+                  {isWhiteTurn ? "Black" : "White"} Wins!
+                </p>
+                <div className="space-y-3">
+                  <button
+                    className="w-full p-2 border border-[#0FFD20] hover:bg-[#0FFD20] hover:text-black transition-colors"
+                    onClick={resetGame}
+                  >
+                    Play Again
+                  </button>
+                  <button
+                    className="w-full p-2 border border-[#0FFD20] hover:bg-[#0FFD20] hover:text-black transition-colors"
+                    onClick={onClose}
+                  >
+                    Exit
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 } 
