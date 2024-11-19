@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { X, Minus, Maximize2, Play, Pause, SkipBack, SkipForward } from "lucide-react";
 import { useRouter } from "next/navigation";
+import ChessWindow from './ChessWindow';
 
 type TrackOption = "clubbed" | "spybreak" | "prime_audio_soup" | "mindfields" | "happiness" | "windowlicker" | "blockrockin" | "places";
 
@@ -454,6 +455,7 @@ export default function MatrixComponent() {
             "ask <query>   - Ask the Matrix AI a question in natural language.",
             "exit          - Exit the Matrix interface and return to the previous page.",
             "whoami        - Display information about the user of this system.",
+            "chess         - Launch the Matrix Chess game.",
           ]);
           break;
 
@@ -544,6 +546,16 @@ export default function MatrixComponent() {
             ...prevOutput,
             "my name is jordi, thanks for visiting my website",
           ]);
+          break;
+
+        case "chess":
+          setShowChessWindow(true);
+          setTerminalPosition({ // Minimize terminal by moving it to bottom-left
+            x: 20,
+            y: window.innerHeight - 300
+          });
+          setTerminalSize({ width: 400, height: 250 });
+          setTerminalOutput([...terminalOutput, "Launching Matrix Chess..."]);
           break;
 
         default:
@@ -637,6 +649,8 @@ export default function MatrixComponent() {
     
     return () => window.removeEventListener('resize', updateMusicWindowPosition);
   }, []);
+
+  const [showChessWindow, setShowChessWindow] = useState(false);
 
   return (
     <div className="bg-black min-h-screen font-mono text-[#0FFD20] overflow-hidden">
@@ -793,6 +807,13 @@ export default function MatrixComponent() {
           aria-valuemax={100}
         ></div>
       </div>
+
+      {showChessWindow && (
+        <ChessWindow
+          onClose={() => setShowChessWindow(false)}
+          isMobile={isMobile}
+        />
+      )}
     </div>
   );
 }
