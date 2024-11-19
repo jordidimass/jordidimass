@@ -251,12 +251,19 @@ export default function ChessWindow({ onClose, isMobile }: ChessWindowProps) {
 
   useEffect(() => {
     if (isMobile) {
-      setPosition({ x: 0, y: 0 });
-      setSize({ width: window.innerWidth, height: window.innerHeight - 100 });
+      setPosition({
+        x: window.innerWidth * 0.05,  // 5% from left
+        y: window.innerHeight * 0.1   // 10% from top
+      });
+      setSize({
+        width: window.innerWidth * 0.9,
+        height: window.innerHeight * 0.8
+      });
     }
   }, [isMobile]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    if (isMobile) return; // Disable for mobile
     if (windowRef.current) {
       const rect = windowRef.current.getBoundingClientRect();
       setDragOffset({
@@ -485,161 +492,181 @@ export default function ChessWindow({ onClose, isMobile }: ChessWindowProps) {
     }
   }, [gameMode, playerColor, isWhiteTurn, board, gameState, showDialog]);
 
-  return (
-    <div
-      ref={windowRef}
-      className="absolute bg-black border border-[#0FFD20] shadow-lg z-50"
-      style={{
-        left: `${position.x}px`,
-        top: `${position.y}px`,
-        width: `${size.width}px`,
-        height: `${size.height}px`,
-        boxShadow: "0 0 10px #0FFD20",
-      }}
-    >
-      <div
-        className="flex justify-between items-center p-1 border-b border-[#0FFD20] cursor-move"
-        onMouseDown={handleMouseDown}
+  const BackToTerminalButton = () => {
+    if (!isMobile) return null;
+    
+    return (
+      <button
+        onClick={onClose}
+        className="fixed bottom-20 left-1/2 transform -translate-x-1/2 
+                   bg-black border border-[#0FFD20] text-[#0FFD20] 
+                   px-6 py-2 shadow-lg hover:bg-[#0FFD20] hover:text-black 
+                   transition-colors z-50"
+        style={{ boxShadow: "0 0 10px #0FFD20" }}
       >
-        <span className="text-xs uppercase">MλTRIX CHESS</span>
-        <div className="flex space-x-1">
-          <button className="text-[#0FFD20] hover:text-white">
-            <Minus size={12} />
-          </button>
-          <button className="text-[#0FFD20] hover:text-white">
-            <Maximize2 size={12} />
-          </button>
-          <button
-            className="text-[#0FFD20] hover:text-white"
-            onClick={onClose}
-          >
-            <X size={12} />
-          </button>
+        Back to Terminal
+      </button>
+    );
+  };
+
+  return (
+    <>
+      <div
+        ref={windowRef}
+        className="absolute bg-black border border-[#0FFD20] shadow-lg z-50"
+        style={{
+          left: `${position.x}px`,
+          top: `${position.y}px`,
+          width: `${size.width}px`,
+          height: `${size.height}px`,
+          boxShadow: "0 0 10px #0FFD20",
+        }}
+      >
+        <div
+          className="flex justify-between items-center p-1 border-b border-[#0FFD20] cursor-move"
+          onMouseDown={handleMouseDown}
+        >
+          <span className="text-xs uppercase">MλTRIX CHESS</span>
+          <div className="flex space-x-1">
+            <button className="text-[#0FFD20] hover:text-white">
+              <Minus size={12} />
+            </button>
+            <button className="text-[#0FFD20] hover:text-white">
+              <Maximize2 size={12} />
+            </button>
+            <button
+              className="text-[#0FFD20] hover:text-white"
+              onClick={onClose}
+            >
+              <X size={12} />
+            </button>
+          </div>
         </div>
-      </div>
-      <div className="p-4">
-        <div className="text-center mb-4 text-[#0FFD20] text-lg font-bold">
-          {gameState === 'checkmate' 
-            ? `Checkmate! ${isWhiteTurn ? "Black" : "White"} Wins!` 
-            : gameState === 'check' 
-              ? (isWhiteTurn ? "Black in Check!" : "White in Check!") 
-              : `${isWhiteTurn ? "White" : "Black"}'s Turn`}
-        </div>
-        <div className="grid grid-cols-8 gap-0 max-w-[400px] mx-auto">
-          {board.map((row, rowIndex) => (
-            row.map((piece, colIndex) => (
-              <div
-                key={`${rowIndex}-${colIndex}`}
-                className={`
-                  w-full pb-[100%] relative border border-[#0FFD20] cursor-pointer
-                  ${((rowIndex + colIndex) % 2 === 0) ? 'bg-black' : 'bg-[#0FFD20] bg-opacity-20'}
-                  ${selectedPiece?.row === rowIndex && selectedPiece?.col === colIndex ? 'bg-[#0FFD20] bg-opacity-40' : ''}
-                  hover:bg-[#0FFD20] hover:bg-opacity-30
-                `}
-                onClick={() => handleSquareClick(rowIndex, colIndex)}
-              >
-                <div className="absolute inset-0 flex items-center justify-center text-4xl select-none">
-                  {piece}
-                </div>
-              </div>
-            ))
-          ))}
-        </div>
-      </div>
-      
-      {/* Game Setup/End Dialog */}
-      {showDialog && (
-        <div className="absolute inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
-          <div className="bg-black border border-[#0FFD20] p-6 shadow-lg max-w-sm w-full mx-4">
-            {showDialog === 'setup' ? (
-              <>
-                <h2 className="text-[#0FFD20] text-xl font-bold mb-6 text-center">
-                  MλTRIX CHESS
-                </h2>
-                <div className="space-y-6">
-                  <div className="space-y-3">
-                    <p className="text-[#0FFD20] text-sm mb-2">Select Game Mode:</p>
-                    <div className="grid grid-cols-2 gap-3">
-                      <button
-                        className={`p-2 border border-[#0FFD20] hover:bg-[#0FFD20] hover:bg-opacity-20 transition-colors
-                          ${gameMode === 'human' ? 'bg-[#0FFD20] bg-opacity-20' : ''}`}
-                        onClick={() => setGameMode('human')}
-                      >
-                        Human vs Human
-                      </button>
-                      <button
-                        className={`p-2 border border-[#0FFD20] hover:bg-[#0FFD20] hover:bg-opacity-20 transition-colors
-                          ${gameMode === 'ai' ? 'bg-[#0FFD20] bg-opacity-20' : ''}`}
-                        onClick={() => setGameMode('ai')}
-                      >
-                        Play vs AI
-                      </button>
-                    </div>
+        <div className="p-4">
+          <div className="text-center mb-4 text-[#0FFD20] text-lg font-bold">
+            {gameState === 'checkmate' 
+              ? `Checkmate! ${isWhiteTurn ? "Black" : "White"} Wins!` 
+              : gameState === 'check' 
+                ? (isWhiteTurn ? "Black in Check!" : "White in Check!") 
+                : `${isWhiteTurn ? "White" : "Black"}'s Turn`}
+          </div>
+          <div className="grid grid-cols-8 gap-0 max-w-[400px] mx-auto">
+            {board.map((row, rowIndex) => (
+              row.map((piece, colIndex) => (
+                <div
+                  key={`${rowIndex}-${colIndex}`}
+                  className={`
+                    w-full pb-[100%] relative border border-[#0FFD20] cursor-pointer
+                    ${((rowIndex + colIndex) % 2 === 0) ? 'bg-black' : 'bg-[#0FFD20] bg-opacity-20'}
+                    ${selectedPiece?.row === rowIndex && selectedPiece?.col === colIndex ? 'bg-[#0FFD20] bg-opacity-40' : ''}
+                    hover:bg-[#0FFD20] hover:bg-opacity-30
+                  `}
+                  onClick={() => handleSquareClick(rowIndex, colIndex)}
+                >
+                  <div className="absolute inset-0 flex items-center justify-center text-4xl select-none">
+                    {piece}
                   </div>
-                  
-                  {gameMode === 'ai' && (
+                </div>
+              ))
+            ))}
+          </div>
+        </div>
+        
+        {/* Game Setup/End Dialog */}
+        {showDialog && (
+          <div className="absolute inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
+            <div className="bg-black border border-[#0FFD20] p-6 shadow-lg max-w-sm w-full mx-4">
+              {showDialog === 'setup' ? (
+                <>
+                  <h2 className="text-[#0FFD20] text-xl font-bold mb-6 text-center">
+                    MλTRIX CHESS
+                  </h2>
+                  <div className="space-y-6">
                     <div className="space-y-3">
-                      <p className="text-[#0FFD20] text-sm mb-2">Select Your Color:</p>
+                      <p className="text-[#0FFD20] text-sm mb-2">Select Game Mode:</p>
                       <div className="grid grid-cols-2 gap-3">
                         <button
                           className={`p-2 border border-[#0FFD20] hover:bg-[#0FFD20] hover:bg-opacity-20 transition-colors
-                            ${playerColor === 'white' ? 'bg-[#0FFD20] bg-opacity-20' : ''}`}
-                          onClick={() => setPlayerColor('white')}
+                            ${gameMode === 'human' ? 'bg-[#0FFD20] bg-opacity-20' : ''}`}
+                          onClick={() => setGameMode('human')}
                         >
-                          White ♔
+                          Human vs Human
                         </button>
                         <button
                           className={`p-2 border border-[#0FFD20] hover:bg-[#0FFD20] hover:bg-opacity-20 transition-colors
-                            ${playerColor === 'black' ? 'bg-[#0FFD20] bg-opacity-20' : ''}`}
-                          onClick={() => setPlayerColor('black')}
+                            ${gameMode === 'ai' ? 'bg-[#0FFD20] bg-opacity-20' : ''}`}
+                          onClick={() => setGameMode('ai')}
                         >
-                          Black ♚
+                          Play vs AI
                         </button>
                       </div>
                     </div>
-                  )}
-                  
-                  <button
-                    className={`w-full p-2 border border-[#0FFD20] hover:bg-[#0FFD20] hover:text-black transition-colors
-                      ${(!gameMode || (gameMode === 'ai' && !playerColor)) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    onClick={() => {
-                      if (gameMode && (gameMode === 'human' || playerColor)) {
-                        handleGameStart(gameMode, playerColor);
-                      }
-                    }}
-                    disabled={!gameMode || (gameMode === 'ai' && !playerColor)}
-                  >
-                    Start Game
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <h2 className="text-[#0FFD20] text-xl font-bold mb-6 text-center">
-                  Game Over
-                </h2>
-                <p className="text-[#0FFD20] text-center mb-6">
-                  {isWhiteTurn ? "Black" : "White"} Wins!
-                </p>
-                <div className="space-y-3">
-                  <button
-                    className="w-full p-2 border border-[#0FFD20] hover:bg-[#0FFD20] hover:text-black transition-colors"
-                    onClick={resetGame}
-                  >
-                    Play Again
-                  </button>
-                  <button
-                    className="w-full p-2 border border-[#0FFD20] hover:bg-[#0FFD20] hover:text-black transition-colors"
-                    onClick={onClose}
-                  >
-                    Exit
-                  </button>
-                </div>
-              </>
-            )}
+                    
+                    {gameMode === 'ai' && (
+                      <div className="space-y-3">
+                        <p className="text-[#0FFD20] text-sm mb-2">Select Your Color:</p>
+                        <div className="grid grid-cols-2 gap-3">
+                          <button
+                            className={`p-2 border border-[#0FFD20] hover:bg-[#0FFD20] hover:bg-opacity-20 transition-colors
+                              ${playerColor === 'white' ? 'bg-[#0FFD20] bg-opacity-20' : ''}`}
+                            onClick={() => setPlayerColor('white')}
+                          >
+                            White ♔
+                          </button>
+                          <button
+                            className={`p-2 border border-[#0FFD20] hover:bg-[#0FFD20] hover:bg-opacity-20 transition-colors
+                              ${playerColor === 'black' ? 'bg-[#0FFD20] bg-opacity-20' : ''}`}
+                            onClick={() => setPlayerColor('black')}
+                          >
+                            Black ♚
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    
+                    <button
+                      className={`w-full p-2 border border-[#0FFD20] hover:bg-[#0FFD20] hover:text-black transition-colors
+                        ${(!gameMode || (gameMode === 'ai' && !playerColor)) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      onClick={() => {
+                        if (gameMode && (gameMode === 'human' || playerColor)) {
+                          handleGameStart(gameMode, playerColor);
+                        }
+                      }}
+                      disabled={!gameMode || (gameMode === 'ai' && !playerColor)}
+                    >
+                      Start Game
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h2 className="text-[#0FFD20] text-xl font-bold mb-6 text-center">
+                    Game Over
+                  </h2>
+                  <p className="text-[#0FFD20] text-center mb-6">
+                    {isWhiteTurn ? "Black" : "White"} Wins!
+                  </p>
+                  <div className="space-y-3">
+                    <button
+                      className="w-full p-2 border border-[#0FFD20] hover:bg-[#0FFD20] hover:text-black transition-colors"
+                      onClick={resetGame}
+                    >
+                      Play Again
+                    </button>
+                    <button
+                      className="w-full p-2 border border-[#0FFD20] hover:bg-[#0FFD20] hover:text-black transition-colors"
+                      onClick={onClose}
+                    >
+                      Exit
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+      <BackToTerminalButton />
+    </>
   );
 } 

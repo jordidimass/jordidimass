@@ -8,20 +8,24 @@ import ChessWindow from './ChessWindow';
 type TrackOption = "clubbed" | "spybreak" | "prime_audio_soup" | "mindfields" | "happiness" | "windowlicker" | "blockrockin" | "places";
 
 export default function MatrixComponent() {
+  const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const terminalRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number | null>(null);
-  const router = useRouter();
-  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
-  const [isMatrixAnimating, setIsMatrixAnimating] = useState(true);
-  const [audioProgress, setAudioProgress] = useState(0);
-  const [remainingTime, setRemainingTime] = useState(0);
+  
+  // State declarations
+  const [isMobile, setIsMobile] = useState(false);
+  const [position, setPosition] = useState({ x: 100, y: 50 });
   const [terminalPosition, setTerminalPosition] = useState({ x: 0, y: 0 });
   const [terminalSize, setTerminalSize] = useState({ width: 0, height: 0 });
   const [isDraggingTerminal, setIsDraggingTerminal] = useState(false);
   const [isResizingTerminal, setIsResizingTerminal] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [isMatrixAnimating, setIsMatrixAnimating] = useState(true);
+  const [audioProgress, setAudioProgress] = useState(0);
+  const [remainingTime, setRemainingTime] = useState(0);
   const [terminalInput, setTerminalInput] = useState("");
   const [terminalOutput, setTerminalOutput] = useState<string[]>([
     "Wake up...",
@@ -70,6 +74,69 @@ export default function MatrixComponent() {
     },
   };
 
+  // Mobile detection effect
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Terminal size effect
+  useEffect(() => {
+    const updateTerminalSize = () => {
+      if (isMobile) {
+        setTerminalSize({ 
+          width: window.innerWidth * 0.9, 
+          height: window.innerHeight * 0.8 
+        });
+        setTerminalPosition({
+          x: window.innerWidth * 0.05,
+          y: window.innerHeight * 0.1
+        });
+      } else {
+        const width = Math.min(window.innerWidth * 0.75, 900);
+        const height = Math.min(window.innerHeight * 0.75, 675);
+        setTerminalPosition({
+          x: (window.innerWidth - width) / 2,
+          y: (window.innerHeight - height) / 2,
+        });
+        setTerminalSize({ width, height });
+      }
+    };
+
+    updateTerminalSize();
+    window.addEventListener("resize", updateTerminalSize);
+    return () => window.removeEventListener("resize", updateTerminalSize);
+  }, [isMobile]);
+
+  // Modified mouse down handler
+  const handleMouseDown = (e: React.MouseEvent | React.TouchEvent, action: "drag" | "resize") => {
+    if (isMobile) return; // Disable for mobile
+    const rect = terminalRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const clientX = e.type === "mousedown" ? (e as React.MouseEvent).clientX : (e as React.TouchEvent).touches[0].clientX;
+    const clientY = e.type === "mousedown" ? (e as React.MouseEvent).clientY : (e as React.TouchEvent).touches[0].clientY;
+
+    if (action === "drag") {
+      setDragOffset({
+        x: clientX - rect.left,
+        y: clientY - rect.top,
+      });
+      setIsDraggingTerminal(true);
+    } else {
+      setDragOffset({
+        x: rect.width - (clientX - rect.left),
+        y: rect.height - (clientY - rect.top),
+      });
+      setIsResizingTerminal(true);
+    }
+  };
+
   // Handle Cmd + K (macOS) or Ctrl + K (Windows/Linux) to clear terminal
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -90,24 +157,6 @@ export default function MatrixComponent() {
   const handleExit = () => {
     router.back();
   };
-
-  // Update terminal size
-  useEffect(() => {
-    const updateTerminalSize = () => {
-      const width = Math.min(window.innerWidth * 0.75, 900);
-      const height = Math.min(window.innerHeight * 0.75, 675);
-      setTerminalSize({ width, height });
-      setTerminalPosition({
-        x: (window.innerWidth - width) / 2,
-        y: (window.innerHeight - height) / 2,
-      });
-    };
-
-    updateTerminalSize();
-    window.addEventListener("resize", updateTerminalSize);
-
-    return () => window.removeEventListener("resize", updateTerminalSize);
-  }, []);
 
   // Matrix animation
   useEffect(() => {
@@ -300,28 +349,6 @@ export default function MatrixComponent() {
     const minutes = Math.floor(time / 60);
     const seconds = Math.floor(time % 60);
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-  };
-
-  const handleMouseDown = (e: React.MouseEvent | React.TouchEvent, action: "drag" | "resize") => {
-    const rect = terminalRef.current?.getBoundingClientRect();
-    if (!rect) return;
-
-    const clientX = e.type === "mousedown" ? (e as React.MouseEvent).clientX : (e as React.TouchEvent).touches[0].clientX;
-    const clientY = e.type === "mousedown" ? (e as React.MouseEvent).clientY : (e as React.TouchEvent).touches[0].clientY;
-
-    if (action === "drag") {
-      setDragOffset({
-        x: clientX - rect.left,
-        y: clientY - rect.top,
-      });
-      setIsDraggingTerminal(true);
-    } else {
-      setDragOffset({
-        x: rect.width - (clientX - rect.left),
-        y: rect.height - (clientY - rect.top),
-      });
-      setIsResizingTerminal(true);
-    }
   };
 
   // Move handleMouseMove and handleMouseUp inside the useEffect
@@ -550,11 +577,14 @@ export default function MatrixComponent() {
 
         case "chess":
           setShowChessWindow(true);
-          setTerminalPosition({ // Minimize terminal by moving it to bottom-left
-            x: 20,
-            y: window.innerHeight - 300
-          });
-          setTerminalSize({ width: 400, height: 250 });
+          if (!isMobile) {
+            // Only minimize terminal on desktop
+            setTerminalPosition({
+              x: 20,
+              y: window.innerHeight - 300
+            });
+            setTerminalSize({ width: 400, height: 250 });
+          }
           setTerminalOutput([...terminalOutput, "Launching Matrix Chess..."]);
           break;
 
@@ -565,19 +595,6 @@ export default function MatrixComponent() {
     }
   };
   
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth <= 768);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
   const [musicWindowPosition, setMusicWindowPosition] = useState({ x: 0, y: 0 });
   const [musicWindowSize, setMusicWindowSize] = useState({ width: 300, height: 150 });
   const [isDraggingMusicWindow, setIsDraggingMusicWindow] = useState(false);
