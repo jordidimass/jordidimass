@@ -23,6 +23,197 @@ const isBishop = (piece: Piece) => piece === '♝' || piece === '♗';
 const isQueen = (piece: Piece) => piece === '♛' || piece === '♕';
 const isKing = (piece: Piece) => piece === '♚' || piece === '♔';
 
+const evaluatePiece = (piece: Piece): number => {
+  if (!piece) return 0;
+  const values = {
+    '♟': -1, '♙': 1,     // pawns
+    '♜': -5, '♖': 5,     // rooks
+    '♞': -3, '♘': 3,     // knights
+    '♝': -3, '♗': 3,     // bishops
+    '♛': -9, '♕': 9,     // queens
+    '♚': -100, '♔': 100, // kings
+  } as const;
+  return values[piece as keyof typeof values];
+};
+
+const isValidMove = (from: Position, to: Position, piece: Piece, board: (Piece)[][]): boolean => {
+  const dx = to.col - from.col;
+  const dy = to.row - from.row;
+  const isWhite = isWhitePiece(piece);
+
+  // Check if destination has friendly piece
+  if (board[to.row][to.col]) {
+    const destIsWhite = isWhitePiece(board[to.row][to.col]);
+    if (isWhite === destIsWhite) return false;
+  }
+
+  // Pawn movement
+  if (isPawn(piece)) {
+    const direction = isWhite ? -1 : 1;
+    const startRow = isWhite ? 6 : 1;
+
+    // Regular move
+    if (dx === 0 && dy === direction && !board[to.row][to.col]) {
+      return true;
+    }
+    // Initial double move
+    if (dx === 0 && dy === 2 * direction && from.row === startRow && !board[to.row][to.col] && !board[from.row + direction][from.col]) {
+      return true;
+    }
+    // Capture
+    if (Math.abs(dx) === 1 && dy === direction && board[to.row][to.col]) {
+      return true;
+    }
+    return false;
+  }
+
+  // Rook movement
+  if (isRook(piece)) {
+    if (dx !== 0 && dy !== 0) return false;
+    return !hasObstaclesBetween(from, to, board);
+  }
+
+  // Knight movement
+  if (isKnight(piece)) {
+    return (Math.abs(dx) === 2 && Math.abs(dy) === 1) || (Math.abs(dx) === 1 && Math.abs(dy) === 2);
+  }
+
+  // Bishop movement
+  if (isBishop(piece)) {
+    if (Math.abs(dx) !== Math.abs(dy)) return false;
+    return !hasObstaclesBetween(from, to, board);
+  }
+
+  // Queen movement
+  if (isQueen(piece)) {
+    if ((dx !== 0 && dy !== 0) && (Math.abs(dx) !== Math.abs(dy))) return false;
+    return !hasObstaclesBetween(from, to, board);
+  }
+
+  // King movement
+  if (isKing(piece)) {
+    return Math.abs(dx) <= 1 && Math.abs(dy) <= 1;
+  }
+
+  return false;
+};
+
+const hasObstaclesBetween = (from: Position, to: Position, board: (Piece)[][]): boolean => {
+  const dx = Math.sign(to.col - from.col);
+  const dy = Math.sign(to.row - from.row);
+  let x = from.col + dx;
+  let y = from.row + dy;
+
+  while (x !== to.col || y !== to.row) {
+    if (board[y][x]) return true;
+    x += dx;
+    y += dy;
+  }
+  return false;
+};
+
+const isInCheck = (board: (Piece)[][], isWhiteKing: boolean): boolean => {
+  // Find king position
+  let kingPos: Position | null = null;
+  const kingPiece = isWhiteKing ? '♔' : '♚';
+  
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 8; col++) {
+      if (board[row][col] === kingPiece) {
+        kingPos = { row, col };
+        break;
+      }
+    }
+    if (kingPos) break;
+  }
+
+  if (!kingPos) return false;
+
+  // Check if any opponent piece can capture the king
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 8; col++) {
+      const piece = board[row][col];
+      if (piece && isWhiteKing !== isWhitePiece(piece)) {
+        if (isValidMove({ row, col }, kingPos, piece, board)) {
+          return true;
+        }
+      }
+    }
+  }
+
+  return false;
+};
+
+const getAllPossibleMoves = (board: (Piece)[][], isWhiteTurn: boolean) => {
+  const moves: { from: Position; to: Position; score: number }[] = [];
+  
+  for (let fromRow = 0; fromRow < 8; fromRow++) {
+    for (let fromCol = 0; fromCol < 8; fromCol++) {
+      const piece = board[fromRow][fromCol];
+      if (!piece || isWhitePiece(piece) !== isWhiteTurn) continue;
+
+      for (let toRow = 0; toRow < 8; toRow++) {
+        for (let toCol = 0; toCol < 8; toCol++) {
+          if (isValidMove(
+            { row: fromRow, col: fromCol },
+            { row: toRow, col: toCol },
+            piece,
+            board
+          )) {
+            // Make temporary move
+            const tempBoard = board.map(row => [...row]);
+            const capturedPiece = tempBoard[toRow][toCol];
+            tempBoard[toRow][toCol] = piece;
+            tempBoard[fromRow][fromCol] = null;
+
+            // Skip if move puts or leaves own king in check
+            if (isInCheck(tempBoard, isWhiteTurn)) continue;
+
+            // Evaluate move
+            let score = capturedPiece ? evaluatePiece(capturedPiece) : 0;
+            
+            // Extra points for getting out of check
+            if (isInCheck(board, isWhiteTurn) && !isInCheck(tempBoard, isWhiteTurn)) {
+              score += 2; // Prioritize getting out of check
+            }
+
+            // Bonus for controlling center
+            if (toRow >= 3 && toRow <= 4 && toCol >= 3 && toCol <= 4) {
+              score += 0.5;
+            }
+
+            // Bonus for check
+            if (isInCheck(tempBoard, !isWhiteTurn)) {
+              score += 0.3;
+            }
+
+            moves.push({
+              from: { row: fromRow, col: fromCol },
+              to: { row: toRow, col: toCol },
+              score: score
+            });
+          }
+        }
+      }
+    }
+  }
+  
+  return moves;
+};
+
+const makeAIMove = (board: (Piece)[][], isWhiteTurn: boolean) => {
+  const possibleMoves = getAllPossibleMoves(board, isWhiteTurn);
+  
+  if (possibleMoves.length === 0) return null;
+
+  // Sort moves by score and add some randomness for variety
+  possibleMoves.sort((a, b) => b.score - a.score);
+  const topMoves = possibleMoves.slice(0, Math.min(3, possibleMoves.length));
+  const selectedMove = topMoves[Math.floor(Math.random() * topMoves.length)];
+  
+  return selectedMove;
+};
+
 export default function ChessWindow({ onClose, isMobile }: ChessWindowProps) {
   const [position, setPosition] = useState({ x: 100, y: 50 });
   const [size, setSize] = useState({ width: 400, height: 500 });
@@ -33,10 +224,6 @@ export default function ChessWindow({ onClose, isMobile }: ChessWindowProps) {
   const [selectedPiece, setSelectedPiece] = useState<{ row: number; col: number } | null>(null);
   const [isWhiteTurn, setIsWhiteTurn] = useState(true);
   const [gameState, setGameState] = useState<'playing' | 'check' | 'checkmate' | 'stalemate'>('playing');
-  const [capturedPieces, setCapturedPieces] = useState<{ white: Piece[], black: Piece[] }>({
-    white: [],
-    black: []
-  });
   const [gameMode, setGameMode] = useState<GameMode>(null);
   const [playerColor, setPlayerColor] = useState<PlayerColor>(null);
   const [showDialog, setShowDialog] = useState<DialogType>('setup');
@@ -103,168 +290,63 @@ export default function ChessWindow({ onClose, isMobile }: ChessWindowProps) {
     };
   }, [isDragging, dragOffset]);
 
-  const isValidMove = (from: Position, to: Position, piece: Piece, board: (Piece)[][]): boolean => {
-    const dx = to.col - from.col;
-    const dy = to.row - from.row;
-    const isWhite = isWhitePiece(piece);
-
-    // Check if destination has friendly piece
-    if (board[to.row][to.col]) {
-      const destIsWhite = isWhitePiece(board[to.row][to.col]);
-      if (isWhite === destIsWhite) return false;
-    }
-
-    // Pawn movement
-    if (isPawn(piece)) {
-      const direction = isWhite ? -1 : 1;
-      const startRow = isWhite ? 6 : 1;
-
-      // Regular move
-      if (dx === 0 && dy === direction && !board[to.row][to.col]) {
-        return true;
-      }
-      // Initial double move
-      if (dx === 0 && dy === 2 * direction && from.row === startRow && !board[to.row][to.col] && !board[from.row + direction][from.col]) {
-        return true;
-      }
-      // Capture
-      if (Math.abs(dx) === 1 && dy === direction && board[to.row][to.col]) {
-        return true;
-      }
-      return false;
-    }
-
-    // Rook movement
-    if (isRook(piece)) {
-      if (dx !== 0 && dy !== 0) return false;
-      return !hasObstaclesBetween(from, to, board);
-    }
-
-    // Knight movement
-    if (isKnight(piece)) {
-      return (Math.abs(dx) === 2 && Math.abs(dy) === 1) || (Math.abs(dx) === 1 && Math.abs(dy) === 2);
-    }
-
-    // Bishop movement
-    if (isBishop(piece)) {
-      if (Math.abs(dx) !== Math.abs(dy)) return false;
-      return !hasObstaclesBetween(from, to, board);
-    }
-
-    // Queen movement
-    if (isQueen(piece)) {
-      if ((dx !== 0 && dy !== 0) && (Math.abs(dx) !== Math.abs(dy))) return false;
-      return !hasObstaclesBetween(from, to, board);
-    }
-
-    // King movement
-    if (isKing(piece)) {
-      return Math.abs(dx) <= 1 && Math.abs(dy) <= 1;
-    }
-
-    return false;
-  };
-
-  const hasObstaclesBetween = (from: Position, to: Position, board: (Piece)[][]): boolean => {
-    const dx = Math.sign(to.col - from.col);
-    const dy = Math.sign(to.row - from.row);
-    let x = from.col + dx;
-    let y = from.row + dy;
-
-    while (x !== to.col || y !== to.row) {
-      if (board[y][x]) return true;
-      x += dx;
-      y += dy;
-    }
-    return false;
-  };
-
-  const isInCheck = (board: (Piece)[][], isWhiteKing: boolean): boolean => {
-    // Find king position
-    let kingPos: Position | null = null;
-    const kingPiece = isWhiteKing ? '♔' : '♚';
-    
-    for (let row = 0; row < 8; row++) {
-      for (let col = 0; col < 8; col++) {
-        if (board[row][col] === kingPiece) {
-          kingPos = { row, col };
-          break;
-        }
-      }
-      if (kingPos) break;
-    }
-
-    if (!kingPos) return false;
-
-    // Check if any opponent piece can capture the king
-    for (let row = 0; row < 8; row++) {
-      for (let col = 0; col < 8; col++) {
-        const piece = board[row][col];
-        if (piece && isWhiteKing !== isWhitePiece(piece)) {
-          if (isValidMove({ row, col }, kingPos, piece, board)) {
-            return true;
-          }
-        }
-      }
-    }
-
-    return false;
-  };
-
   const isCheckmate = (board: (Piece)[][], isWhiteKing: boolean): boolean => {
+    // First verify the king is in check
     if (!isInCheck(board, isWhiteKing)) return false;
 
+    // Try every possible move for every piece of the current player
     for (let fromRow = 0; fromRow < 8; fromRow++) {
       for (let fromCol = 0; fromCol < 8; fromCol++) {
         const piece = board[fromRow][fromCol];
-        if (!piece) continue;
-        
-        if (isWhiteKing === isWhitePiece(piece)) {
-          for (let toRow = 0; toRow < 8; toRow++) {
-            for (let toCol = 0; toCol < 8; toCol++) {
-              if (isValidMove({ row: fromRow, col: fromCol }, { row: toRow, col: toCol }, piece, board)) {
-                const tempBoard = board.map(row => [...row]);
-                tempBoard[toRow][toCol] = piece;
-                tempBoard[fromRow][fromCol] = null;
-                
-                if (!isInCheck(tempBoard, isWhiteKing)) {
-                  return false;
-                }
+        // Make sure we're only checking moves for the current player's pieces
+        if (!piece || (isWhiteKing !== isWhitePiece(piece))) continue;
+
+        // Try all possible destinations
+        for (let toRow = 0; toRow < 8; toRow++) {
+          for (let toCol = 0; toCol < 8; toCol++) {
+            // Skip if it's the same position
+            if (fromRow === toRow && fromCol === toCol) continue;
+
+            if (isValidMove({ row: fromRow, col: fromCol }, { row: toRow, col: toCol }, piece, board)) {
+              // Make temporary move
+              const tempBoard = board.map(row => [...row]);
+              tempBoard[toRow][toCol] = piece;
+              tempBoard[fromRow][fromCol] = null;
+
+              // If this move gets out of check, it's not checkmate
+              if (!isInCheck(tempBoard, isWhiteKing)) {
+                return false;
               }
             }
           }
         }
       }
     }
-    
+
+    // If we've tried all moves and none get us out of check, it's checkmate
     return true;
   };
 
   const handleSquareClick = (row: number, col: number) => {
     if (!selectedPiece) {
-      // Selecting a piece
       const piece = board[row][col];
       if (!piece) return;
       
-      // Check if the selected piece belongs to the current player
       const pieceIsWhite = isWhitePiece(piece);
       if ((isWhiteTurn && !pieceIsWhite) || (!isWhiteTurn && pieceIsWhite)) {
-        return; // Can't select opponent's pieces
+        return;
       }
       
       setSelectedPiece({ row, col });
     } else {
-      // Moving a piece
       const piece = board[selectedPiece.row][selectedPiece.col];
       if (!piece) return;
 
-      // If clicking the same piece, deselect it
       if (selectedPiece.row === row && selectedPiece.col === col) {
         setSelectedPiece(null);
         return;
       }
 
-      // If clicking another piece of the same color, select that piece instead
       const targetPiece = board[row][col];
       if (targetPiece && isWhitePiece(targetPiece) === isWhitePiece(piece)) {
         setSelectedPiece({ row, col });
@@ -274,35 +356,27 @@ export default function ChessWindow({ onClose, isMobile }: ChessWindowProps) {
       if (isValidMove(selectedPiece, { row, col }, piece, board)) {
         const newBoard = [...board.map(row => [...row])];
         
-        // Handle captures
-        const capturedPiece = newBoard[row][col];
-        if (capturedPiece) {
-          setCapturedPieces(prev => {
-            const isWhiteCaptured = isWhitePiece(capturedPiece);
-            return {
-              white: isWhiteCaptured ? [...prev.white, capturedPiece] : prev.white,
-              black: isWhiteCaptured ? prev.black : [...prev.black, capturedPiece]
-            };
-          });
-        }
-
-        // Make the move
         newBoard[row][col] = piece;
         newBoard[selectedPiece.row][selectedPiece.col] = null;
 
-        // Check if the move puts own king in check
         const isWhite = isWhitePiece(piece);
-        if (isInCheck(newBoard, isWhite)) {
+        if (isWhite !== null && isInCheck(newBoard, isWhite)) {
           setSelectedPiece(null);
           return;
         }
 
-        // Update board and check game state
+        // Update board first
         setBoard(newBoard);
+        
+        // Check opponent's position (important: we check the opponent's king here)
         const opponentIsWhite = !isWhite;
         
+        // Check for checkmate first, then check
         if (isCheckmate(newBoard, opponentIsWhite)) {
           setGameState('checkmate');
+          setTimeout(() => {
+            setShowDialog('endgame');
+          }, 1500);
         } else if (isInCheck(newBoard, opponentIsWhite)) {
           setGameState('check');
         } else {
@@ -312,7 +386,7 @@ export default function ChessWindow({ onClose, isMobile }: ChessWindowProps) {
         setIsWhiteTurn(!isWhiteTurn);
         setSelectedPiece(null);
       } else {
-        setSelectedPiece(null); // Deselect piece if move is invalid
+        setSelectedPiece(null);
       }
     }
   };
@@ -321,7 +395,6 @@ export default function ChessWindow({ onClose, isMobile }: ChessWindowProps) {
     setBoard(initializeBoard());
     setIsWhiteTurn(true);
     setGameState('playing');
-    setCapturedPieces({ white: [], black: [] });
     setSelectedPiece(null);
     setShowDialog('setup');
   };
@@ -337,8 +410,80 @@ export default function ChessWindow({ onClose, isMobile }: ChessWindowProps) {
   const handleGameStart = (mode: GameMode, color: PlayerColor) => {
     setGameMode(mode);
     setPlayerColor(color);
+    setBoard(initializeBoard());
+    setIsWhiteTurn(true);
+    setGameState('playing');
     setShowDialog(null);
+
+    if (mode === 'ai' && color === 'black') {
+      setTimeout(() => {
+        const aiMove = makeAIMove(initializeBoard(), true);
+        if (aiMove) {
+          const { from, to } = aiMove;
+          const newBoard = [...initializeBoard()];
+          const piece = newBoard[from.row][from.col];
+          
+          if (piece) {
+            newBoard[to.row][to.col] = piece;
+            newBoard[from.row][from.col] = null;
+            setBoard(newBoard);
+            setIsWhiteTurn(false);
+          }
+        }
+      }, 500);
+    }
   };
+
+  useEffect(() => {
+    if (
+      gameMode === 'ai' && 
+      gameState !== 'checkmate' && // Only stop on checkmate
+      playerColor && 
+      showDialog === null
+    ) {
+      const isAITurn = playerColor === 'white' ? !isWhiteTurn : isWhiteTurn;
+      
+      if (isAITurn) {
+        const timeoutId = setTimeout(() => {
+          const aiMove = makeAIMove(board, isWhiteTurn);
+          
+          if (aiMove) {
+            const { from, to } = aiMove;
+            const piece = board[from.row][from.col];
+            
+            if (piece) {
+              const newBoard = [...board.map(row => [...row])];
+              
+              newBoard[to.row][to.col] = piece;
+              newBoard[from.row][from.col] = null;
+
+              // Update board first
+              setBoard(newBoard);
+
+              // Check opponent's king (the player's king)
+              const opponentIsWhite = !isWhitePiece(piece);
+              
+              // Check for checkmate first
+              if (isCheckmate(newBoard, opponentIsWhite)) {
+                setGameState('checkmate');
+                setTimeout(() => {
+                  setShowDialog('endgame');
+                }, 1500);
+              } else if (isInCheck(newBoard, opponentIsWhite)) {
+                setGameState('check');
+              } else {
+                setGameState('playing');
+              }
+              
+              setIsWhiteTurn(!isWhiteTurn);
+            }
+          }
+        }, 500);
+
+        return () => clearTimeout(timeoutId);
+      }
+    }
+  }, [gameMode, playerColor, isWhiteTurn, board, gameState, showDialog]);
 
   return (
     <div
@@ -379,10 +524,6 @@ export default function ChessWindow({ onClose, isMobile }: ChessWindowProps) {
             : gameState === 'check' 
               ? (isWhiteTurn ? "Black in Check!" : "White in Check!") 
               : `${isWhiteTurn ? "White" : "Black"}'s Turn`}
-        </div>
-        <div className="flex justify-between mb-2 text-sm">
-          <div>Captured Black: {capturedPieces.black.join(' ')}</div>
-          <div>Captured White: {capturedPieces.white.join(' ')}</div>
         </div>
         <div className="grid grid-cols-8 gap-0 max-w-[400px] mx-auto">
           {board.map((row, rowIndex) => (
