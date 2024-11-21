@@ -679,7 +679,7 @@ export default function MatrixComponent() {
     const audio = audioRef.current;
     if (!audio) return;
 
-    const handleTrackEnd = async () => {
+    const handleTrackEnd = () => {
       const trackList: Array<TrackOption> = [
         "rave_zion",
         "prime_audio_soup",
@@ -697,15 +697,22 @@ export default function MatrixComponent() {
 
       setCurrentTrack(nextTrack);
       audio.src = tracks[nextTrack].src;
+      audio.load();
       
-      try {
-        await audio.load();
-        await audio.play();
-        setIsAudioPlaying(true);
-      } catch (error) {
-        console.warn("Playback error:", error);
-        setIsAudioPlaying(false);
-      }
+      // Play the next track and update state
+      const playNext = () => {
+        audio.play()
+          .then(() => {
+            setIsAudioPlaying(true);
+          })
+          .catch((error) => {
+            console.warn("Playback error:", error);
+            setIsAudioPlaying(false);
+          });
+      };
+
+      // Add a small delay to ensure proper loading
+      setTimeout(playNext, 100);
     };
 
     audio.addEventListener('ended', handleTrackEnd);
@@ -713,7 +720,7 @@ export default function MatrixComponent() {
     return () => {
       audio.removeEventListener('ended', handleTrackEnd);
     };
-  }, [currentTrack, tracks]); // Add dependencies
+  }, [currentTrack, tracks, setCurrentTrack, setIsAudioPlaying]);
 
   return (
     <div className="bg-black min-h-screen font-mono text-[#0FFD20] overflow-hidden">
