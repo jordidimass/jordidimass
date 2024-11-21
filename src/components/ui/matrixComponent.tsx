@@ -497,19 +497,15 @@ export default function MatrixComponent() {
             ...terminalOutput,
             "Matrix Terminal v1.0.0",
             "Available commands:",
-            "help          - Show available commands and their descriptions.",
-            "clear         - Clear the terminal screen. (Shortcut: Cmd/Ctrl + K)",
-            "characters    - List the characters from the Matrix.",
+            "ask <query>   - Ask the Matrix AI a question in natural language.",
+            "chess         - Launch the Matrix Chess game.",
             "play         - Start playing the audio track and show controls.",
             "pause        - Pause the current track.",
             "next         - Switch to the next track.",
             "prev         - Switch to the previous track.",
             "toggle-matrix - Toggle the Matrix animation on or off.",
-            "pill-choice   - Make the red or blue pill choice.",
-            "ask <query>   - Ask the Matrix AI a question in natural language.",
+            "clear         - Clear the terminal screen. (Shortcut: Cmd/Ctrl + K)",
             "exit          - Exit the Matrix interface and return to the previous page.",
-            "whoami        - Display information about the user of this system.",
-            "chess         - Launch the Matrix Chess game.",
           ]);
           break;
 
@@ -553,41 +549,12 @@ export default function MatrixComponent() {
           setTerminalOutput([]);
           break;
 
-        case "characters":
-          setTerminalOutput([
-            ...terminalOutput,
-            "jordi - The One",
-            "Shinji - Captain of the Nebuchadnezzar | Orange Cat",
-            "Agent Smith - Sentient program of the Matrix",
-          ]);
-          break;
-
         case "toggle-matrix":
           toggleMatrixAnimation();
           setTerminalOutput((prevOutput) => [
             ...prevOutput,
             isMatrixAnimating ? "Pausing Matrix animation." : "Resuming Matrix animation.",
           ]);
-          break;
-
-        case "pill-choice":
-          setTerminalOutput((prevOutput) => [
-            ...prevOutput,
-            "You take the blue pill - the story ends, you wake up in your bed and believe whatever you want to believe.",
-            "You take the red pill - you stay in Wonderland and I show you how deep the rabbit-hole goes.",
-            "Which pill do you choose? (Type 'red' or 'blue')",
-          ]);
-          break;
-
-        case "red":
-          setTerminalOutput((prevOutput) => [
-            ...prevOutput,
-            "Remember... all I'm offering is the truth. Nothing more.",
-          ]);
-          break;
-
-        case "blue":
-          setTerminalOutput((prevOutput) => [...prevOutput, "The Matrix has you..."]);
           break;
 
         case "exit":

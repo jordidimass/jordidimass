@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Code } from "lucide-react";
 import { useState } from "react";
+import Link from "next/link";
 
 interface MinimizedWindow {
   id: string;
@@ -26,12 +27,13 @@ export default function MatrixToolbar({ minimizedWindows }: MatrixToolbarProps) 
       style={{ boxShadow: "0 0 10px rgba(15, 253, 32, 0.3)" }}
     >
       <div className="flex items-center space-x-2">
-        <button 
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className="hover:bg-[#0FFD20] hover:bg-opacity-20 p-1 rounded"
-        >
-          <span className="text-[#0FFD20] text-xl">λ</span>
-        </button>
+        <Link href="/">
+          <button 
+            className="hover:bg-[#0FFD20] hover:bg-opacity-20 p-1 rounded"
+          >
+            <span className="text-[#0FFD20] text-xl">λ</span>
+          </button>
+        </Link>
 
         <div className="h-full w-[1px] bg-[#0FFD20] mx-2" />
 
