@@ -120,40 +120,6 @@ export default function Navbar() {
               ))}
             </div>
           </div>
-          <Link
-            href="/matrix"
-            onClick={() => setIsOpen(false)}
-            className="fixed bottom-8 right-8 z-50"
-          >
-            <motion.div
-              className="w-6 h-6 flex items-center justify-center cursor-pointer"
-              whileHover={{
-                scale: 1.2,
-              }}
-            >
-              <motion.div
-                className="w-[3px] h-[3px] rounded-full bg-[#0FFD20]"
-                animate={{
-                  boxShadow: [
-                    '0 0 3px #0FFD20, 0 0 6px #0FFD20, 0 0 9px #0FFD20',
-                    '0 0 4.5px #0FFD20, 0 0 7.5px #0FFD20, 0 0 10.5px #0FFD20',
-                    '0 0 3px #0FFD20, 0 0 6px #0FFD20, 0 0 9px #0FFD20'
-                  ],
-                  scale: [1, 1.2, 1]
-                }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
-                whileHover={{
-                  scale: 1.5,
-                  boxShadow: '0 0 6px #0FFD20, 0 0 12px #0FFD20, 0 0 18px #0FFD20'
-                }}
-                title="Enter the Matrix"
-              />
-            </motion.div>
-          </Link>
         </div>
       )}
     </nav>

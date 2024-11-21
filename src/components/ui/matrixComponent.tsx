@@ -7,7 +7,7 @@ import ChessWindow from './ChessWindow';
 import { motion, AnimatePresence } from "framer-motion";
 import MatrixToolbar from "./MatrixToolbar";
 
-type TrackOption = "clubbed" | "spybreak" | "prime_audio_soup" | "mindfields" | "happiness" | "windowlicker" | "blockrockin" | "places";
+type TrackOption = "clubbed" | "spybreak" | "prime_audio_soup" | "mindfields" | "happiness" | "windowlicker" | "blockrockin" | "places" | "rave_zion";
 
 export default function MatrixComponent() {
   const router = useRouter();
@@ -79,6 +79,10 @@ export default function MatrixComponent() {
     places: {
       src: "https://utfs.io/f/ixJ6E8OWunht7OpTmau8RVJD3Q0PjrEsGu1wmTFiZLUpekCM",
       title: "Fred again.. & Anderson .Paak - places to be",
+    },
+    rave_zion: {
+      src: "https://utfs.io/f/ixJ6E8OWunhtQuO5TVdcVUsfKamM5tSYiB4I8WeLb6vdNRH1",
+      title: "Rave Zion",
     },
   };
 
@@ -298,6 +302,7 @@ export default function MatrixComponent() {
       "windowlicker",
       "blockrockin",
       "places",
+      "rave_zion",
     ];
 
     const nextTrackIndex = (trackList.indexOf(currentTrack) + 1) % trackList.length;
@@ -337,6 +342,7 @@ export default function MatrixComponent() {
       "windowlicker",
       "blockrockin",
       "places",
+      "rave_zion",
     ];
 
     const prevTrackIndex = (trackList.indexOf(currentTrack) - 1 + trackList.length) % trackList.length;

@@ -161,12 +161,14 @@ export default function HomePage() {
       >
         <div className="w-full">
           <h1 className="text-4xl lg:text-5xl font-bold mb-4 lg:mb-6 text-white leading-tight">
-            welcome to my place<br />on the internet
+            welcome to my place{' '}
+            <span className="lg:hidden">on the internet</span>
+            <span className="hidden lg:inline">on the internet</span>
           </h1>
           <p className="text-2xl lg:text-2xl text-gray-300 leading-relaxed">
-            hi, i&apos;m jordi, tech and science lover,<br />
-            living in the hyperreality making web<br />
-            products for the real life.
+            hi, i&apos;m jordi, tech and science lover,{' '}
+            <span className="lg:hidden">living in the hyperreality making web products for the real life.</span>
+            <span className="hidden lg:inline">living in the hyperreality making web<br />products for the real life.</span>
           </p>
         </div>
       </motion.div>
@@ -180,39 +182,37 @@ export default function HomePage() {
         <GalaxyBackground />
       </motion.div>
       
-      {/* Matrix Portal Button - Only shown on desktop */}
-      {!isMobile && (
-        <Link href="/matrix" className="fixed bottom-8 right-8 z-50">
+      {/* Matrix Portal Button - Show on all devices */}
+      <Link href="/matrix" className="fixed bottom-8 right-8 z-50">
+        <motion.div
+          className="w-6 h-6 flex items-center justify-center cursor-pointer"
+          whileHover={{
+            scale: 1.2,
+          }}
+        >
           <motion.div
-            className="w-6 h-6 flex items-center justify-center cursor-pointer"
-            whileHover={{
-              scale: 1.2,
+            className="w-[3px] h-[3px] rounded-full bg-[#0FFD20]"
+            animate={{
+              boxShadow: [
+                '0 0 3px #0FFD20, 0 0 6px #0FFD20, 0 0 9px #0FFD20',
+                '0 0 4.5px #0FFD20, 0 0 7.5px #0FFD20, 0 0 10.5px #0FFD20',
+                '0 0 3px #0FFD20, 0 0 6px #0FFD20, 0 0 9px #0FFD20'
+              ],
+              scale: [1, 1.2, 1]
             }}
-          >
-            <motion.div
-              className="w-[3px] h-[3px] rounded-full bg-[#0FFD20]"
-              animate={{
-                boxShadow: [
-                  '0 0 3px #0FFD20, 0 0 6px #0FFD20, 0 0 9px #0FFD20',
-                  '0 0 4.5px #0FFD20, 0 0 7.5px #0FFD20, 0 0 10.5px #0FFD20',
-                  '0 0 3px #0FFD20, 0 0 6px #0FFD20, 0 0 9px #0FFD20'
-                ],
-                scale: [1, 1.2, 1]
-              }}
-              transition={{
-                duration: 2,
-                repeat: Infinity,
-                ease: "easeInOut"
-              }}
-              whileHover={{
-                scale: 1.5,
-                boxShadow: '0 0 6px #0FFD20, 0 0 12px #0FFD20, 0 0 18px #0FFD20'
-              }}
-              title="Enter the Matrix"
-            />
-          </motion.div>
-        </Link>
-      )}
+            transition={{
+              duration: 2,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+            whileHover={{
+              scale: 1.5,
+              boxShadow: '0 0 6px #0FFD20, 0 0 12px #0FFD20, 0 0 18px #0FFD20'
+            }}
+            title="Enter the Matrix"
+          />
+        </motion.div>
+      </Link>
     </div>
   );
 }
