@@ -5,6 +5,7 @@ import { X, Minus, Maximize2 } from "lucide-react";
 
 interface ChessWindowProps {
   onClose: () => void;
+  onMinimize: () => void;
   isMobile: boolean;
 }
 
@@ -213,7 +214,7 @@ const makeAIMove = (board: (Piece)[][], isWhiteTurn: boolean) => {
   return topMoves[Math.floor(Math.random() * topMoves.length)];
 };
 
-export default function ChessWindow({ onClose, isMobile }: ChessWindowProps) {
+export default function ChessWindow({ onClose, onMinimize, isMobile }: ChessWindowProps) {
   const [position, setPosition] = useState({ x: 100, y: 50 });
   const [size, setSize] = useState({ width: 400, height: 500 });
   const [isDragging, setIsDragging] = useState(false);
@@ -553,14 +554,16 @@ export default function ChessWindow({ onClose, isMobile }: ChessWindowProps) {
         >
           <span className="text-xs uppercase">MλTRIX CHESS</span>
           <div className="flex space-x-1">
-            <button className="text-[#0FFD20] hover:text-white">
+            <button 
+              className="text-[#0FFD20] hover:text-white" 
+              aria-label="Minimize"
+              onClick={onMinimize}
+            >
               <Minus size={12} />
-            </button>
-            <button className="text-[#0FFD20] hover:text-white">
-              <Maximize2 size={12} />
             </button>
             <button
               className="text-[#0FFD20] hover:text-white"
+              aria-label="Close"
               onClick={onClose}
             >
               <X size={12} />

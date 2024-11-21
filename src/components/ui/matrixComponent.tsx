@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { X, Minus, Maximize2, Play, Pause, SkipBack, SkipForward } from "lucide-react";
+import { X, Minus, Maximize2, Play, Pause, SkipBack, SkipForward, Terminal, Music } from "lucide-react";
 import { useRouter } from "next/navigation";
 import ChessWindow from './ChessWindow';
+import { motion, AnimatePresence } from "framer-motion";
+import MatrixToolbar from "./MatrixToolbar";
 
 type TrackOption = "clubbed" | "spybreak" | "prime_audio_soup" | "mindfields" | "happiness" | "windowlicker" | "blockrockin" | "places";
 
@@ -15,6 +17,12 @@ export default function MatrixComponent() {
   const animationRef = useRef<number | null>(null);
   
   // State declarations
+  const [musicWindowPosition, setMusicWindowPosition] = useState({ x: window.innerWidth - 320, y: 20 });
+  const [musicWindowSize, setMusicWindowSize] = useState({ width: 300, height: 150 });
+  const [isDraggingMusic, setIsDraggingMusic] = useState(false);
+  const [showMusicWindow, setShowMusicWindow] = useState(false);
+  const [showChessWindow, setShowChessWindow] = useState(false);
+  const musicWindowRef = useRef<HTMLDivElement>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [position, setPosition] = useState({ x: 100, y: 50 });
   const [terminalPosition, setTerminalPosition] = useState({ x: 0, y: 0 });
@@ -74,6 +82,13 @@ export default function MatrixComponent() {
     },
   };
 
+  const [minimizedWindows, setMinimizedWindows] = useState<Array<{
+    id: string;
+    title: string;
+    icon?: React.ReactNode;
+    restore: () => void;
+  }>>([]);
+
   // Mobile detection effect
   useEffect(() => {
     const checkMobile = () => {
@@ -114,20 +129,26 @@ export default function MatrixComponent() {
   }, [isMobile]);
 
   // Modified mouse down handler
-  const handleMouseDown = (e: React.MouseEvent | React.TouchEvent, action: "drag" | "resize") => {
-    if (isMobile) return; // Disable for mobile
-    const rect = terminalRef.current?.getBoundingClientRect();
-    if (!rect) return;
-
+  const handleMouseDown = (e: React.MouseEvent | React.TouchEvent, action: "drag" | "resize", windowType: "terminal" | "music") => {
+    if (isMobile) return;
+    
     const clientX = e.type === "mousedown" ? (e as React.MouseEvent).clientX : (e as React.TouchEvent).touches[0].clientX;
     const clientY = e.type === "mousedown" ? (e as React.MouseEvent).clientY : (e as React.TouchEvent).touches[0].clientY;
+    
+    const windowRef = windowType === "terminal" ? terminalRef : musicWindowRef;
+    const rect = windowRef.current?.getBoundingClientRect();
+    if (!rect) return;
 
     if (action === "drag") {
       setDragOffset({
         x: clientX - rect.left,
         y: clientY - rect.top,
       });
-      setIsDraggingTerminal(true);
+      if (windowType === "terminal") {
+        setIsDraggingTerminal(true);
+      } else if (windowType === "music") {
+        setIsDraggingMusic(true);
+      }
     } else {
       setDragOffset({
         x: rect.width - (clientX - rect.left),
@@ -362,6 +383,11 @@ export default function MatrixComponent() {
           x: clientX - dragOffset.x,
           y: clientY - dragOffset.y,
         });
+      } else if (isDraggingMusic) {
+        setMusicWindowPosition({
+          x: clientX - dragOffset.x,
+          y: clientY - dragOffset.y,
+        });
       } else if (isResizingTerminal) {
         const newWidth = clientX - terminalPosition.x + dragOffset.x;
         const newHeight = clientY - terminalPosition.y + dragOffset.y;
@@ -374,6 +400,7 @@ export default function MatrixComponent() {
 
     const handleMouseUp = () => {
       setIsDraggingTerminal(false);
+      setIsDraggingMusic(false);
       setIsResizingTerminal(false);
     };
 
@@ -387,7 +414,7 @@ export default function MatrixComponent() {
       document.removeEventListener("touchmove", handleMouseMove);
       document.removeEventListener("touchend", handleMouseUp);
     };
-  }, [isDraggingTerminal, isResizingTerminal, dragOffset, terminalPosition]);
+  }, [isDraggingTerminal, isDraggingMusic, isResizingTerminal, dragOffset, terminalPosition]);
 
   const handleTerminalInput = (e: React.KeyboardEvent<HTMLInputElement>) => {
     // Handle arrow keys for command history navigation
@@ -577,14 +604,7 @@ export default function MatrixComponent() {
 
         case "chess":
           setShowChessWindow(true);
-          if (!isMobile) {
-            // Only minimize terminal on desktop
-            setTerminalPosition({
-              x: 20,
-              y: window.innerHeight - 300
-            });
-            setTerminalSize({ width: 400, height: 250 });
-          }
+          minimizeWindow('terminal', 'Terminal', <Terminal size={14} />);
           setTerminalOutput([...terminalOutput, "Launching Matrix Chess..."]);
           break;
 
@@ -595,15 +615,10 @@ export default function MatrixComponent() {
     }
   };
   
-  const [musicWindowPosition, setMusicWindowPosition] = useState({ x: 0, y: 0 });
-  const [musicWindowSize, setMusicWindowSize] = useState({ width: 300, height: 150 });
-  const [isDraggingMusicWindow, setIsDraggingMusicWindow] = useState(false);
-  const musicWindowRef = useRef<HTMLDivElement>(null);
-
   // Add this effect to handle music window dragging
   useEffect(() => {
     const handleMusicWindowMove = (e: MouseEvent | TouchEvent) => {
-      if (isDraggingMusicWindow) {
+      if (isDraggingMusic) {
         const clientX = e instanceof MouseEvent ? e.clientX : e.touches[0].clientX;
         const clientY = e instanceof MouseEvent ? e.clientY : e.touches[0].clientY;
         
@@ -615,7 +630,7 @@ export default function MatrixComponent() {
     };
 
     const handleMusicWindowUp = () => {
-      setIsDraggingMusicWindow(false);
+      setIsDraggingMusic(false);
     };
 
     document.addEventListener("mousemove", handleMusicWindowMove);
@@ -629,7 +644,7 @@ export default function MatrixComponent() {
       document.removeEventListener("touchmove", handleMusicWindowMove);
       document.removeEventListener("touchend", handleMusicWindowUp);
     };
-  }, [isDraggingMusicWindow, dragOffset]);
+  }, [isDraggingMusic, dragOffset]);
 
   // Add this handler for music window dragging
   const handleMusicWindowMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
@@ -643,10 +658,8 @@ export default function MatrixComponent() {
       x: clientX - rect.left,
       y: clientY - rect.top,
     });
-    setIsDraggingMusicWindow(true);
+    setIsDraggingMusic(true);
   };
-
-  const [showMusicWindow, setShowMusicWindow] = useState(false);
 
   useEffect(() => {
     const updateMusicWindowPosition = () => {
@@ -667,10 +680,30 @@ export default function MatrixComponent() {
     return () => window.removeEventListener('resize', updateMusicWindowPosition);
   }, []);
 
-  const [showChessWindow, setShowChessWindow] = useState(false);
+  const minimizeWindow = (windowId: string, title: string, icon?: React.ReactNode) => {
+    const restoreFunction = () => {
+      switch (windowId) {
+        case 'terminal':
+          setMinimizedWindows(prev => prev.filter(w => w.id !== 'terminal'));
+          setTerminalPosition({ ...terminalPosition });
+          break;
+        case 'music':
+          setMinimizedWindows(prev => prev.filter(w => w.id !== 'music'));
+          setShowMusicWindow(true);
+          break;
+        case 'chess':
+          setMinimizedWindows(prev => prev.filter(w => w.id !== 'chess'));
+          setShowChessWindow(true);
+          break;
+      }
+    };
+
+    setMinimizedWindows(prev => [...prev, { id: windowId, title, icon, restore: restoreFunction }]);
+  };
 
   return (
     <div className="bg-black min-h-screen font-mono text-[#0FFD20] overflow-hidden">
+      {!isMobile && <MatrixToolbar minimizedWindows={minimizedWindows} />}
       <style jsx global>{`
         ::selection {
           background-color: #0FFD20;
@@ -682,73 +715,85 @@ export default function MatrixComponent() {
         className="fixed top-0 left-0 w-full h-full"
         aria-label="Matrix digital rain animation"
       />
-      <div
-        ref={terminalRef}
-        className="absolute bg-black border border-[#0FFD20] shadow-lg"
-        style={{
-          left: `${terminalPosition.x}px`,
-          top: `${terminalPosition.y}px`,
-          width: `${terminalSize.width}px`,
-          height: `${terminalSize.height}px`,
-          boxShadow: "0 0 10px #0FFD20",
-        }}
-        onClick={() => document.getElementById("terminal-input")?.focus()} // Focus input on terminal click
-      >
-        <div
-          className="flex justify-between items-center p-1 border-b border-[#0FFD20] cursor-move"
-          onMouseDown={(e) => handleMouseDown(e, "drag")}
-          onTouchStart={(e) => handleMouseDown(e, "drag")}
-        >
-          <span className="text-xs uppercase">TERMINλL</span>
-          <div className="flex space-x-1">
-            <button className="text-[#0FFD20] hover:text-white" aria-label="Minimize">
-              <Minus size={12} />
-            </button>
-            <button className="text-[#0FFD20] hover:text-white" aria-label="Maximize">
-              <Maximize2 size={12} />
-            </button>
-            <button
-              className="text-[#0FFD20] hover:text-white"
-              aria-label="Close"
-              onClick={handleExit}
+      <AnimatePresence>
+        {!minimizedWindows.find(w => w.id === 'terminal') && (
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.8, opacity: 0, y: -100 }}
+            ref={terminalRef}
+            className="absolute bg-black border border-[#0FFD20] shadow-lg"
+            style={{
+              left: `${terminalPosition.x}px`,
+              top: `${terminalPosition.y}px`,
+              width: `${terminalSize.width}px`,
+              height: `${terminalSize.height}px`,
+              boxShadow: "0 0 10px #0FFD20",
+            }}
+            onClick={() => document.getElementById("terminal-input")?.focus()} // Focus input on terminal click
+          >
+            <div
+              className="flex justify-between items-center p-1 border-b border-[#0FFD20] cursor-move"
+              onMouseDown={(e) => !isMobile && handleMouseDown(e, "drag", "terminal")}
+              onTouchStart={(e) => !isMobile && handleMouseDown(e, "drag", "terminal")}
             >
-              <X size={12} />
-            </button>
-          </div>
-        </div>
-        <div className="p-2 overflow-y-auto" style={{ height: `calc(100% - 25px)` }}>
-          {terminalOutput.map((line, index) => (
-            <div key={index} className="text-xs">
-              {line}
+              <span className="text-xs uppercase">TERMINλL</span>
+              <div className="flex space-x-1">
+                <button 
+                  className="text-[#0FFD20] hover:text-white" 
+                  aria-label="Minimize"
+                  onClick={() => minimizeWindow('terminal', 'Terminal', <Terminal size={14} />)}
+                >
+                  <Minus size={12} />
+                </button>
+                <button className="text-[#0FFD20] hover:text-white" aria-label="Maximize">
+                  <Maximize2 size={12} />
+                </button>
+                <button
+                  className="text-[#0FFD20] hover:text-white"
+                  aria-label="Close"
+                  onClick={handleExit}
+                >
+                  <X size={12} />
+                </button>
+              </div>
             </div>
-          ))}
-          <div className="flex items-center text-xs">
-            <span className="mr-1">{">"}</span>
-            <input
-              id="terminal-input"
-              type="text"
-              value={terminalInput}
-              onChange={(e) => setTerminalInput(e.target.value)}
-              onKeyDown={handleTerminalInput}
-              className="bg-transparent border-none outline-none flex-grow"
-              aria-label="Terminal input"
+            <div className="p-2 overflow-y-auto" style={{ height: `calc(100% - 25px)` }}>
+              {terminalOutput.map((line, index) => (
+                <div key={index} className="text-xs">
+                  {line}
+                </div>
+              ))}
+              <div className="flex items-center text-xs">
+                <span className="mr-1">{">"}</span>
+                <input
+                  id="terminal-input"
+                  type="text"
+                  value={terminalInput}
+                  onChange={(e) => setTerminalInput(e.target.value)}
+                  onKeyDown={handleTerminalInput}
+                  className="bg-transparent border-none outline-none flex-grow"
+                  aria-label="Terminal input"
+                />
+              </div>
+            </div>
+            <div
+              className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize"
+              onMouseDown={(e) => handleMouseDown(e, "resize", "terminal")}
+              onTouchStart={(e) => handleMouseDown(e, "resize", "terminal")}
             />
-          </div>
-        </div>
-        <div
-          className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize"
-          onMouseDown={(e) => handleMouseDown(e, "resize")}
-          onTouchStart={(e) => handleMouseDown(e, "resize")}
-        />
-      </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Music Control Window - Now conditionally rendered */}
-      {showMusicWindow && (
-        <div
+      {showMusicWindow && !minimizedWindows.find(w => w.id === 'music') && (
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.8, opacity: 0, y: -100 }}
           ref={musicWindowRef}
-          className={`absolute bg-black border border-[#0FFD20] shadow-lg ${
-            isMobile ? 'fixed top-0 left-0 w-full border-t-0 border-x-0' : ''
-          }`}
+          className="absolute bg-black border border-[#0FFD20] shadow-lg"
           style={{
             left: isMobile ? 0 : `${musicWindowPosition.x}px`,
             top: isMobile ? 0 : `${musicWindowPosition.y}px`,
@@ -758,21 +803,31 @@ export default function MatrixComponent() {
             zIndex: 1000,
           }}
         >
-          <div
-            className={`flex justify-between items-center p-1 ${
-              isMobile ? '' : 'border-b'
-            } border-[#0FFD20] ${isMobile ? '' : 'cursor-move'}`}
-            onMouseDown={isMobile ? undefined : handleMusicWindowMouseDown}
-            onTouchStart={isMobile ? undefined : handleMusicWindowMouseDown}
+          <div 
+            className={`flex justify-between items-center p-1 border-b border-[#0FFD20] ${!isMobile && 'cursor-move'}`}
+            onMouseDown={(e) => !isMobile && handleMouseDown(e, "drag", "music")}
+            onTouchStart={(e) => !isMobile && handleMouseDown(e, "drag", "music")}
           >
             <span className="text-xs uppercase">MλTRIX AUDIO</span>
-            <button
-              className="text-[#0FFD20] hover:text-white"
-              aria-label="Close"
-              onClick={() => setShowMusicWindow(false)}
-            >
-              <X size={12} />
-            </button>
+            <div className="flex space-x-1">
+              <button 
+                className="text-[#0FFD20] hover:text-white" 
+                aria-label="Minimize"
+                onClick={() => {
+                  minimizeWindow('music', 'Music Player', <Music size={14} />);
+                  setShowMusicWindow(false);
+                }}
+              >
+                <Minus size={12} />
+              </button>
+              <button
+                className="text-[#0FFD20] hover:text-white"
+                aria-label="Close"
+                onClick={() => setShowMusicWindow(false)}
+              >
+                <X size={12} />
+              </button>
+            </div>
           </div>
           <div className={`flex items-center ${isMobile ? 'justify-between px-4' : 'flex-col space-y-4 p-4'}`}>
             <div className={`text-sm ${isMobile ? 'flex-1 truncate mr-4' : 'text-center w-full overflow-hidden whitespace-nowrap'}`}>
@@ -807,7 +862,7 @@ export default function MatrixComponent() {
               </div>
             )}
           </div>
-        </div>
+        </motion.div>
       )}
 
       <audio ref={audioRef} src={tracks[currentTrack].src} loop />
@@ -825,9 +880,13 @@ export default function MatrixComponent() {
         ></div>
       </div>
 
-      {showChessWindow && (
+      {showChessWindow && !minimizedWindows.find(w => w.id === 'chess') && (
         <ChessWindow
           onClose={() => setShowChessWindow(false)}
+          onMinimize={() => {
+            minimizeWindow('chess', 'Chess', <Terminal size={14} />);
+            setShowChessWindow(false);
+          }}
           isMobile={isMobile}
         />
       )}
