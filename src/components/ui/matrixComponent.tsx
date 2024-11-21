@@ -41,7 +41,7 @@ export default function MatrixComponent() {
     "Follow the white rabbit.",
     "Knock, knock, it's me jordi.",
   ]);
-  const [currentTrack, setCurrentTrack] = useState<TrackOption>("mindfields");
+  const [currentTrack, setCurrentTrack] = useState<TrackOption>("rave_zion");
 
   // Command history states
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
@@ -294,15 +294,15 @@ export default function MatrixComponent() {
 
   const goToNextTrack = async () => {
     const trackList: Array<TrackOption> = [
+      "rave_zion",
+      "prime_audio_soup",
+      "happiness",
       "clubbed",
       "spybreak",
-      "prime_audio_soup",
       "mindfields",
-      "happiness",
       "windowlicker",
       "blockrockin",
-      "places",
-      "rave_zion",
+      "places"
     ];
 
     const nextTrackIndex = (trackList.indexOf(currentTrack) + 1) % trackList.length;
@@ -334,15 +334,15 @@ export default function MatrixComponent() {
 
   const goToPrevTrack = async () => {
     const trackList: Array<TrackOption> = [
+      "rave_zion",
+      "prime_audio_soup",
+      "happiness",
       "clubbed",
       "spybreak",
-      "prime_audio_soup",
       "mindfields",
-      "happiness",
       "windowlicker",
       "blockrockin",
-      "places",
-      "rave_zion",
+      "places"
     ];
 
     const prevTrackIndex = (trackList.indexOf(currentTrack) - 1 + trackList.length) % trackList.length;
@@ -674,6 +674,47 @@ export default function MatrixComponent() {
     setMinimizedWindows(prev => [...prev, { id: windowId, title, icon, restore: restoreFunction }]);
   };
 
+  // Update the useEffect for handling track end
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const handleTrackEnd = async () => {
+      const trackList: Array<TrackOption> = [
+        "rave_zion",
+        "prime_audio_soup",
+        "happiness",
+        "clubbed",
+        "spybreak",
+        "mindfields",
+        "windowlicker",
+        "blockrockin",
+        "places"
+      ];
+
+      const nextTrackIndex = (trackList.indexOf(currentTrack) + 1) % trackList.length;
+      const nextTrack = trackList[nextTrackIndex];
+
+      setCurrentTrack(nextTrack);
+      audio.src = tracks[nextTrack].src;
+      
+      try {
+        await audio.load();
+        await audio.play();
+        setIsAudioPlaying(true);
+      } catch (error) {
+        console.warn("Playback error:", error);
+        setIsAudioPlaying(false);
+      }
+    };
+
+    audio.addEventListener('ended', handleTrackEnd);
+
+    return () => {
+      audio.removeEventListener('ended', handleTrackEnd);
+    };
+  }, [currentTrack, tracks]); // Add dependencies
+
   return (
     <div className="bg-black min-h-screen font-mono text-[#0FFD20] overflow-hidden">
       {!isMobile && <MatrixToolbar minimizedWindows={minimizedWindows} />}
@@ -838,7 +879,7 @@ export default function MatrixComponent() {
         </motion.div>
       )}
 
-      <audio ref={audioRef} src={tracks[currentTrack].src} loop />
+      <audio ref={audioRef} src={tracks[currentTrack].src} />
       <div className="fixed bottom-0 left-0 w-full h-2 md:h-4 bg-black border-t-2 border-[#0FFD20] z-10">
         <div
           className="h-full bg-[#0FFD20]"
