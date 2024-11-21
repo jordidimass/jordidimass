@@ -168,7 +168,7 @@ export default function HomePage() {
           <p className="text-2xl lg:text-2xl text-gray-300 leading-relaxed">
             hi, i&apos;m jordi, tech and science lover,{' '}
             <span className="lg:hidden">living in the hyperreality making web products for the real life.</span>
-            <span className="hidden lg:inline">living in the hyperreality making web<br />products for the real life.</span>
+            <span className="hidden lg:inline">living in the hyperreality making web products for the real life.</span>
           </p>
         </div>
       </motion.div>

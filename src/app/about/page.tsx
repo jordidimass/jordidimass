@@ -34,7 +34,7 @@ export default function AboutPage() {
           </h1>
           <p className="text-2xl font-light leading-relaxed">
             software developer from guatemala, with a deep fascination for physics, 
-            systems architecture, and the intricate world of computer science.
+            systems theory, and the intricate world of computer science.
           </p>
         </motion.section>
 
