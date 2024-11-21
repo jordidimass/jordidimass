@@ -1,8 +1,6 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
-import { Code } from "lucide-react";
-import { useState } from "react";
+import { motion } from "framer-motion";
 import Link from "next/link";
 
 interface MinimizedWindow {
@@ -17,8 +15,6 @@ interface MatrixToolbarProps {
 }
 
 export default function MatrixToolbar({ minimizedWindows }: MatrixToolbarProps) {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-
   return (
     <motion.div 
       initial={{ y: -50 }}

@@ -1,7 +1,11 @@
 "use client";
 
-import React from 'react';
-import MatrixComponent from '@/components/ui/matrixComponent';
+import dynamic from 'next/dynamic';
+
+const MatrixComponent = dynamic(
+  () => import('@/components/ui/matrixComponent'),
+  { ssr: false }
+);
 
 export default function MatrixPage() {
   return (
