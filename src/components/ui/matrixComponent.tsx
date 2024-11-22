@@ -730,6 +730,16 @@ export default function MatrixComponent() {
           background-color: #0FFD20;
           color: black;
         }
+        
+        input[type="text"] {
+          font-size: 16px !important; /* Prevents zoom on iOS */
+        }
+        
+        @media screen and (max-width: 768px) {
+          input[type="text"] {
+            font-size: 16px !important; /* Ensures consistent font size on mobile */
+          }
+        }
       `}</style>
       <canvas
         ref={canvasRef}
@@ -793,7 +803,8 @@ export default function MatrixComponent() {
                   value={terminalInput}
                   onChange={(e) => setTerminalInput(e.target.value)}
                   onKeyDown={handleTerminalInput}
-                  className="bg-transparent border-none outline-none flex-grow"
+                  className="bg-transparent border-none outline-none flex-grow text-xs md:text-xs"
+                  style={{ fontSize: '16px' }}
                   aria-label="Terminal input"
                 />
               </div>
@@ -814,7 +825,9 @@ export default function MatrixComponent() {
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.8, opacity: 0, y: -100 }}
           ref={musicWindowRef}
-          className="absolute bg-black border border-[#0FFD20] shadow-lg"
+          className={`absolute bg-black shadow-lg ${
+            isMobile ? 'border-b border-[#0FFD20]' : 'border border-[#0FFD20]'
+          }`}
           style={{
             left: isMobile ? 0 : `${musicWindowPosition.x}px`,
             top: isMobile ? 0 : `${musicWindowPosition.y}px`,
@@ -824,23 +837,27 @@ export default function MatrixComponent() {
             zIndex: 1000,
           }}
         >
-          <div 
-            className={`flex justify-between items-center p-1 border-b border-[#0FFD20] ${!isMobile && 'cursor-move'}`}
-            onMouseDown={(e) => !isMobile && handleMouseDown(e, "drag", "music")}
-            onTouchStart={(e) => !isMobile && handleMouseDown(e, "drag", "music")}
+          <div
+            className={`flex justify-between items-center p-1 ${
+              isMobile ? '' : 'border-b'
+            } border-[#0FFD20] ${isMobile ? '' : 'cursor-move'}`}
+            onMouseDown={isMobile ? undefined : handleMusicWindowMouseDown}
+            onTouchStart={isMobile ? undefined : handleMusicWindowMouseDown}
           >
             <span className="text-xs uppercase">MλTRIX AUDIO</span>
             <div className="flex space-x-1">
-              <button 
-                className="text-[#0FFD20] hover:text-white" 
-                aria-label="Minimize"
-                onClick={() => {
-                  minimizeWindow('music', 'Music Player', <Music size={14} />);
-                  setShowMusicWindow(false);
-                }}
-              >
-                <Minus size={12} />
-              </button>
+              {!isMobile && (
+                <button 
+                  className="text-[#0FFD20] hover:text-white" 
+                  aria-label="Minimize"
+                  onClick={() => {
+                    minimizeWindow('music', 'Music Player', <Music size={14} />);
+                    setShowMusicWindow(false);
+                  }}
+                >
+                  <Minus size={12} />
+                </button>
+              )}
               <button
                 className="text-[#0FFD20] hover:text-white"
                 aria-label="Close"
