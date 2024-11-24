@@ -20,7 +20,7 @@ export default function AboutPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#111010] text-[#FFBCBC] pt-24 pb-8 px-8">
+    <div className="min-h-screen bg-[#111010] text-[#FFBCBC] pt-24 pb-24 px-8">
       <div className="max-w-4xl mx-auto space-y-16">
         {/* intro section */}
         <motion.section 
