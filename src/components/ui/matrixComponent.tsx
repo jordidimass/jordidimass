@@ -459,6 +459,80 @@ export default function MatrixComponent() {
   const processCommand = async (command: string) => {
     const lowerCommand = command.toLowerCase().trim();
   
+    if (lowerCommand === 'neofetch') {
+      const lambdaArt = [
+        "                    λ",
+        "                   λλ",
+        "                  λλλ",
+        "                 λλλλ",
+        "                λλλλλ",
+        "               λλλλλλ",
+        "              λλλλλλλ",
+        "             λλλλλλλλ",
+        "            λλλλλλλλλ",
+        "           λλλλλλλλλλ",
+        "          λλλλλλλλλλλ",
+        "",
+        "jordidimas@matrix",
+        "-------------------",
+      ];
+
+      const specs = [
+        ["OS", "Matrix Digital Environment"],
+        ["Host", "jordidimas.dev"],
+        ["Kernel", "Next.js 14.0.0"],
+        ["Shell", "React 18.2.0"],
+        ["DE", "Tailwind CSS 3.3.0"],
+        ["WM", "Framer Motion"],
+        ["Terminal", "Matrix Terminal v1.0.0"],
+        ["CPU", "TypeScript 5.0.0"],
+        ["Memory", "Server Components + Client Hooks"],
+        ["GPU", "Three.js + WebGL"],
+        ["Uptime", "Since you entered the Matrix"],
+        [""],
+        ["Colors", "■ ■ ■ ■ ■ ■ ■ ■"]
+      ];
+
+      // Function to generate gradient color
+      const getGradientColor = (index: number, total: number) => {
+        const baseColor = 15; // Base green value
+        const maxColor = 253; // Max green value
+        const color = Math.floor(baseColor + (maxColor - baseColor) * (index / total));
+        return `#0${color.toString(16).toUpperCase()}20`;
+      };
+
+      // Combine art and specs with proper spacing
+      const combinedOutput = lambdaArt.map((line, index) => {
+        if (index < specs.length) {
+          const [label, value] = specs[index];
+          const padding = "    "; // 4 spaces
+          
+          // Apply gradient to lambda art
+          const gradientLine = index < 11 
+            ? line.replace(/λ/g, (match, offset) => 
+                `<span style="color: ${getGradientColor(offset + index, 20)}">${match}</span>`)
+            : line;
+
+          if (!label) {
+            return `<div class="flex"><span class="text-[#0FFD20] font-bold">${gradientLine}</span>${padding}${value || ''}</div>`;
+          }
+          return `<div class="flex">
+            <span class="text-[#0FFD20] font-bold">${gradientLine}</span>${padding}
+            <span class="text-[#0FFD20] font-bold">${label}</span>
+            <span class="text-[#0FFD20] opacity-50">: </span>
+            <span class="text-[#0FFD20]">${value}</span>
+          </div>`;
+        }
+        return `<div class="text-[#0FFD20] font-bold">${line}</div>`;
+      }).join('\n');
+
+      setTerminalOutput([
+        ...terminalOutput,
+        combinedOutput
+      ]);
+      return;
+    }
+  
     if (lowerCommand.startsWith("ask ")) {
       const question = command.slice(4); // Remove the "ask " prefix from the user input
   
@@ -505,6 +579,7 @@ export default function MatrixComponent() {
             "Available commands:",
             "ask <query>   - Ask the Matrix AI a question in natural language.",
             "chess         - Launch the Matrix Chess game.",
+            "neofetch     - Display system information in Matrix style.",
             "play         - Start playing the audio track and show controls.",
             "pause        - Pause the current track.",
             "next         - Switch to the next track.",
@@ -791,9 +866,15 @@ export default function MatrixComponent() {
             </div>
             <div className="p-2 overflow-y-auto" style={{ height: `calc(100% - 25px)` }}>
               {terminalOutput.map((line, index) => (
-                <div key={index} className="text-xs">
-                  {line}
-                </div>
+                <div 
+                  key={index} 
+                  className="text-xs"
+                  dangerouslySetInnerHTML={
+                    line.startsWith('<div') 
+                      ? { __html: line }
+                      : { __html: `<div>${line}</div>` }
+                  }
+                />
               ))}
               <div className="flex items-center text-xs">
                 <span className="mr-1">{">"}</span>
