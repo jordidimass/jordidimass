@@ -1,8 +1,4 @@
-import fs from 'fs';
-import path from 'path';
-import matter from 'gray-matter';
-
-const postsDirectory = path.join(process.cwd(), 'posts');
+import { supabase } from './supabaseClient';
 
 export interface Post {
   slug: string;
@@ -17,48 +13,26 @@ export type PostMetadata = {
   date: string;
 };
 
-export function getAllPosts() {
-  // Ensure the directory exists
-  if (!fs.existsSync(postsDirectory)) {
+export async function getAllPosts() {
+  const { data, error } = await supabase
+    .from('posts')
+    .select('slug, title, date')
+    .order('date', { ascending: false });
+  if (error) {
+    console.error('Error fetching posts:', error);
     return [];
   }
-
-  const fileNames = fs.readdirSync(postsDirectory);
-  const posts = fileNames
-    .filter(fileName => fileName.endsWith('.md'))
-    .map(fileName => {
-      const slug = fileName.replace(/\.md$/, '');
-      const fullPath = path.join(postsDirectory, fileName);
-      const fileContents = fs.readFileSync(fullPath, 'utf8');
-      const { data } = matter(fileContents);
-
-      return {
-        slug,
-        title: data.title || slug,
-        date: data.date ? new Date(data.date).toISOString() : new Date().toISOString(),
-      };
-    })
-    .sort((a, b) => (a.date > b.date ? -1 : 1));
-
-  return posts;
+  return data as PostMetadata[];
 }
 
 export async function getPostBySlug(slug: string) {
-  const fullPath = path.join(postsDirectory, `${slug}.md`);
-  
-  try {
-    const fileContents = fs.readFileSync(fullPath, 'utf8');
-    const { data, content } = matter(fileContents);
-
-    return {
-      metadata: {
-        title: data.title || slug,
-        date: data.date ? new Date(data.date).toISOString() : new Date().toISOString(),
-      },
-      content,
-    };
-  } catch (error) {
-    console.error(`Error reading post file ${slug}:`, error);
+  const { data, error } = await supabase
+    .from('posts')
+    .select('title, date, content')
+    .eq('slug', slug)
+    .single();
+  if (error || !data) {
+    console.error(`Error fetching post ${slug}:`, error);
     return {
       metadata: {
         title: 'Post Not Found',
@@ -67,4 +41,11 @@ export async function getPostBySlug(slug: string) {
       content: 'The requested post could not be found.',
     };
   }
+  return {
+    metadata: {
+      title: data.title,
+      date: data.date,
+    },
+    content: data.content,
+  };
 } 
