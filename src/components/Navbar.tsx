@@ -77,7 +77,7 @@ export default function Navbar() {
                 <Link
                   key={item.name}
                   href={item.href}
-                  className="text-[#FFBCBC] hover:text-white px-3 py-2 rounded-md text-lg font-medium"
+                  className="text-[#FFBCBC] hover:text-white px-3 py-2 rounded-md text-2xl font-medium"
                 >
                   {item.name}
                 </Link>
