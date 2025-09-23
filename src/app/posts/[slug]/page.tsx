@@ -1,10 +1,9 @@
 import { getPostBySlug } from '@/lib/posts';
 import BlogPostDisplay, { PostMetadata } from '@/components/BlogPostDisplay';
 
-// Temporarily using 'any' to bypass type error
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export default async function PostPage({ params }: any) {
-  const { slug } = params; // Assuming params has slug
+type PostPageParams = { slug: string };
+export default async function PostPage({ params }: { params: Promise<PostPageParams> }) {
+  const { slug } = await params;
   const { metadata, content } = await getPostBySlug(slug);
 
   const postMetadata: PostMetadata = {
