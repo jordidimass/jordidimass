@@ -27,6 +27,17 @@ yarn-error.log*
 
 # local env files
 .env*.local
+.env
+.env.*
+
+# Cursor / editor config (keep local; may contain tokens)
+.cursor/
+.cursorrules
+.cursorignore
+
+# Common editor files
+.vscode/
+.idea/
 
 # vercel
 .vercel
