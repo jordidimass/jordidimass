@@ -1,6 +1,9 @@
 import { getAllPosts } from '../../lib/posts';
 import AnimatedBlogPost from '@/components/AnimatedBlogPost';
 
+export const dynamic = "force-static";
+export const revalidate = 3600; // seconds
+
 export default async function BlogPage() {
   const posts = await getAllPosts();
 
