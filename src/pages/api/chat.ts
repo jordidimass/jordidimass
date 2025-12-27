@@ -18,7 +18,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "ft:gpt-4o-mini-2024-07-18:jordi::AMdy3qdo",
+      model: "gpt-5-nano-2025-08-07",
       messages: [{ role: "user", content: prompt }],
     });
 
