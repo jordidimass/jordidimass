@@ -19,16 +19,18 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const isVercel = process.env.VERCEL === "1";
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
       <body className={`${cormorant.className} antialiased`}>
         <Navbar />
         <div className="pt-16">
           {children}
-          <Analytics />
+          {isVercel ? <Analytics /> : null}
         </div>
       </body>
     </html>
