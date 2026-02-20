@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import Particles from '@/components/ui/particles';
 import { LinkCard } from '@/components/link-card';
 import { SocialIcons } from '@/components/social-icons';

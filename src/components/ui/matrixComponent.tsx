@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { X, Minus, Maximize2, Play, Pause, SkipBack, SkipForward, Terminal, Music } from "lucide-react";
 import { useRouter } from "next/navigation";
 import ChessWindow from './ChessWindow';
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import MatrixToolbar from "./MatrixToolbar";
 
 type TrackOption = "clubbed" | "spybreak" | "prime_audio_soup" | "mindfields" | "happiness" | "windowlicker" | "blockrockin" | "places" | "rave_zion";

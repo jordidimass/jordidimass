@@ -1,7 +1,7 @@
 'use client';
 
 import Markdown from 'markdown-to-jsx';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 
 // Define the type for the metadata more explicitly if possible, or use any
 export interface PostMetadata { // Export interface
