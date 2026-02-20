@@ -37,7 +37,7 @@ export default function ConnectPage() {
           </Link>
         </motion.div>
         <motion.h1 
-          className="font-bold mt-4 mb-8 text-xl text-gray-100"
+          className="font-bold mt-4 mb-8 text-xl text-brand-accent font-serif"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}

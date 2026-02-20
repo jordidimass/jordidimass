@@ -22,7 +22,7 @@ export default function AnimatedBlogPost({
       <div className="flex flex-col md:flex-row md:items-center md:justify-between">
         <Link
           href={`/posts/${post.slug}`}
-          className="text-2xl font-light tracking-widest hover:text-[#ffffff] transition-all duration-300"
+          className="text-2xl font-light tracking-widest text-brand-accent hover:text-brand-white transition-all duration-300 font-serif"
         >
           {post.title}
         </Link>

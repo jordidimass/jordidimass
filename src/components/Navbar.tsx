@@ -51,7 +51,7 @@ export default function Navbar() {
       ref={navRef}
       className={`fixed w-full top-0 z-50 transition-colors duration-300 ${
         isScrolled && !isOpen
-          ? 'bg-[#111010]/40 backdrop-blur-sm' 
+          ? 'bg-brand-bg/40 backdrop-blur-sm' 
           : 'bg-transparent'
       }`}
     >
@@ -65,7 +65,7 @@ export default function Navbar() {
                 className="w-8 h-8 transition-transform duration-300 ease-in-out hover:rotate-180"
               >
                 <path
-                  className="fill-white transition-colors duration-300 hover:fill-[#FFBCBC]"
+                  className="fill-brand-white transition-colors duration-300 hover:fill-brand-accent"
                   d="M128 122.674H28.697L0 104.398V5.235h99.305L128 23.511v99.163zm-91.264-8.028h73.413l-17.851-10.043.132-.206H36.736v10.249zm-23.038-10.248 14.999 8.234v-8.234H13.698zm85.607-4.861 20.656 13.094V31.539H99.305v67.998zM36.736 96.37h54.53V31.539h-54.53V96.37zm-28.697 0h20.658V29.647L8.039 16.551V96.37zm91.266-72.859h14.919l-14.919-8.949v8.949zm-65.745 0h57.706V13.262H17.851l15.841 10.043-.132.206z"
                 />
               </svg>
@@ -77,7 +77,7 @@ export default function Navbar() {
                 <Link
                   key={item.name}
                   href={item.href}
-                  className="text-[#FFBCBC] hover:text-white px-3 py-2 rounded-md text-2xl font-medium"
+                  className="text-brand-accent hover:text-brand-white px-3 py-2 rounded-md text-2xl font-medium font-serif"
                 >
                   {item.name}
                 </Link>
@@ -104,7 +104,7 @@ export default function Navbar() {
 
       {isOpen && (
         <div 
-          className="fixed inset-0 z-40 bg-[#111010]/40 backdrop-blur-sm shadow-lg md:hidden"
+          className="fixed inset-0 z-40 bg-brand-bg/40 backdrop-blur-sm shadow-lg md:hidden"
         >
           <div className="flex items-center justify-center min-h-screen">
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
@@ -113,7 +113,7 @@ export default function Navbar() {
                   key={item.name}
                   href={item.href}
                   onClick={() => setIsOpen(false)} 
-                  className="text-[#FFBCBC] hover:text-white block px-3 py-2 rounded-md text-6xl font-medium text-center"
+                  className="text-brand-accent hover:text-brand-white block px-3 py-2 rounded-md text-6xl font-medium text-center font-serif"
                 >
                   {item.name}
                 </Link>

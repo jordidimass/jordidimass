@@ -17,7 +17,7 @@ const GalaxyBackground = () => {
   });
 
   return (
-    <div className="fixed inset-0 w-screen h-screen overflow-hidden bg-[#111010]">
+    <div className="fixed inset-0 w-screen h-screen overflow-hidden bg-brand-bg">
       <motion.div
         className="absolute inset-0"
         animate={{
@@ -85,7 +85,7 @@ const GalaxyBackground = () => {
             }}
             whileHover={{
               scale: 3,
-              fill: "#FFBCBC",
+              fill: "var(--color-brand-accent)",
               transition: {
                 duration: 0.3,
                 ease: "easeOut"
@@ -152,7 +152,7 @@ export default function HomePage() {
   }, []);
 
   return (
-    <div className="fixed inset-0 w-screen h-screen flex flex-col lg:flex-row bg-[#111010] overflow-hidden pt-16">
+    <div className="fixed inset-0 w-screen h-screen flex flex-col lg:flex-row bg-brand-bg overflow-hidden pt-16">
       <motion.div 
         className="w-full lg:w-1/2 flex items-center px-8 lg:px-16 pt-12 lg:pt-0 z-10"
         initial={{ opacity: 0, x: -20 }}
@@ -160,12 +160,12 @@ export default function HomePage() {
         transition={{ duration: 0.8 }}
       >
         <div className="w-full">
-          <h1 className="text-4xl lg:text-5xl font-bold mb-4 lg:mb-6 text-white leading-tight">
+          <h1 className="text-4xl lg:text-5xl font-bold mb-4 lg:mb-6 text-brand-accent leading-tight font-serif">
             welcome to my place{' '}
             <span className="lg:hidden">on the internet</span>
             <span className="hidden lg:inline">on the internet</span>
           </h1>
-          <p className="text-2xl lg:text-2xl text-gray-300 leading-relaxed">
+          <p className="text-2xl lg:text-2xl text-brand-text leading-relaxed">
             hi, i&apos;m jordi, tech and science lover,{' '}
             <span className="lg:hidden">living in the hyperreality making web products for the real life.</span>
             <span className="hidden lg:inline">living in the hyperreality making web products for the real life.</span>
@@ -191,12 +191,12 @@ export default function HomePage() {
           }}
         >
           <motion.div
-            className="w-[3px] h-[3px] rounded-full bg-[#0FFD20]"
+            className="w-[3px] h-[3px] rounded-full bg-matrix-green"
             animate={{
               boxShadow: [
-                '0 0 3px #0FFD20, 0 0 6px #0FFD20, 0 0 9px #0FFD20',
-                '0 0 4.5px #0FFD20, 0 0 7.5px #0FFD20, 0 0 10.5px #0FFD20',
-                '0 0 3px #0FFD20, 0 0 6px #0FFD20, 0 0 9px #0FFD20'
+                '0 0 3px var(--color-matrix-green), 0 0 6px var(--color-matrix-green), 0 0 9px var(--color-matrix-green)',
+                '0 0 4.5px var(--color-matrix-green), 0 0 7.5px var(--color-matrix-green), 0 0 10.5px var(--color-matrix-green)',
+                '0 0 3px var(--color-matrix-green), 0 0 6px var(--color-matrix-green), 0 0 9px var(--color-matrix-green)',
               ],
               scale: [1, 1.2, 1]
             }}
@@ -207,7 +207,7 @@ export default function HomePage() {
             }}
             whileHover={{
               scale: 1.5,
-              boxShadow: '0 0 6px #0FFD20, 0 0 12px #0FFD20, 0 0 18px #0FFD20'
+              boxShadow: '0 0 6px var(--color-matrix-green), 0 0 12px var(--color-matrix-green), 0 0 18px var(--color-matrix-green)'
             }}
             title="Enter the Matrix"
           />

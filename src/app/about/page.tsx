@@ -20,7 +20,7 @@ export default function AboutPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#111010] text-[#FFBCBC] pt-24 pb-24 px-8">
+    <div className="min-h-screen bg-brand-bg text-brand-accent pt-24 pb-24 px-8">
       <div className="max-w-4xl mx-auto space-y-16">
         {/* intro section */}
         <motion.section 
@@ -29,7 +29,7 @@ export default function AboutPage() {
           transition={{ duration: 0.8 }}
           className="space-y-6"
         >
-          <h1 className="text-4xl font-light tracking-widest">
+          <h1 className="text-4xl font-light tracking-widest font-serif text-brand-accent">
             jordi dimas
           </h1>
           <p className="text-2xl font-light leading-relaxed">
@@ -45,7 +45,7 @@ export default function AboutPage() {
           transition={{ duration: 0.8, delay: 0.2 }}
           className="space-y-6"
         >
-          <h2 className="text-2xl font-light tracking-widest">philosophy</h2>
+          <h2 className="text-2xl font-light tracking-widest font-serif text-brand-accent">philosophy</h2>
           <p className="text-xl font-light leading-relaxed">
             i believe in the power of continuous learning and the beauty of elegant solutions. 
             every line of code is an opportunity to create something meaningful, 
@@ -60,7 +60,7 @@ export default function AboutPage() {
           transition={{ duration: 0.8, delay: 0.4 }}
           className="space-y-6"
         >
-          <h2 className="text-2xl font-light tracking-widest">current toolkit</h2>
+          <h2 className="text-2xl font-light tracking-widest font-serif text-brand-accent">current toolkit</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {skills.map((skill, index) => (
               <motion.div
@@ -71,8 +71,8 @@ export default function AboutPage() {
                 className="group"
               >
                 <div 
-                  className="p-4 border border-[#AC8B8B] rounded-lg transition-all duration-300
-                           hover:bg-[#AC8B8B] hover:text-[#121212] cursor-pointer"
+                   className="p-4 border border-brand-muted rounded-lg transition-all duration-300
+                           hover:bg-brand-muted hover:text-brand-subtle cursor-pointer"
                 >
                   <p className="text-center font-light">{skill.name}</p>
                 </div>
@@ -88,7 +88,7 @@ export default function AboutPage() {
           transition={{ duration: 0.8, delay: 0.6 }}
           className="space-y-6"
         >
-          <h2 className="text-2xl font-light tracking-widest">let's build together</h2>
+          <h2 className="text-2xl font-light tracking-widest font-serif text-brand-accent">let's build together</h2>
           <p className="text-xl font-light leading-relaxed">
             i'm always open to collaborating on innovative projects and connecting with 
             fellow developers who share a passion for crafting exceptional digital experiences.
@@ -96,13 +96,13 @@ export default function AboutPage() {
           
           {/* New button section */}
           <div className="mt-8">
-            <h3 className="text-xl font-light tracking-widest mb-4">let's chat</h3>
+            <h3 className="text-xl font-light tracking-widest mb-4 font-serif text-brand-accent">let's chat</h3>
             <a 
               href="https://cal.com/jordidimass" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="inline-block px-6 py-3 text-[#FFBCBC] bg-transparent border-2 border-[#AC8B8B] 
-                       rounded-lg hover:bg-[#AC8B8B] hover:text-[#121212] transition-colors duration-300"
+              className="inline-block px-6 py-3 text-brand-accent bg-transparent border-2 border-brand-muted 
+                       rounded-lg hover:bg-brand-muted hover:text-brand-subtle transition-colors duration-300"
             >
               book a meeting
             </a>

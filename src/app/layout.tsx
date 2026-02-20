@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import Navbar from '@/components/Navbar'; 
 import { Cormorant } from 'next/font/google';
+import { GeistSans } from 'geist/font/sans';
 import { Analytics } from "@vercel/analytics/react"
 import "./globals.css";
 
 const cormorant = Cormorant({
   weight: ['300', '400', '500', '600', '700'],
   subsets: ['latin'],
+  variable: '--font-cormorant',
 });
 
 export const metadata: Metadata = {
@@ -26,7 +28,7 @@ export default function RootLayout({
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
-      <body className={`${cormorant.className} antialiased`}>
+      <body className={`${cormorant.variable} ${GeistSans.variable} font-sans antialiased`}>
         <Navbar />
         <div className="pt-16">
           {children}

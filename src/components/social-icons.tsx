@@ -16,8 +16,8 @@ const ICON_MAP = {
 
 export function SocialIcons({ socials }: { socials: Link[] }) {
   return (
-    <div className="flex justify-center w-full m-5 text-white">
-      <motion.div className="flex items-end gap-4 bg-gray-800 bg-opacity-30 backdrop-filter backdrop-blur-sm p-2 rounded-full">
+    <div className="flex justify-center w-full m-5 text-brand-white">
+      <motion.div className="flex items-end gap-4 bg-white/5 backdrop-blur-md p-3 rounded-full border border-white/10 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)]">
         {socials.map((link) => {
           const Icon = Object.entries(ICON_MAP).find(([domain]) => 
             link.href.includes(domain)

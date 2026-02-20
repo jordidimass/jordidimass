@@ -25,22 +25,22 @@ const BlogPostDisplay = ({ metadata, content }: BlogPostDisplayProps) => {
       transition={{ duration: 0.5 }} // Set animation duration
       className="max-w-3xl mx-auto py-8 px-5"
     >
-      <h1 className="text-4xl font-light tracking-widest mb-4">{metadata.title}</h1>
+      <h1 className="text-4xl font-light tracking-widest mb-4 font-serif text-brand-accent">{metadata.title}</h1>
       <p className="text-gray-400 italic text-sm mb-6">{formattedDate}</p>
-      <article className="prose max-w-none text-[24px] text-[#AC8B8B]">
+      <article className="prose max-w-none text-[24px] text-brand-muted">
         <Markdown options={{
           overrides: {
             p: {
-              component: ({ children }) => <p className="text-[24px] text-[#AC8B8B]">{children}</p>
+              component: ({ children }) => <p className="text-[24px] text-brand-muted">{children}</p>
             },
             h1: {
-              component: ({ children }) => <h1 className="text-[32px] text-[#AC8B8B] font-bold mt-8 mb-4">{children}</h1>
+              component: ({ children }) => <h1 className="text-[32px] text-brand-muted font-bold mt-8 mb-4 font-serif">{children}</h1>
             },
             h2: {
-              component: ({ children }) => <h2 className="text-[28px] text-[#AC8B8B] font-bold mt-6 mb-3">{children}</h2>
+              component: ({ children }) => <h2 className="text-[28px] text-brand-muted font-bold mt-6 mb-3 font-serif">{children}</h2>
             },
             h3: {
-              component: ({ children }) => <h3 className="text-[26px] text-[#AC8B8B] font-bold mt-5 mb-2">{children}</h3>
+              component: ({ children }) => <h3 className="text-[26px] text-brand-muted font-bold mt-5 mb-2 font-serif">{children}</h3>
             }
             // Add more overrides as needed
           }

@@ -8,9 +8,9 @@ export default async function BlogPage() {
   const posts = await getAllPosts();
 
   return (
-    <div className="min-h-screen bg-[#111010] pt-24 pb-8 px-8">
+    <div className="min-h-screen bg-brand-bg pt-24 pb-8 px-8">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-4xl font-light tracking-widest mb-12 text-right text-[#FFBCBC]">
+        <h1 className="text-4xl font-light tracking-widest mb-12 text-right text-brand-accent font-serif">
           blog
         </h1>
         {posts.length === 0 ? (
