@@ -534,39 +534,35 @@ export default function MatrixComponent() {
     }
   
     if (lowerCommand.startsWith("ask ")) {
-      const question = command.slice(4); // Remove the "ask " prefix from the user input
-  
-      setTerminalOutput((prevOutput) => [...prevOutput, "Thinking..."]);
-  
+      const question = command.slice(4);
+
+      setTerminalOutput((prevOutput) => [...prevOutput, ""]);
+
       try {
-        // Send the question to OpenAI API (through your /api/chat endpoint)
         const response = await fetch("/api/chat", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ prompt: question }), // Send the user's question
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: question }),
         });
-  
-        // Capture the response text for debugging
-        const responseText = await response.text();
 
-        if (responseText) {
-          const data = JSON.parse(responseText);
-          if (response.ok) {
-            // Append the generated response to the terminal output
-            setTerminalOutput((prevOutput) => [...prevOutput, data.response]);
-          } else {
-            // In case of an error, show a generic error message
-            setTerminalOutput((prevOutput) => [...prevOutput, "Error: Could not generate a response."]);
-          }
-        } else {
-          // Handle the case where responseText is empty
-          setTerminalOutput((prevOutput) => [...prevOutput, "Error: Received an empty response from API."]);
+        if (!response.ok || !response.body) {
+          setTerminalOutput((prevOutput) => [...prevOutput.slice(0, -1), "Error: Could not generate a response."]);
+          return;
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let accumulated = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          accumulated += decoder.decode(value, { stream: true });
+          setTerminalOutput((prevOutput) => [...prevOutput.slice(0, -1), accumulated]);
         }
       } catch (error: unknown) {
         setTerminalOutput((prevOutput) => [
-          ...prevOutput,
+          ...prevOutput.slice(0, -1),
           `Error: Failed to connect to API. ${error instanceof Error ? error.message : "Unknown error"}`,
         ]);
       }

@@ -9,11 +9,13 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^3.0.30",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^7.3.8",
     "@supabase/supabase-js": "^2.97.0",
     "@vercel/analytics": "^1.6.1",
+    "ai": "^6.0.97",
     "clsx": "^2.1.1",
     "geist": "^1.7.0",
     "lucide-react": "^0.575.0",
