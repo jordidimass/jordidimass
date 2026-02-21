@@ -47,6 +47,9 @@ export default function MatrixComponent() {
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState<number>(-1); // Start with -1, meaning no history navigation yet
 
+  // AI conversation memory
+  const [chatHistory, setChatHistory] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
+
   const tracks = {
     clubbed: {
       src: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Rob%20Dougan%20-%20Clubbed%20to%20Death%20(The%20Matrix%20Reloaded%20OST)-AgcCQo9iIZ4Quf39BdcSRbyCmwAKKK.mp3",
@@ -536,13 +539,16 @@ export default function MatrixComponent() {
     if (lowerCommand.startsWith("ask ")) {
       const question = command.slice(4);
 
+      const updatedHistory = [...chatHistory, { role: "user" as const, content: question }];
+      setChatHistory(updatedHistory);
+
       setTerminalOutput((prevOutput) => [...prevOutput, ""]);
 
       try {
         const response = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt: question }),
+          body: JSON.stringify({ messages: updatedHistory }),
         });
 
         if (!response.ok || !response.body) {
@@ -560,6 +566,8 @@ export default function MatrixComponent() {
           accumulated += decoder.decode(value, { stream: true });
           setTerminalOutput((prevOutput) => [...prevOutput.slice(0, -1), accumulated]);
         }
+
+        setChatHistory((prev) => [...prev, { role: "assistant", content: accumulated }]);
       } catch (error: unknown) {
         setTerminalOutput((prevOutput) => [
           ...prevOutput.slice(0, -1),
@@ -624,6 +632,7 @@ export default function MatrixComponent() {
 
         case "clear":
           setTerminalOutput([]);
+          setChatHistory([]);
           break;
 
         case "toggle-matrix":
