@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import Navbar from '@/components/Navbar'; 
+import Navbar from '@/components/Navbar';
+import FloatingTerminal from '@/components/ui/FloatingTerminal';
 import { Cormorant } from 'next/font/google';
 import { GeistSans } from 'geist/font/sans';
 import { Analytics } from "@vercel/analytics/react"
@@ -34,6 +35,7 @@ export default function RootLayout({
           {children}
           {isVercel ? <Analytics /> : null}
         </div>
+        <FloatingTerminal />
       </body>
     </html>
   );

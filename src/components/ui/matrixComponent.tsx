@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { X, Minus, Maximize2, Play, Pause, SkipBack, SkipForward, Terminal, Music } from "lucide-react";
 import { useRouter } from "next/navigation";
-import ChessWindow from './ChessWindow';
 import { motion, AnimatePresence } from "motion/react";
 import MatrixToolbar from "./MatrixToolbar";
 
@@ -21,7 +20,6 @@ export default function MatrixComponent() {
   const [musicWindowSize, setMusicWindowSize] = useState({ width: 300, height: 150 });
   const [isDraggingMusic, setIsDraggingMusic] = useState(false);
   const [showMusicWindow, setShowMusicWindow] = useState(false);
-  const [showChessWindow, setShowChessWindow] = useState(false);
   const musicWindowRef = useRef<HTMLDivElement>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [position, setPosition] = useState({ x: 100, y: 50 });
@@ -582,7 +580,6 @@ export default function MatrixComponent() {
             "Matrix Terminal v1.0.0",
             "Available commands:",
             "ask <query>   - Ask the Matrix AI a question in natural language.",
-            "chess         - Launch the Matrix Chess game.",
             "neofetch     - Display system information in Matrix style.",
             "play         - Start playing the audio track and show controls.",
             "pause        - Pause the current track.",
@@ -653,12 +650,6 @@ export default function MatrixComponent() {
             ...prevOutput,
             "my name is jordi, thanks for visiting my website",
           ]);
-          break;
-
-        case "chess":
-          setShowChessWindow(true);
-          minimizeWindow('terminal', 'Terminal', <Terminal size={14} />);
-          setTerminalOutput([...terminalOutput, "Launching Matrix Chess..."]);
           break;
 
         default:
@@ -743,10 +734,6 @@ export default function MatrixComponent() {
         case 'music':
           setMinimizedWindows(prev => prev.filter(w => w.id !== 'music'));
           setShowMusicWindow(true);
-          break;
-        case 'chess':
-          setMinimizedWindows(prev => prev.filter(w => w.id !== 'chess'));
-          setShowChessWindow(true);
           break;
       }
     };
@@ -1006,17 +993,6 @@ export default function MatrixComponent() {
           aria-valuemax={100}
         ></div>
       </div>
-
-      {showChessWindow && !minimizedWindows.find(w => w.id === 'chess') && (
-        <ChessWindow
-          onClose={() => setShowChessWindow(false)}
-          onMinimize={() => {
-            minimizeWindow('chess', 'Chess', <Terminal size={14} />);
-            setShowChessWindow(false);
-          }}
-          isMobile={isMobile}
-        />
-      )}
     </div>
   );
 }
