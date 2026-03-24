@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
-import Link from 'next/link';
 
 const GalaxyBackground = () => {
   // Using fixed positions instead of random values to avoid hydration issues
@@ -182,37 +181,6 @@ export default function HomePage() {
         <GalaxyBackground />
       </motion.div>
       
-      {/* Matrix Portal Button - Show on all devices */}
-      <Link href="/matrix" className="fixed bottom-8 right-8 z-50">
-        <motion.div
-          className="w-6 h-6 flex items-center justify-center cursor-pointer"
-          whileHover={{
-            scale: 1.2,
-          }}
-        >
-          <motion.div
-            className="w-[3px] h-[3px] rounded-full bg-matrix-green"
-            animate={{
-              boxShadow: [
-                '0 0 3px var(--color-matrix-green), 0 0 6px var(--color-matrix-green), 0 0 9px var(--color-matrix-green)',
-                '0 0 4.5px var(--color-matrix-green), 0 0 7.5px var(--color-matrix-green), 0 0 10.5px var(--color-matrix-green)',
-                '0 0 3px var(--color-matrix-green), 0 0 6px var(--color-matrix-green), 0 0 9px var(--color-matrix-green)',
-              ],
-              scale: [1, 1.2, 1]
-            }}
-            transition={{
-              duration: 2,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-            whileHover={{
-              scale: 1.5,
-              boxShadow: '0 0 6px var(--color-matrix-green), 0 0 12px var(--color-matrix-green), 0 0 18px var(--color-matrix-green)'
-            }}
-            title="Enter the Matrix"
-          />
-        </motion.div>
-      </Link>
     </div>
   );
 }

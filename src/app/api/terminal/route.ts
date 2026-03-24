@@ -1,5 +1,5 @@
 import { openai } from "@ai-sdk/openai";
-import { streamText } from "ai";
+import { streamText, convertToModelMessages } from "ai";
 import { supabase } from "@/lib/supabaseClient";
 
 let cachedPrompt: string | null = null;
@@ -38,10 +38,12 @@ export async function POST(req: Request) {
     });
   }
 
+  // useChat sends UIMessage[]; streamText requires ModelMessage[]
+  const modelMessages = await convertToModelMessages(messages);
   const result = streamText({
     model: openai("gpt-4.1-nano-2025-04-14"),
     system: await getSystemPrompt(),
-    messages,
+    messages: modelMessages,
   });
 
   // toUIMessageStreamResponse() is compatible with the useChat hook from @ai-sdk/react
