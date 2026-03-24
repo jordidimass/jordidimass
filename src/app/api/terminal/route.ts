@@ -1,6 +1,10 @@
 import { openai } from "@ai-sdk/openai";
 import { streamText, convertToModelMessages } from "ai";
 import { supabase } from "@/lib/supabaseClient";
+import { checkRateLimit } from "@/lib/rateLimit";
+
+const MAX_MESSAGES = 20;
+const MAX_CONTENT_LENGTH = 2000;
 
 let cachedPrompt: string | null = null;
 let cacheTime = 0;
@@ -29,6 +33,15 @@ async function getSystemPrompt(): Promise<string> {
 }
 
 export async function POST(req: Request) {
+  // Rate limiting
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  if (!checkRateLimit(ip)) {
+    return new Response(JSON.stringify({ error: "Too many requests. Please slow down." }), {
+      status: 429,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
   const { messages } = await req.json();
 
   if (!messages?.length) {
@@ -36,6 +49,26 @@ export async function POST(req: Request) {
       status: 400,
       headers: { "Content-Type": "application/json" },
     });
+  }
+
+  // Input validation
+  if (messages.length > MAX_MESSAGES) {
+    return new Response(JSON.stringify({ error: "Too many messages in conversation." }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  for (const msg of messages) {
+    const parts = msg.parts ?? [];
+    for (const part of parts) {
+      if (part.type === "text" && part.text?.length > MAX_CONTENT_LENGTH) {
+        return new Response(JSON.stringify({ error: "Message content too long." }), {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    }
   }
 
   // useChat sends UIMessage[]; streamText requires ModelMessage[]
@@ -46,6 +79,5 @@ export async function POST(req: Request) {
     messages: modelMessages,
   });
 
-  // toUIMessageStreamResponse() is compatible with the useChat hook from @ai-sdk/react
   return result.toUIMessageStreamResponse();
 }

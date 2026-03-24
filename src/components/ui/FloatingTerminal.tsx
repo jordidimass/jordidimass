@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, isTextUIPart } from "ai";
 import { motion, AnimatePresence } from "motion/react";
-import { X, SkipBack, SkipForward, Play, Pause } from "lucide-react";
+import { X, SkipBack, SkipForward, Pause } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { TerminalIcon, type TerminalIconHandle } from "./TerminalIcon";
 
@@ -77,13 +77,13 @@ const BOOT: Line[] = [
   mkLine('type "help" for available commands.', true),
 ];
 
-// ─── Sizes ─────────────────────────────────────────────────────────────────────
+// ─── Desktop sizes ─────────────────────────────────────────────────────────────
 const MIN_W = 340;
 const MIN_H = 220;
 const DEFAULT_W = 500;
 const DEFAULT_H = 380;
 
-// ─── Stable transport instance ─────────────────────────────────────────────────
+// ─── Stable transport ──────────────────────────────────────────────────────────
 const transport = new DefaultChatTransport({ api: "/api/terminal" });
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
@@ -92,10 +92,132 @@ function fmtTime(s: number) {
   return `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, "0")}`;
 }
 
+// ─── Shared output + input (used by both layouts) ─────────────────────────────
+function OutputArea({
+  lines, status, outputRef,
+}: {
+  lines: Line[];
+  status: string;
+  outputRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  return (
+    <div
+      ref={outputRef}
+      className="flex-1 overflow-y-auto px-4 py-3"
+      style={{ scrollbarWidth: "none" }}
+    >
+      {lines.map((l) => (
+        <div
+          key={l.id}
+          className="leading-5 whitespace-pre-wrap break-words"
+          style={{ fontSize: 12, color: l.dim ? C.muted : C.text }}
+        >
+          {l.text}
+        </div>
+      ))}
+      {status === "streaming" && (
+        <span className="animate-pulse" style={{ fontSize: 12, color: C.muted }}>▌</span>
+      )}
+    </div>
+  );
+}
+
+function MusicBar({
+  playing, trackDisplay, remaining, progress, switchTrack, togglePlay,
+}: {
+  playing: boolean;
+  trackDisplay: TrackKey;
+  remaining: number;
+  progress: number;
+  switchTrack: (dir: 1 | -1) => void;
+  togglePlay: () => void;
+}) {
+  if (!playing) return null;
+  return (
+    <>
+      <div
+        className="shrink-0 px-4 py-1.5 flex items-center gap-3"
+        style={{ borderTop: `1px solid ${C.border}` }}
+      >
+        <button
+          onClick={(e) => { e.stopPropagation(); switchTrack(-1); }}
+          style={{ color: C.muted, lineHeight: 0 }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = C.text)}
+          onMouseLeave={(e) => (e.currentTarget.style.color = C.muted)}
+        >
+          <SkipBack size={10} />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); togglePlay(); }}
+          style={{ color: C.accent, lineHeight: 0 }}
+        >
+          <Pause size={10} />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); switchTrack(1); }}
+          style={{ color: C.muted, lineHeight: 0 }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = C.text)}
+          onMouseLeave={(e) => (e.currentTarget.style.color = C.muted)}
+        >
+          <SkipBack size={10} style={{ transform: "scaleX(-1)" }} />
+        </button>
+        <span className="flex-1 truncate" style={{ fontSize: 10, color: C.muted }}>
+          {TRACKS[trackDisplay].title}
+        </span>
+        <span style={{ fontSize: 10, color: C.muted }}>{fmtTime(remaining)}</span>
+      </div>
+      <div className="h-px w-full shrink-0" style={{ background: C.dim }}>
+        <div style={{ width: `${progress}%`, height: "100%", background: C.accent }} />
+      </div>
+    </>
+  );
+}
+
+function InputRow({
+  input, setInput, onKey, inputRef,
+}: {
+  input: string;
+  setInput: (v: string) => void;
+  onKey: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+}) {
+  return (
+    <div
+      className="flex items-center gap-2 px-4 py-2 shrink-0"
+      style={{ borderTop: `1px solid ${C.border}` }}
+    >
+      <span style={{ fontSize: 12, color: C.accent, userSelect: "none" }}>&gt;</span>
+      <input
+        ref={inputRef}
+        type="text"
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={onKey}
+        className="flex-1 bg-transparent border-none outline-none"
+        style={{ fontSize: 16, color: C.text, caretColor: C.accent }}
+        autoComplete="off"
+        autoCorrect="off"
+        autoCapitalize="off"
+        spellCheck={false}
+        aria-label="Terminal input"
+      />
+    </div>
+  );
+}
+
 // ─── Component ─────────────────────────────────────────────────────────────────
 export default function FloatingTerminal() {
   const pathname = usePathname();
   const router = useRouter();
+
+  // ── Mobile detection (same pattern as matrixComponent) ──────────────────────
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth <= 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
@@ -103,28 +225,29 @@ export default function FloatingTerminal() {
   const [cmdHistory, setCmdHistory] = useState<string[]>([]);
   const [histIdx, setHistIdx] = useState(-1);
 
-  // Position & size
+  // Desktop: position & size
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const [size, setSize] = useState({ w: DEFAULT_W, h: DEFAULT_H });
 
-  // Drag
+  // Desktop: drag
   const [dragging, setDragging] = useState(false);
   const dragOffRef = useRef({ x: 0, y: 0 });
 
-  // Resize
+  // Desktop: resize
   const [resizing, setResizing] = useState(false);
   const resizeOrigin = useRef({ mx: 0, my: 0, w: DEFAULT_W, h: DEFAULT_H });
 
-  // Audio — managed fully imperatively; NO src prop on <audio> to avoid React
-  // reconciliation conflicts with imperative load/play calls
+  // Mobile: swipe-to-dismiss
+  const swipeStartY = useRef<number | null>(null);
+
+  // Audio — fully imperative, no src prop on <audio>
   const audioRef = useRef<HTMLAudioElement>(null);
-  const trackRef = useRef<TrackKey>("rave_zion");   // ground-truth track key
+  const trackRef = useRef<TrackKey>("rave_zion");
   const [trackDisplay, setTrackDisplay] = useState<TrackKey>("rave_zion");
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [remaining, setRemaining] = useState(0);
 
-  // Refs
   const panelRef = useRef<HTMLDivElement>(null);
   const outputRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -133,7 +256,7 @@ export default function FloatingTerminal() {
 
   const { messages, sendMessage, status } = useChat({ id: "ft", transport });
 
-  // ── Initialise audio src once on mount ──────────────────────────────────────
+  // ── Audio init ───────────────────────────────────────────────────────────────
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -141,7 +264,7 @@ export default function FloatingTerminal() {
     audio.load();
   }, []);
 
-  // ── Sync AI stream → terminal lines ─────────────────────────────────────────
+  // ── AI stream → lines ────────────────────────────────────────────────────────
   useEffect(() => {
     const last = messages[messages.length - 1];
     if (!last || last.role !== "assistant") return;
@@ -163,7 +286,7 @@ export default function FloatingTerminal() {
     outputRef.current?.scrollTo({ top: outputRef.current.scrollHeight });
   }, [lines]);
 
-  // ── Focus when opened ────────────────────────────────────────────────────────
+  // ── Focus on open ────────────────────────────────────────────────────────────
   useEffect(() => {
     if (isOpen) {
       const t = setTimeout(() => inputRef.current?.focus(), 120);
@@ -171,7 +294,7 @@ export default function FloatingTerminal() {
     }
   }, [isOpen]);
 
-  // ── Cmd/Ctrl+K → clear (matches /matrix behaviour) ──────────────────────────
+  // ── Cmd/Ctrl+K → clear ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: KeyboardEvent) => {
@@ -186,13 +309,13 @@ export default function FloatingTerminal() {
     return () => window.removeEventListener("keydown", handler);
   }, [isOpen]);
 
-  // ── Icon blink while open ────────────────────────────────────────────────────
+  // ── Icon blink ───────────────────────────────────────────────────────────────
   useEffect(() => {
     if (isOpen) iconRef.current?.startAnimation();
     else iconRef.current?.stopAnimation();
   }, [isOpen]);
 
-  // ── Audio: progress & remaining ─────────────────────────────────────────────
+  // ── Audio progress ───────────────────────────────────────────────────────────
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -209,7 +332,7 @@ export default function FloatingTerminal() {
     };
   }, []);
 
-  // ── Audio: auto-advance on track end ────────────────────────────────────────
+  // ── Audio auto-advance ───────────────────────────────────────────────────────
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -226,7 +349,7 @@ export default function FloatingTerminal() {
     return () => audio.removeEventListener("ended", onEnd);
   }, []);
 
-  // ── Unified drag & resize mouse listeners ───────────────────────────────────
+  // ── Desktop: unified drag & resize ───────────────────────────────────────────
   useEffect(() => {
     if (!dragging && !resizing) return;
     const onMove = (e: MouseEvent) => {
@@ -234,73 +357,49 @@ export default function FloatingTerminal() {
         setPos({ x: e.clientX - dragOffRef.current.x, y: e.clientY - dragOffRef.current.y });
       } else {
         const { mx, my, w, h } = resizeOrigin.current;
-        setSize({
-          w: Math.max(MIN_W, w + (e.clientX - mx)),
-          h: Math.max(MIN_H, h + (e.clientY - my)),
-        });
+        setSize({ w: Math.max(MIN_W, w + (e.clientX - mx)), h: Math.max(MIN_H, h + (e.clientY - my)) });
       }
     };
     const onUp = () => { setDragging(false); setResizing(false); };
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
-    return () => {
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-    };
+    return () => { document.removeEventListener("mousemove", onMove); document.removeEventListener("mouseup", onUp); };
   }, [dragging, resizing]);
 
-  // ── Audio helpers ────────────────────────────────────────────────────────────
+  // ── Audio helpers ─────────────────────────────────────────────────────────────
   const togglePlay = useCallback(() => {
     const audio = audioRef.current;
     if (!audio) return;
-    if (playing) {
-      audio.pause();
-      setPlaying(false);
-    } else {
-      audio.play().then(() => setPlaying(true)).catch(() => {});
-    }
+    if (playing) { audio.pause(); setPlaying(false); }
+    else { audio.play().then(() => setPlaying(true)).catch(() => {}); }
   }, [playing]);
 
-  // Returns the new track key after switching
   const switchTrack = useCallback(async (dir: 1 | -1): Promise<TrackKey> => {
     const audio = audioRef.current;
     if (!audio) return trackRef.current;
-
     const wasPlaying = playing;
     const idx = TRACK_ORDER.indexOf(trackRef.current);
     const next = TRACK_ORDER[(idx + dir + TRACK_ORDER.length) % TRACK_ORDER.length];
-
-    // Stop current playback
-    audio.pause();
-    setPlaying(false);
-
-    // Load new track imperatively — no React src prop involved
-    trackRef.current = next;
-    setTrackDisplay(next);
-    audio.src = TRACKS[next].src;
-    audio.load();
-
+    audio.pause(); setPlaying(false);
+    trackRef.current = next; setTrackDisplay(next);
+    audio.src = TRACKS[next].src; audio.load();
     if (wasPlaying) {
-      // play() returns a Promise and internally waits for enough buffered data
       try { await audio.play(); setPlaying(true); } catch { setPlaying(false); }
     }
     return next;
   }, [playing]);
 
-  // ── Command processor ────────────────────────────────────────────────────────
+  // ── Command processor ─────────────────────────────────────────────────────────
   const run = useCallback(async (raw: string) => {
     const cmd = raw.trim();
     if (!cmd) return;
-
     setCmdHistory((h) => [...h, cmd]);
     setHistIdx(-1);
     setLines((prev) => [...prev, mkLine(`> ${cmd}`)]);
-
     const lo = cmd.toLowerCase();
 
     if (lo === "help") {
-      setLines((prev) => [
-        ...prev,
+      setLines((prev) => [...prev,
         mkLine("available commands:", true),
         mkLine("  ask <query>      ask the AI a question"),
         mkLine("  neofetch         system info"),
@@ -312,13 +411,10 @@ export default function FloatingTerminal() {
         mkLine("  toggle-matrix    open the matrix"),
         mkLine("  clear            clear terminal  (Cmd/Ctrl+K)"),
         mkLine("  exit             close terminal"),
-      ]);
-      return;
+      ]); return;
     }
-
     if (lo === "whoami") {
-      setLines((prev) => [
-        ...prev,
+      setLines((prev) => [...prev,
         mkLine("jordi dimas"),
         mkLine("software developer from guatemala, with a deep fascination for physics,"),
         mkLine("systems theory, and the intricate world of computer science."),
@@ -331,295 +427,242 @@ export default function FloatingTerminal() {
         mkLine("always open to collaborating on innovative projects and connecting with"),
         mkLine("fellow developers who share a passion for crafting exceptional digital"),
         mkLine("experiences."),
-      ]);
-      return;
+      ]); return;
     }
-
-    if (lo === "clear") {
-      setLines([]);
-      lastMsgId.current = null;
-      return;
-    }
-
+    if (lo === "clear") { setLines([]); lastMsgId.current = null; return; }
     if (lo === "exit") {
       setLines((prev) => [...prev, mkLine("closing terminal...", true)]);
-      setTimeout(() => setIsOpen(false), 600);
-      return;
+      setTimeout(() => setIsOpen(false), 600); return;
     }
-
     if (lo === "toggle-matrix") {
       setLines((prev) => [...prev, mkLine("entering the matrix...", true)]);
-      setTimeout(() => router.push("/matrix"), 700);
-      return;
+      setTimeout(() => router.push("/matrix"), 700); return;
     }
-
     if (lo === "play") {
       const audio = audioRef.current;
       if (!audio) return;
-      if (!playing) {
-        audio.play().then(() => setPlaying(true)).catch(() => {});
-      }
-      setLines((prev) => [...prev, mkLine(`playing: ${TRACKS[trackRef.current].title}`)]);
-      return;
+      if (!playing) audio.play().then(() => setPlaying(true)).catch(() => {});
+      setLines((prev) => [...prev, mkLine(`playing: ${TRACKS[trackRef.current].title}`)]); return;
     }
-
     if (lo === "pause") {
       if (playing) togglePlay();
-      setLines((prev) => [...prev, mkLine("paused")]);
-      return;
+      setLines((prev) => [...prev, mkLine("paused")]); return;
     }
-
     if (lo === "next") {
       const next = await switchTrack(1);
-      setLines((prev) => [...prev, mkLine(`→ ${TRACKS[next].title}`)]);
-      return;
+      setLines((prev) => [...prev, mkLine(`→ ${TRACKS[next].title}`)]); return;
     }
-
     if (lo === "prev") {
       const prev = await switchTrack(-1);
-      setLines((prev2) => [...prev2, mkLine(`→ ${TRACKS[prev].title}`)]);
-      return;
+      setLines((prev2) => [...prev2, mkLine(`→ ${TRACKS[prev].title}`)]); return;
     }
-
     if (lo === "neofetch") {
-      const art = [
-        "                    λ",
-        "                   λλ",
-        "                  λλλ",
-        "                 λλλλ",
-        "                λλλλλ",
-        "               λλλλλλ",
-        "              λλλλλλλ",
-      ];
-      const info = [
-        "jordidimas@web",
-        "--------------",
-        "OS     Next.js App Router",
-        "Shell  React 19",
-        "DE     Tailwind CSS v4",
-        "AI     Vercel AI SDK v6",
-        "DB     Supabase",
-      ];
-      const rows = art.map((a, i) => `${a.padEnd(24)}  ${info[i] ?? ""}`);
-      setLines((prev) => [
-        ...prev,
-        ...rows.map((t) => mkLine(t)),
-        mkLine(""),
-        mkLine("Host   jordidimas.dev", true),
-      ]);
+      const art = ["                    λ","                   λλ","                  λλλ","                 λλλλ","                λλλλλ","               λλλλλλ","              λλλλλλλ"];
+      const info = ["jordidimas@web","--------------","OS     Next.js App Router","Shell  React 19","DE     Tailwind CSS v4","AI     Vercel AI SDK v6","DB     Supabase"];
+      setLines((prev) => [...prev, ...art.map((a, i) => mkLine(`${a.padEnd(24)}  ${info[i] ?? ""}`)), mkLine(""), mkLine("Host   jordidimas.dev", true)]);
       return;
     }
-
     if (lo.startsWith("ask ")) {
       const q = cmd.slice(4).trim();
-      if (!q) {
-        setLines((prev) => [...prev, mkLine("usage: ask <your question>", true)]);
-        return;
-      }
-      sendMessage({ text: q });
-      return;
+      if (!q) { setLines((prev) => [...prev, mkLine("usage: ask <your question>", true)]); return; }
+      sendMessage({ text: q }); return;
     }
-
     setLines((prev) => [...prev, mkLine(`command not found: ${cmd}`, true)]);
   }, [playing, switchTrack, togglePlay, sendMessage, router]);
 
-  // ── Keyboard handler ─────────────────────────────────────────────────────────
+  // ── Keyboard handler ──────────────────────────────────────────────────────────
   const onKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "ArrowUp") {
       if (!cmdHistory.length) return;
       const idx = histIdx === -1 ? cmdHistory.length - 1 : Math.max(0, histIdx - 1);
-      setHistIdx(idx);
-      setInput(cmdHistory[idx]);
+      setHistIdx(idx); setInput(cmdHistory[idx]);
     } else if (e.key === "ArrowDown") {
       if (histIdx === -1) return;
       const idx = histIdx + 1;
       if (idx >= cmdHistory.length) { setHistIdx(-1); setInput(""); }
       else { setHistIdx(idx); setInput(cmdHistory[idx]); }
-    } else if (e.key === "Enter") {
-      run(input);
-      setInput("");
-    }
+    } else if (e.key === "Enter") { run(input); setInput(""); }
   };
 
-  // ── Drag start ───────────────────────────────────────────────────────────────
+  // ── Desktop drag/resize starters ─────────────────────────────────────────────
   const onDragStart = (e: React.MouseEvent) => {
     const rect = panelRef.current?.getBoundingClientRect();
     if (!rect) return;
-    // First drag: snap to absolute coords so subsequent moves are predictable
     setPos((p) => p ?? { x: rect.left, y: rect.top });
     dragOffRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
     setDragging(true);
   };
-
-  // ── Resize start ─────────────────────────────────────────────────────────────
   const onResizeStart = (e: React.MouseEvent) => {
     e.stopPropagation();
     resizeOrigin.current = { mx: e.clientX, my: e.clientY, w: size.w, h: size.h };
     setResizing(true);
   };
 
-  // ── Don't render on /matrix (full terminal already there) ───────────────────
+  // ── Mobile swipe-to-dismiss ───────────────────────────────────────────────────
+  const onPillTouchStart = (e: React.TouchEvent) => {
+    swipeStartY.current = e.touches[0].clientY;
+  };
+  const onPillTouchEnd = (e: React.TouchEvent) => {
+    if (swipeStartY.current === null) return;
+    const dy = e.changedTouches[0].clientY - swipeStartY.current;
+    if (dy > 80) setIsOpen(false); // swipe down > 80px → close
+    swipeStartY.current = null;
+  };
+
+  // ── Hide on /matrix ───────────────────────────────────────────────────────────
   if (pathname === "/matrix") return null;
 
-  const panelStyle: React.CSSProperties = pos
+  const mono = 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
+  const sharedPanelStyle: React.CSSProperties = { background: C.bg, fontFamily: mono, userSelect: "none" };
+
+  const desktopPanelStyle: React.CSSProperties = pos
     ? { left: pos.x, top: pos.y, right: "auto", bottom: "auto" }
     : { right: 24, bottom: 80 };
 
   return (
     <>
-      {/* ── Toggle button — just the icon, nothing else ── */}
+      {/* ── Toggle button ── */}
       <button
         onClick={() => setIsOpen((o) => !o)}
         className="fixed bottom-6 right-6 z-50 text-neutral-500 hover:text-neutral-200 transition-colors duration-200"
         aria-label="Toggle terminal"
-        style={{ lineHeight: 0 }}
+        // 44×44 tap target on mobile, icon-only on desktop
+        style={{ lineHeight: 0, minWidth: isMobile ? 44 : undefined, minHeight: isMobile ? 44 : undefined, display: "flex", alignItems: "center", justifyContent: "center" }}
       >
         <TerminalIcon ref={iconRef} size={22} />
       </button>
 
-      {/* ── Terminal panel ── */}
       <AnimatePresence>
         {isOpen && (
-          <motion.div
-            ref={panelRef}
-            initial={{ opacity: 0, y: 6, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 6, scale: 0.98 }}
-            transition={{ duration: 0.14, ease: "easeOut" }}
-            className="fixed z-50 flex flex-col"
-            style={{
-              ...panelStyle,
-              width: size.w,
-              height: size.h,
-              background: C.bg,
-              border: `1px solid ${C.border}`,
-              boxShadow: "0 16px 56px rgba(0,0,0,0.75)",
-              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-              userSelect: "none",
-            }}
-            onClick={() => inputRef.current?.focus()}
-          >
-            {/* ── Header / drag handle ── */}
-            <div
-              className="flex items-center justify-between px-4 py-2 cursor-move shrink-0"
-              style={{ borderBottom: `1px solid ${C.border}` }}
-              onMouseDown={onDragStart}
-            >
-              <span style={{ color: C.muted, fontSize: 11, letterSpacing: "0.1em" }}>
-                terminal
-              </span>
-              <button
-                onClick={(e) => { e.stopPropagation(); setIsOpen(false); }}
-                style={{ color: C.muted, lineHeight: 0 }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = C.text)}
-                onMouseLeave={(e) => (e.currentTarget.style.color = C.muted)}
-                aria-label="Close"
-              >
-                <X size={12} />
-              </button>
-            </div>
-
-            {/* ── Output ── */}
-            <div
-              ref={outputRef}
-              className="flex-1 overflow-y-auto px-4 py-3"
-              style={{ scrollbarWidth: "none" }}
-            >
-              {lines.map((l) => (
-                <div
-                  key={l.id}
-                  className="leading-5 whitespace-pre-wrap break-words"
-                  style={{ fontSize: 12, color: l.dim ? C.muted : C.text }}
-                >
-                  {l.text}
-                </div>
-              ))}
-              {status === "streaming" && (
-                <span className="animate-pulse" style={{ fontSize: 12, color: C.muted }}>▌</span>
-              )}
-            </div>
-
-            {/* ── Music bar — only when audio active ── */}
-            {playing && (
-              <>
-                <div
-                  className="shrink-0 px-4 py-1.5 flex items-center gap-3"
-                  style={{ borderTop: `1px solid ${C.border}` }}
-                >
-                  <button
-                    onClick={(e) => { e.stopPropagation(); switchTrack(-1); }}
-                    style={{ color: C.muted, lineHeight: 0 }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = C.text)}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = C.muted)}
-                  >
-                    <SkipBack size={10} />
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); togglePlay(); }}
-                    style={{ color: C.accent, lineHeight: 0 }}
-                  >
-                    <Pause size={10} />
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); switchTrack(1); }}
-                    style={{ color: C.muted, lineHeight: 0 }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = C.text)}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = C.muted)}
-                  >
-                    <SkipForward size={10} />
-                  </button>
-                  <span className="flex-1 truncate" style={{ fontSize: 10, color: C.muted }}>
-                    {TRACKS[trackDisplay].title}
-                  </span>
-                  <span style={{ fontSize: 10, color: C.muted }}>{fmtTime(remaining)}</span>
-                </div>
-                {/* progress bar */}
-                <div className="h-px w-full shrink-0" style={{ background: C.dim }}>
-                  <div style={{ width: `${progress}%`, height: "100%", background: C.accent }} />
-                </div>
-              </>
+          <>
+            {/* ── Mobile backdrop ── */}
+            {isMobile && (
+              <motion.div
+                key="backdrop"
+                className="fixed inset-0 z-40"
+                style={{ background: "rgba(0,0,0,0.5)" }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                onClick={() => setIsOpen(false)}
+              />
             )}
 
-            {/* ── Input row ── */}
-            <div
-              className="flex items-center gap-2 px-4 py-2 shrink-0"
-              style={{ borderTop: `1px solid ${C.border}` }}
-            >
-              <span style={{ fontSize: 12, color: C.accent, userSelect: "none" }}>&gt;</span>
-              <input
-                ref={inputRef}
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={onKey}
-                className="flex-1 bg-transparent border-none outline-none"
-                style={{ fontSize: 13, color: C.text, caretColor: C.accent }}
-                autoComplete="off"
-                autoCorrect="off"
-                autoCapitalize="off"
-                spellCheck={false}
-                aria-label="Terminal input"
-              />
-            </div>
+            {isMobile ? (
+              /* ── Mobile: bottom sheet ──────────────────────────────────────── */
+              <motion.div
+                key="sheet"
+                ref={panelRef}
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 30, stiffness: 300 }}
+                className="fixed inset-x-0 bottom-0 z-50 flex flex-col"
+                style={{
+                  ...sharedPanelStyle,
+                  height: "65vh",
+                  borderTop: `1px solid ${C.border}`,
+                  borderLeft: `1px solid ${C.border}`,
+                  borderRight: `1px solid ${C.border}`,
+                  borderRadius: "16px 16px 0 0",
+                  boxShadow: "0 -8px 40px rgba(0,0,0,0.6)",
+                }}
+                onClick={() => inputRef.current?.focus()}
+              >
+                {/* Drag pill — swipe down to dismiss */}
+                <div
+                  className="shrink-0 flex flex-col items-center pt-3 pb-2 cursor-grab"
+                  onTouchStart={onPillTouchStart}
+                  onTouchEnd={onPillTouchEnd}
+                >
+                  <div
+                    className="rounded-full"
+                    style={{ width: 36, height: 4, background: C.muted }}
+                  />
+                </div>
 
-            {/* ── Resize handle — visible grip in bottom-right corner ── */}
-            <div
-              className="absolute bottom-0 right-0 cursor-se-resize flex items-end justify-end p-1"
-              style={{ width: 20, height: 20 }}
-              onMouseDown={onResizeStart}
-            >
-              {/* 3-dot grip pattern */}
-              <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
-                <circle cx="7.5" cy="7.5" r="1" fill={C.muted} />
-                <circle cx="4.5" cy="7.5" r="1" fill={C.muted} />
-                <circle cx="7.5" cy="4.5" r="1" fill={C.muted} />
-              </svg>
-            </div>
-          </motion.div>
+                {/* Title row */}
+                <div
+                  className="shrink-0 flex items-center justify-between px-5 pb-2"
+                >
+                  <span style={{ color: C.muted, fontSize: 11, letterSpacing: "0.1em" }}>terminal</span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setIsOpen(false); }}
+                    style={{ color: C.muted, lineHeight: 0 }}
+                    aria-label="Close"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+
+                <div style={{ borderTop: `1px solid ${C.border}` }} />
+
+                <OutputArea lines={lines} status={status} outputRef={outputRef} />
+                <MusicBar playing={playing} trackDisplay={trackDisplay} remaining={remaining} progress={progress} switchTrack={switchTrack} togglePlay={togglePlay} />
+                <InputRow input={input} setInput={setInput} onKey={onKey} inputRef={inputRef} />
+              </motion.div>
+            ) : (
+              /* ── Desktop: floating panel ───────────────────────────────────── */
+              <motion.div
+                key="panel"
+                ref={panelRef}
+                initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 6, scale: 0.98 }}
+                transition={{ duration: 0.14, ease: "easeOut" }}
+                className="fixed z-50 flex flex-col"
+                style={{
+                  ...sharedPanelStyle,
+                  ...desktopPanelStyle,
+                  width: size.w,
+                  height: size.h,
+                  border: `1px solid ${C.border}`,
+                  boxShadow: "0 16px 56px rgba(0,0,0,0.75)",
+                }}
+                onClick={() => inputRef.current?.focus()}
+              >
+                {/* Header / drag handle */}
+                <div
+                  className="flex items-center justify-between px-4 py-2 cursor-move shrink-0"
+                  style={{ borderBottom: `1px solid ${C.border}` }}
+                  onMouseDown={onDragStart}
+                >
+                  <span style={{ color: C.muted, fontSize: 11, letterSpacing: "0.1em" }}>terminal</span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setIsOpen(false); }}
+                    style={{ color: C.muted, lineHeight: 0 }}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = C.text)}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = C.muted)}
+                    aria-label="Close"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+
+                <OutputArea lines={lines} status={status} outputRef={outputRef} />
+                <MusicBar playing={playing} trackDisplay={trackDisplay} remaining={remaining} progress={progress} switchTrack={switchTrack} togglePlay={togglePlay} />
+                <InputRow input={input} setInput={setInput} onKey={onKey} inputRef={inputRef} />
+
+                {/* Resize grip */}
+                <div
+                  className="absolute bottom-0 right-0 cursor-se-resize flex items-end justify-end p-1"
+                  style={{ width: 20, height: 20 }}
+                  onMouseDown={onResizeStart}
+                >
+                  <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+                    <circle cx="7.5" cy="7.5" r="1" fill={C.muted} />
+                    <circle cx="4.5" cy="7.5" r="1" fill={C.muted} />
+                    <circle cx="7.5" cy="4.5" r="1" fill={C.muted} />
+                  </svg>
+                </div>
+              </motion.div>
+            )}
+          </>
         )}
       </AnimatePresence>
 
-      {/* Audio element — NO src prop; managed fully via audioRef imperatively */}
+      {/* Audio — no src prop, managed imperatively */}
       <audio ref={audioRef} />
     </>
   );
