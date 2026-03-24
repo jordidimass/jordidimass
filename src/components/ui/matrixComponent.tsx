@@ -803,7 +803,10 @@ export default function MatrixComponent() {
   }, [currentTrack, tracks, setCurrentTrack, setIsAudioPlaying]);
 
   return (
-    <div className="bg-black min-h-screen font-mono text-[#0FFD20] overflow-hidden">
+    <div
+      className="bg-black min-h-screen text-[#0FFD20] overflow-hidden"
+      style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace' }}
+    >
       {!isMobile && <MatrixToolbar minimizedWindows={minimizedWindows} />}
       <style jsx global>{`
         ::selection {
