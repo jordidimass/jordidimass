@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, isTextUIPart } from "ai";
 import { motion, AnimatePresence } from "motion/react";
 import { X, SkipBack, SkipForward, Pause } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { TerminalIcon, type TerminalIconHandle } from "./TerminalIcon";
+import { profileData } from "@/config/profile";
 
 // ─── Vesper palette ────────────────────────────────────────────────────────────
 const C = {
@@ -68,14 +69,39 @@ const TRACK_ORDER: TrackKey[] = [
 ];
 
 // ─── Output lines ──────────────────────────────────────────────────────────────
-type Line = { id: number; text: string; dim?: boolean };
+type TextLine = { id: number; type: "text"; text: string; dim?: boolean };
+type LinkLine = { id: number; type: "link"; label: string; href: string; external?: boolean };
+type Line = TextLine | LinkLine;
+
 let _id = 0;
-const mkLine = (text: string, dim = false): Line => ({ id: _id++, text, dim });
+const mkLine = (text: string, dim = false): TextLine => ({ id: _id++, type: "text", text, dim });
+const mkLink = (label: string, href: string, external = false): LinkLine => ({ id: _id++, type: "link", label, href, external });
 
 const BOOT: Line[] = [
   mkLine("jordidimas terminal", true),
   mkLine('type "help" for available commands.', true),
 ];
+
+// ─── Inline link parser ([label](url) markdown → React nodes) ─────────────────
+function parseInlineLinks(text: string, router: ReturnType<typeof useRouter>): React.ReactNode {
+  const parts = text.split(/(\[[^\]]+\]\([^)]+\))/g);
+  if (parts.length === 1) return text;
+  return parts.map((part, i) => {
+    const m = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+    if (!m) return <span key={i}>{part}</span>;
+    const [, label, href] = m;
+    const external = href.startsWith("http");
+    return (
+      <a key={i} href={href}
+        target={external ? "_blank" : "_self"}
+        rel={external ? "noopener noreferrer" : undefined}
+        onClick={external ? undefined : (e) => { e.preventDefault(); router.push(href); }}
+        style={{ color: C.accent, textDecoration: "none" }}
+        className="hover:underline hover:opacity-75 transition-opacity duration-150 cursor-pointer"
+      >{label}</a>
+    );
+  });
+}
 
 // ─── Desktop sizes ─────────────────────────────────────────────────────────────
 const MIN_W = 340;
@@ -100,21 +126,39 @@ function OutputArea({
   status: string;
   outputRef: React.RefObject<HTMLDivElement | null>;
 }) {
+  const router = useRouter();
   return (
     <div
       ref={outputRef}
       className="flex-1 overflow-y-auto px-4 py-3"
       style={{ scrollbarWidth: "none" }}
     >
-      {lines.map((l) => (
-        <div
-          key={l.id}
-          className="leading-5 whitespace-pre-wrap break-words"
-          style={{ fontSize: 12, color: l.dim ? C.muted : C.text }}
-        >
-          {l.text}
-        </div>
-      ))}
+      {lines.map((l) => {
+        if (l.type === "link") {
+          return (
+            <a
+              key={l.id}
+              href={l.href}
+              target={l.external ? "_blank" : "_self"}
+              rel={l.external ? "noopener noreferrer" : undefined}
+              onClick={l.external ? undefined : (e) => { e.preventDefault(); router.push(l.href); }}
+              style={{ color: C.accent, textDecoration: "none", display: "block", fontSize: 12 }}
+              className="hover:underline hover:opacity-75 transition-opacity duration-150 cursor-pointer leading-5"
+            >
+              {l.label}
+            </a>
+          );
+        }
+        return (
+          <div
+            key={l.id}
+            className="leading-5 whitespace-pre-wrap break-words"
+            style={{ fontSize: 12, color: l.dim ? C.muted : C.text }}
+          >
+            {parseInlineLinks(l.text, router)}
+          </div>
+        );
+      })}
       {status === "streaming" && (
         <span className="animate-pulse" style={{ fontSize: 12, color: C.muted }}>▌</span>
       )}
@@ -174,12 +218,14 @@ function MusicBar({
 }
 
 function InputRow({
-  input, setInput, onKey, inputRef,
+  input, setInput, onKey, onSubmit, inputRef, isMobile,
 }: {
   input: string;
   setInput: (v: string) => void;
   onKey: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  onSubmit: () => void;
   inputRef: React.RefObject<HTMLInputElement | null>;
+  isMobile: boolean;
 }) {
   return (
     <div
@@ -201,6 +247,17 @@ function InputRow({
         spellCheck={false}
         aria-label="Terminal input"
       />
+      {isMobile && (
+        <button
+          onPointerDown={(e) => { e.preventDefault(); onSubmit(); }}
+          style={{ color: input.trim() ? C.accent : C.muted, lineHeight: 0, transition: "color 150ms", padding: "6px 2px" }}
+          aria-label="Submit"
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M1 7h10M7 3l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      )}
     </div>
   );
 }
@@ -402,15 +459,35 @@ export default function FloatingTerminal() {
       setLines((prev) => [...prev,
         mkLine("available commands:", true),
         mkLine("  ask <query>      ask the AI a question"),
+        mkLine("  links            show social & profile links"),
         mkLine("  neofetch         system info"),
         mkLine("  whoami           about jordi"),
         mkLine("  play             start audio playback"),
         mkLine("  pause            pause playback"),
         mkLine("  next             next track"),
         mkLine("  prev             previous track"),
+        mkLine("  pages            show all site pages"),
         mkLine("  toggle-matrix    open the matrix"),
         mkLine("  clear            clear terminal  (Cmd/Ctrl+K)"),
         mkLine("  exit             close terminal"),
+      ]); return;
+    }
+    if (lo === "pages") {
+      setLines((prev) => [...prev,
+        mkLine("site pages:", true),
+        mkLink("  home", "/"),
+        mkLink("  blog", "/blog"),
+        mkLink("  about", "/about"),
+        mkLink("  connect", "/connect"),
+      ]); return;
+    }
+    if (lo === "links") {
+      setLines((prev) => [...prev,
+        mkLine("social:", true),
+        ...profileData.socials.map((s) => mkLink(`  ${s.title}`, s.href, true)),
+        mkLine(""),
+        mkLine("around the web:", true),
+        ...profileData.links.map((l) => mkLink(`  ${l.title}`, l.href, true)),
       ]); return;
     }
     if (lo === "whoami") {
@@ -483,6 +560,8 @@ export default function FloatingTerminal() {
       else { setHistIdx(idx); setInput(cmdHistory[idx]); }
     } else if (e.key === "Enter") { run(input); setInput(""); }
   };
+
+  const onSubmit = () => { if (input.trim()) { run(input); setInput(""); } };
 
   // ── Desktop drag/resize starters ─────────────────────────────────────────────
   const onDragStart = (e: React.MouseEvent) => {
@@ -600,7 +679,7 @@ export default function FloatingTerminal() {
 
                 <OutputArea lines={lines} status={status} outputRef={outputRef} />
                 <MusicBar playing={playing} trackDisplay={trackDisplay} remaining={remaining} progress={progress} switchTrack={switchTrack} togglePlay={togglePlay} />
-                <InputRow input={input} setInput={setInput} onKey={onKey} inputRef={inputRef} />
+                <InputRow input={input} setInput={setInput} onKey={onKey} onSubmit={onSubmit} inputRef={inputRef} isMobile={isMobile} />
               </motion.div>
             ) : (
               /* ── Desktop: floating panel ───────────────────────────────────── */
@@ -642,7 +721,7 @@ export default function FloatingTerminal() {
 
                 <OutputArea lines={lines} status={status} outputRef={outputRef} />
                 <MusicBar playing={playing} trackDisplay={trackDisplay} remaining={remaining} progress={progress} switchTrack={switchTrack} togglePlay={togglePlay} />
-                <InputRow input={input} setInput={setInput} onKey={onKey} inputRef={inputRef} />
+                <InputRow input={input} setInput={setInput} onKey={onKey} onSubmit={onSubmit} inputRef={inputRef} isMobile={isMobile} />
 
                 {/* Resize grip */}
                 <div
