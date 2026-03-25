@@ -1,7 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    remotePatterns: [{ hostname: 'utfs.io' }],
+    remotePatterns: [
+      { hostname: 'utfs.io' },
+      { hostname: 'gallery-worker.jordidimas.workers.dev' },
+      { hostname: '*.workers.dev' },
+    ],
   },
   experimental: {
     optimizePackageImports: ['@mui/icons-material', 'lucide-react', 'motion'],

@@ -6,6 +6,7 @@ import { motion } from 'motion/react';
 
 const navItems = [
   { name: 'blog', href: '/blog' },
+  { name: 'gallery', href: '/gallery' },
   { name: 'about', href: '/about' },
   { name: 'connect', href: '/connect' },
 ];
