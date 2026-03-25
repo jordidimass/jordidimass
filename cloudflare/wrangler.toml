@@ -7,4 +7,4 @@ binding = "GALLERY"
 bucket_name = "jordidimass-gallery"
 
 [vars]
-ALLOWED_ORIGIN = "https://jordidimass.com"
+ALLOWED_ORIGIN = "https://www.jordidimass.com"

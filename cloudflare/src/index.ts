@@ -16,12 +16,15 @@ function corsHeaders(origin: string): HeadersInit {
 
 function isAllowedOrigin(request: Request, allowedOrigin: string): boolean {
   const origin = request.headers.get("Origin");
-  // No Origin header = direct load (img src, curl, etc.) — always allow
   if (!origin) return true;
+  const allowed = new URL(allowedOrigin);
+  const apex = allowed.hostname.replace(/^www\./, "");
+  const incoming = new URL(origin);
   return (
-    origin === allowedOrigin ||
-    origin.startsWith("http://localhost") ||
-    origin.startsWith("http://127.0.0.1")
+    incoming.hostname === allowed.hostname ||
+    incoming.hostname === apex ||
+    incoming.hostname === "localhost" ||
+    incoming.hostname === "127.0.0.1"
   );
 }
 
