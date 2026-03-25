@@ -18,10 +18,32 @@ function label(key: string): string {
   return key.replace(/\.[^.]+$/, "");
 }
 
+async function downloadImage(url: string, filename: string) {
+  const response = await fetch(url);
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = objectUrl;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(objectUrl);
+}
+
 export default function GalleryClient({ images }: GalleryClientProps) {
   const [selected, setSelected] = useState<number | null>(null);
+  const [downloading, setDownloading] = useState(false);
   const selectedImage = selected === null ? null : images[selected];
   const selectedPosition = selected === null ? 0 : selected + 1;
+
+  async function handleDownload() {
+    if (!selectedImage || downloading) return;
+    setDownloading(true);
+    try {
+      await downloadImage(selectedImage.url, selectedImage.key);
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   useEffect(() => {
     if (selected === null) return;
@@ -127,13 +149,24 @@ export default function GalleryClient({ images }: GalleryClientProps) {
               >
                 ←
               </button>
-              <div className="text-center">
+              <div className="flex flex-col items-center gap-2 text-center">
                 <p className="text-sm font-light tracking-widest text-brand-muted lowercase">
                   {label(selectedImage.key)}
                 </p>
-                <p className="mt-1 text-xs text-brand-muted/50">
+                <p className="text-xs text-brand-muted/50">
                   {selectedPosition} / {images.length}
                 </p>
+                <button
+                  type="button"
+                  onClick={handleDownload}
+                  disabled={downloading}
+                  className="mt-1 select-none text-brand-muted/60 transition-colors duration-200 active:text-brand-accent disabled:opacity-40"
+                  aria-label="download"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 3v13M7 11l5 5 5-5M5 21h14" />
+                  </svg>
+                </button>
               </div>
               <button
                 type="button"
@@ -181,12 +214,25 @@ export default function GalleryClient({ images }: GalleryClientProps) {
                 className="max-w-full rounded-[4px] object-contain"
                 style={{ maxHeight: "calc(100vh - 72px)" }}
               />
-              <p className="mt-3 text-center text-sm font-light tracking-widest text-brand-muted lowercase">
-                {label(selectedImage.key)}
-                <span className="ml-4 text-brand-muted/50">
-                  {selectedPosition} / {images.length}
-                </span>
-              </p>
+              <div className="mt-3 flex items-center gap-4">
+                <p className="text-center text-sm font-light tracking-widest text-brand-muted lowercase">
+                  {label(selectedImage.key)}
+                  <span className="ml-4 text-brand-muted/50">
+                    {selectedPosition} / {images.length}
+                  </span>
+                </p>
+                <button
+                  type="button"
+                  onClick={handleDownload}
+                  disabled={downloading}
+                  className="select-none text-brand-muted/60 transition-colors duration-200 hover:text-brand-accent disabled:opacity-40"
+                  aria-label="download"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 3v13M7 11l5 5 5-5M5 21h14" />
+                  </svg>
+                </button>
+              </div>
             </div>
 
             <button
