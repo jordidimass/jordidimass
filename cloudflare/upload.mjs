@@ -2,6 +2,7 @@
 /**
  * Bulk upload script for the gallery photos to Cloudflare R2.
  * Uses wrangler CLI under the hood — no extra deps needed.
+ * Skips files already present in the bucket.
  *
  * Usage:
  *   node upload.mjs <photos-dir>
@@ -12,12 +13,14 @@ import { readdirSync, statSync } from "fs";
 import { join, extname } from "path";
 
 const BUCKET = "jordidimass-gallery";
+const WORKER_URL = "https://gallery-worker.jordidimass.workers.dev";
 const PHOTOS_DIR = process.argv[2];
 
 if (!PHOTOS_DIR) {
   console.error("Usage: node upload.mjs <photos-dir>");
   process.exit(1);
 }
+
 const SUPPORTED = new Set([".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif"]);
 
 function mimeType(ext) {
@@ -43,13 +46,35 @@ if (files.length === 0) {
   process.exit(1);
 }
 
-console.log(`\nFound ${files.length} photos in ${PHOTOS_DIR}`);
+console.log(`\nFetching existing keys from R2...`);
+let existing = new Set();
+try {
+  const res = await fetch(WORKER_URL);
+  if (res.ok) {
+    const data = await res.json();
+    existing = new Set((data.images ?? []).map((img) => img.key));
+    console.log(`  ${existing.size} files already in bucket\n`);
+  } else {
+    console.log(`  could not fetch existing keys (${res.status}), will upload all\n`);
+  }
+} catch {
+  console.log(`  could not reach worker, will upload all\n`);
+}
+
+console.log(`Found ${files.length} photos in ${PHOTOS_DIR}`);
 console.log(`Uploading to R2 bucket: ${BUCKET}\n`);
 
 let uploaded = 0;
+let skipped = 0;
 let failed = 0;
 
 for (const file of files) {
+  if (existing.has(file)) {
+    console.log(`  "${file}" → already uploaded`);
+    skipped++;
+    continue;
+  }
+
   const fullPath = join(PHOTOS_DIR, file);
   const key = file;
   const mime = mimeType(extname(file));
@@ -70,4 +95,4 @@ for (const file of files) {
   }
 }
 
-console.log(`\nDone. ${uploaded} uploaded, ${failed} failed.\n`);
+console.log(`\nDone. ${uploaded} uploaded, ${skipped} skipped, ${failed} failed.\n`);
