@@ -87,66 +87,122 @@ export default function GalleryClient({ images }: GalleryClientProps) {
 
       {selectedImage && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-brand-bg/95 backdrop-blur-sm"
+          className="fixed inset-0 z-50 bg-brand-bg/95 backdrop-blur-sm"
           onClick={() => setSelected(null)}
         >
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              setSelected((current) =>
-                current === null ? null : (current - 1 + images.length) % images.length
-              );
-            }}
-            className="absolute left-4 z-10 select-none text-3xl text-brand-muted transition-colors duration-200 hover:text-brand-accent md:left-8"
-            aria-label="previous"
-          >
-            ←
-          </button>
-
-          <div
-            className="flex flex-col items-center"
-            style={{ width: "calc(100vw - 120px)", maxHeight: "100vh", padding: "20px 0" }}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <Image
-              src={selectedImage.url}
-              alt={label(selectedImage.key)}
-              width={1920}
-              height={1280}
-              quality={80}
-              sizes="(max-width: 1024px) 92vw, 80vw"
-              className="max-w-full rounded-[4px] object-contain"
-              style={{ maxHeight: "calc(100vh - 72px)" }}
-            />
-            <p className="mt-3 text-center text-sm font-light tracking-widest text-brand-muted lowercase">
-              {label(selectedImage.key)}
-              <span className="ml-4 text-brand-muted/50">
-                {selectedPosition} / {images.length}
-              </span>
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              setSelected((current) => (current === null ? null : (current + 1) % images.length));
-            }}
-            className="absolute right-4 z-10 select-none text-3xl text-brand-muted transition-colors duration-200 hover:text-brand-accent md:right-8"
-            aria-label="next"
-          >
-            →
-          </button>
-
+          {/* Close button */}
           <button
             type="button"
             onClick={() => setSelected(null)}
-            className="absolute right-6 top-6 text-xl text-brand-muted transition-colors duration-200 hover:text-brand-accent"
+            className="absolute right-6 top-6 z-10 text-xl text-brand-muted transition-colors duration-200 hover:text-brand-accent"
             aria-label="close"
           >
             ✕
           </button>
+
+          {/* Mobile layout: image fills viewport, nav below */}
+          <div className="flex h-full flex-col md:hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex flex-1 items-center justify-center overflow-hidden px-4 pt-14 pb-4">
+              <Image
+                src={selectedImage.url}
+                alt={label(selectedImage.key)}
+                width={1920}
+                height={1280}
+                quality={80}
+                sizes="100vw"
+                className="max-h-full w-full rounded-[4px] object-contain"
+                style={{ maxHeight: "calc(100dvh - 160px)" }}
+              />
+            </div>
+            <div className="flex items-center justify-between px-8 pb-10">
+              <button
+                type="button"
+                onClick={() =>
+                  setSelected((current) =>
+                    current === null ? null : (current - 1 + images.length) % images.length
+                  )
+                }
+                className="select-none text-3xl text-brand-muted transition-colors duration-200 active:text-brand-accent"
+                aria-label="previous"
+              >
+                ←
+              </button>
+              <div className="text-center">
+                <p className="text-sm font-light tracking-widest text-brand-muted lowercase">
+                  {label(selectedImage.key)}
+                </p>
+                <p className="mt-1 text-xs text-brand-muted/50">
+                  {selectedPosition} / {images.length}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setSelected((current) =>
+                    current === null ? null : (current + 1) % images.length
+                  )
+                }
+                className="select-none text-3xl text-brand-muted transition-colors duration-200 active:text-brand-accent"
+                aria-label="next"
+              >
+                →
+              </button>
+            </div>
+          </div>
+
+          {/* Desktop layout: centered with side arrows */}
+          <div className="hidden h-full items-center justify-center md:flex">
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                setSelected((current) =>
+                  current === null ? null : (current - 1 + images.length) % images.length
+                );
+              }}
+              className="absolute left-8 z-10 select-none text-3xl text-brand-muted transition-colors duration-200 hover:text-brand-accent"
+              aria-label="previous"
+            >
+              ←
+            </button>
+
+            <div
+              className="flex flex-col items-center"
+              style={{ width: "calc(100vw - 120px)", maxHeight: "100vh", padding: "20px 0" }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <Image
+                src={selectedImage.url}
+                alt={label(selectedImage.key)}
+                width={1920}
+                height={1280}
+                quality={80}
+                sizes="80vw"
+                className="max-w-full rounded-[4px] object-contain"
+                style={{ maxHeight: "calc(100vh - 72px)" }}
+              />
+              <p className="mt-3 text-center text-sm font-light tracking-widest text-brand-muted lowercase">
+                {label(selectedImage.key)}
+                <span className="ml-4 text-brand-muted/50">
+                  {selectedPosition} / {images.length}
+                </span>
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                setSelected((current) =>
+                  current === null ? null : (current + 1) % images.length
+                );
+              }}
+              className="absolute right-8 z-10 select-none text-3xl text-brand-muted transition-colors duration-200 hover:text-brand-accent"
+              aria-label="next"
+            >
+              →
+            </button>
+          </div>
         </div>
       )}
     </>
