@@ -477,6 +477,7 @@ export default function FloatingTerminal() {
         mkLine("site pages:", true),
         mkLink("  home", "/"),
         mkLink("  blog", "/blog"),
+        mkLink("  gallery", "/gallery"),
         mkLink("  about", "/about"),
         mkLink("  connect", "/connect"),
       ]); return;
@@ -605,7 +606,6 @@ export default function FloatingTerminal() {
         onClick={() => setIsOpen((o) => !o)}
         className="fixed bottom-6 right-6 z-50 text-neutral-500 hover:text-neutral-200 transition-colors duration-200"
         aria-label="Toggle terminal"
-        // 44×44 tap target on mobile, icon-only on desktop
         style={{ lineHeight: 0, minWidth: isMobile ? 44 : undefined, minHeight: isMobile ? 44 : undefined, display: "flex", alignItems: "center", justifyContent: "center" }}
       >
         <TerminalIcon ref={iconRef} size={22} />

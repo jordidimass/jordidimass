@@ -1,0 +1,10 @@
+name = "gallery-worker"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+[[r2_buckets]]
+binding = "GALLERY"
+bucket_name = "jordidimass-gallery"
+
+[vars]
+ALLOWED_ORIGIN = "https://jordidimass.com"
