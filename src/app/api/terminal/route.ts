@@ -2,6 +2,7 @@ import { openai } from "@ai-sdk/openai";
 import { streamText, convertToModelMessages } from "ai";
 import { supabase } from "@/lib/supabaseClient";
 import { checkRateLimit } from "@/lib/rateLimit";
+import { slugFromKey } from "@/lib/gallery";
 
 const MAX_MESSAGES = 20;
 const MAX_CONTENT_LENGTH = 2000;
@@ -10,26 +11,63 @@ let cachedPrompt: string | null = null;
 let cacheTime = 0;
 const CACHE_TTL = 60_000;
 
+const GALLERY_WORKER_URL = process.env.NEXT_PUBLIC_GALLERY_WORKER_URL ?? "";
+
 async function getSystemPrompt(): Promise<string> {
   if (cachedPrompt && Date.now() - cacheTime < CACHE_TTL) return cachedPrompt;
 
-  const [{ data: contextRows }, { data: posts }] = await Promise.all([
+  const [{ data: contextRows }, { data: posts }, galleryData] = await Promise.all([
     supabase.from("ai_context").select("content").eq("enabled", true),
     supabase
       .from("posts")
       .select("title, date")
       .order("date", { ascending: false })
       .limit(10),
+    GALLERY_WORKER_URL
+      ? fetch(GALLERY_WORKER_URL).then((r) => r.json()).catch(() => null)
+      : Promise.resolve(null),
   ]);
 
   const sections = contextRows?.map((r) => r.content).join("\n\n") ?? "";
+
   const blogList = posts?.length
     ? `\n\nMy recent blog posts:\n${posts.map((p) => `- "${p.title}" (${p.date})`).join("\n")}`
     : "";
 
-  const siteInfo = `\n\nWebsite pages (use markdown link format [label](url) when referencing them):\n- [home](/) — landing page\n- [blog](/blog) — writing\n- [about](/about) — who I am\n- [connect](/connect) — how to reach me\n- [matrix](/matrix) — interactive terminal easter egg\n\nWays to connect:\n- [X / Twitter](https://X.com/jordidimass)\n- [Instagram](https://instagram.com/jordidimass)\n- [LinkedIn](https://www.linkedin.com/in/jordidimass/)\n- [GitHub](https://github.com/jordidimass)\n- [Telegram](https://t.me/jordidimass)\n- [schedule a meeting](https://cal.com/jordidimass)\n\nPhotos & profiles around the web:\n- [Unsplash](https://unsplash.com/@jordidimass) — photography\n- [VSCO gallery](https://vsco.co/jordidimass/gallery)\n- [Letterboxd](https://letterboxd.com/jordidimass/) — film diary\n- [Last.fm](https://last.fm/user/jordidimass) — music\n- [Goodreads](https://goodreads.com/jordidimass) — books\n- [Spotify playlists](https://open.spotify.com/user/jordidimass/playlists)\n- [GitHub repos](https://github.com/jordidimass?tab=repositories)`;
+  const galleryImages: string[] =
+    (galleryData?.images ?? []).map((img: { key: string }) => slugFromKey(img.key));
+  const galleryList = galleryImages.length
+    ? `\n\nMy [gallery](/gallery) has ${galleryImages.length} photos. Each photo has a dedicated page at /gallery/[name] — always link individual photos using markdown format [name](/gallery/name). Current photos: ${galleryImages.map((s) => `[${s}](/gallery/${s})`).join(", ")}.`
+    : "";
 
-  cachedPrompt = `You are an AI assistant representing Jordi Dimas on his personal website. Answer questions concisely and in first person where appropriate.\n\n${sections}${blogList}${siteInfo}\n\nIf asked something you don't know, say so honestly. Keep answers brief and optimized for terminal display. IMPORTANT: Whenever you reference any URL or page in your response, always use markdown link format: [visible label](url). Never output bare URLs.`;
+  const siteInfo = `\n\nWebsite pages (use markdown link format [label](url) when referencing them):
+- [home](/) — landing page
+- [blog](/blog) — writing
+- [gallery](/gallery) — photography
+- [about](/about) — who I am
+- [connect](/connect) — how to reach me
+- [matrix](/matrix) — interactive terminal easter egg
+
+Ways to connect:
+- [X / Twitter](https://X.com/jordidimass)
+- [Instagram](https://instagram.com/jordidimass)
+- [LinkedIn](https://www.linkedin.com/in/jordidimass/)
+- [GitHub](https://github.com/jordidimass)
+- [Telegram](https://t.me/jordidimass)
+- [schedule a meeting](https://cal.com/jordidimass)
+
+Photos & profiles around the web:
+- [Unsplash](https://unsplash.com/@jordidimass) — photography
+- [VSCO](https://vsco.co/jordidimass/gallery) — photography (VSCO is a photo-sharing platform, not music)
+- [Letterboxd](https://letterboxd.com/jordidimass/) — film diary
+- [Last.fm](https://last.fm/user/jordidimass) — music listening history and scrobbles
+- [Goodreads](https://goodreads.com/jordidimass) — books
+- [Spotify](https://open.spotify.com/user/jordidimass/playlists) — curated playlists
+- [GitHub repos](https://github.com/jordidimass?tab=repositories)
+
+Music note: Last.fm is the primary source for music taste and listening history. Spotify is for playlists only. VSCO is photography — never suggest it for music.`;
+
+  cachedPrompt = `You are an AI assistant representing Jordi Dimas on his personal website. Answer questions concisely and in first person where appropriate.\n\n${sections}${blogList}${galleryList}${siteInfo}\n\nIf asked something you don't know, say so honestly. Keep answers brief and optimized for terminal display. IMPORTANT: Whenever you reference any URL or page in your response, always use markdown link format: [visible label](url). Never output bare URLs.`;
   cacheTime = Date.now();
   return cachedPrompt;
 }

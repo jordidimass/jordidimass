@@ -10,7 +10,7 @@ const FloatingTerminal = dynamic(() => import("@/components/ui/FloatingTerminal"
 export default function RouteScopedFloatingTerminal() {
   const pathname = usePathname();
 
-  if (pathname === "/gallery" || pathname === "/matrix") {
+  if (pathname === "/matrix") {
     return null;
   }
 
