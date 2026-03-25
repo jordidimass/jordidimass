@@ -20,12 +20,22 @@ function isAllowedOrigin(request: Request, allowedOrigin: string): boolean {
   const allowed = new URL(allowedOrigin);
   const apex = allowed.hostname.replace(/^www\./, "");
   const incoming = new URL(origin);
-  return (
-    incoming.hostname === allowed.hostname ||
-    incoming.hostname === apex ||
-    incoming.hostname === "localhost" ||
-    incoming.hostname === "127.0.0.1"
-  );
+
+  if (incoming.hostname === "localhost" || incoming.hostname === "127.0.0.1") {
+    return true;
+  }
+
+  const allowedPort =
+    allowed.port || (allowed.protocol === "https:" ? "443" : allowed.protocol === "http:" ? "80" : "");
+  const incomingPort =
+    incoming.port ||
+    (incoming.protocol === "https:" ? "443" : incoming.protocol === "http:" ? "80" : "");
+
+  if (incoming.protocol !== allowed.protocol || incomingPort !== allowedPort) {
+    return false;
+  }
+
+  return incoming.hostname === allowed.hostname || incoming.hostname === apex;
 }
 
 export default {
@@ -53,12 +63,15 @@ export default {
     // GET / — list all images
     if (!path || path === "") {
       const listed = await env.GALLERY.list();
-      const images = listed.objects.map((obj) => ({
+      const images = listed.objects
+        .slice()
+        .sort((a, b) => Number(new Date(b.uploaded)) - Number(new Date(a.uploaded)))
+        .map((obj) => ({
         key: obj.key,
         size: obj.size,
         uploaded: obj.uploaded,
         url: `${url.origin}/image/${encodeURIComponent(obj.key)}`,
-      }));
+        }));
 
       return Response.json(
         { images, count: images.length },
@@ -85,13 +98,26 @@ export default {
         return new Response("Not Found", { status: 404, headers: cors });
       }
 
+      const etag = object.httpEtag;
+      const ifNoneMatch = request.headers.get("If-None-Match");
+
       const headers = new Headers({
         ...cors,
         "Content-Type": object.httpMetadata?.contentType ?? "image/jpeg",
         "Cache-Control": `public, max-age=${CACHE_TTL}, immutable`,
-        "ETag": object.httpEtag,
+        ...(etag ? { ETag: etag } : {}),
         "Content-Disposition": `inline; filename="${encodeURIComponent(key)}"`,
       });
+
+      if (
+        etag &&
+        ifNoneMatch
+          ?.split(",")
+          .map((value) => value.trim())
+          .includes(etag)
+      ) {
+        return new Response(null, { status: 304, headers });
+      }
 
       const response = new Response(object.body, { headers });
       ctx.waitUntil(cache.put(cacheKey, response.clone()));

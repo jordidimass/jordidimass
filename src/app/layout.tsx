@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Navbar from '@/components/Navbar';
-import FloatingTerminal from '@/components/ui/FloatingTerminal';
+import RouteScopedFloatingTerminal from "@/components/RouteScopedFloatingTerminal";
 import { Cormorant } from 'next/font/google';
 import { GeistSans } from 'geist/font/sans';
 import { Analytics } from "@vercel/analytics/react"
@@ -31,11 +31,11 @@ export default function RootLayout({
       </head>
       <body className={`${cormorant.variable} ${GeistSans.variable} font-sans antialiased`}>
         <Navbar />
-        <div className="pt-16">
+        <main className="pt-16">
           {children}
           {isVercel ? <Analytics /> : null}
-        </div>
-        <FloatingTerminal />
+        </main>
+        <RouteScopedFloatingTerminal />
       </body>
     </html>
   );
