@@ -59,14 +59,14 @@ export default function Navbar() {
       <div className="max-w-2xl mx-auto px-6 py-2 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center">
-            <Link href="/" className="flex-shrink-0" aria-label="Home" title="Home">
+            <Link href="/" className="flex-shrink-0 group" aria-label="Home" title="Home">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 128 128"
-                className="w-8 h-8 transition-transform duration-300 ease-in-out hover:rotate-180"
+                className="w-8 h-8 transition-transform duration-300 ease-in-out group-hover:rotate-180 group-active:rotate-180"
               >
                 <path
-                  className="fill-brand-white transition-colors duration-300 hover:fill-brand-accent"
+                  className="fill-brand-white transition-colors duration-300 group-hover:fill-brand-accent group-active:fill-brand-accent"
                   d="M128 122.674H28.697L0 104.398V5.235h99.305L128 23.511v99.163zm-91.264-8.028h73.413l-17.851-10.043.132-.206H36.736v10.249zm-23.038-10.248 14.999 8.234v-8.234H13.698zm85.607-4.861 20.656 13.094V31.539H99.305v67.998zM36.736 96.37h54.53V31.539h-54.53V96.37zm-28.697 0h20.658V29.647L8.039 16.551V96.37zm91.266-72.859h14.919l-14.919-8.949v8.949zm-65.745 0h57.706V13.262H17.851l15.841 10.043-.132.206z"
                 />
               </svg>
