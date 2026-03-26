@@ -120,7 +120,7 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
             key={img.key}
             type="button"
             onClick={() => setSelected(index)}
-            className="group relative block w-full break-inside-avoid cursor-pointer overflow-hidden rounded-sm border border-brand-muted/20 text-left transition-all duration-300 hover:border-brand-muted/60"
+            className="group relative block w-full break-inside-avoid cursor-pointer overflow-hidden rounded-sm text-left transition-all duration-300 hover:shadow-[0_10px_28px_rgba(0,0,0,0.35),0_0_0_1px_rgba(245,245,245,0.08)]"
           >
             <Image
               src={img.url}
