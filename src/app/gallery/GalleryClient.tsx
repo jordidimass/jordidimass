@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -43,9 +43,19 @@ const OpenPageIcon = (
 export default function GalleryClient({ images }: { images: GalleryImage[] }) {
   const router = useRouter();
   const [selected, setSelected] = useState<number | null>(null);
+  const [loadedUrls, setLoadedUrls] = useState<Set<string>>(new Set());
   const [downloading, setDownloading] = useState(false);
 
   const selectedImage = selected === null ? null : images[selected];
+  const imageLoaded = selectedImage ? loadedUrls.has(selectedImage.url) : false;
+
+  const markLoaded = useCallback((url: string) => {
+    setLoadedUrls((prev) => new Set(prev).add(url));
+  }, []);
+
+  const navigate = useCallback((delta: 1 | -1) => {
+    setSelected((c) => (c === null ? null : (c + delta + images.length) % images.length));
+  }, [images.length]);
 
   // Prefetch the image page as soon as a modal opens so the Link is instant
   useEffect(() => {
@@ -59,14 +69,12 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
     if (selected === null) return;
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") setSelected(null);
-      if (e.key === "ArrowLeft")
-        setSelected((c) => (c === null ? null : (c - 1 + images.length) % images.length));
-      if (e.key === "ArrowRight")
-        setSelected((c) => (c === null ? null : (c + 1) % images.length));
+      if (e.key === "ArrowLeft") navigate(-1);
+      if (e.key === "ArrowRight") navigate(1);
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selected, images.length]);
+  }, [selected, navigate]);
 
   // Lock body scroll when modal is open
   useEffect(() => {
@@ -160,8 +168,9 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
 
           {/* ── Mobile ── */}
           <div className="flex h-full flex-col md:hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="flex flex-1 items-center justify-center overflow-hidden px-4 pb-4 pt-14">
+            <div className="relative flex flex-1 items-center justify-center overflow-hidden px-4 pb-4 pt-14">
               <Image
+                key={selectedImage.url}
                 src={selectedImage.url}
                 alt={label(selectedImage.key)}
                 width={1920}
@@ -169,14 +178,20 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
                 quality={78}
                 sizes="100vw"
                 priority
-                className="max-h-full w-full rounded-[4px] object-contain"
+                onLoad={() => markLoaded(selectedImage.url)}
+                className={`max-h-full w-full rounded-[4px] object-contain transition-opacity duration-200 ${imageLoaded ? "opacity-100" : "opacity-0"}`}
                 style={{ maxHeight: "calc(100dvh - 160px)" }}
               />
+              {!imageLoaded && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-brand-muted/30 border-t-brand-muted" />
+                </div>
+              )}
             </div>
             <div className="flex items-center justify-between px-8 pb-10">
               <button
                 type="button"
-                onClick={() => setSelected((c) => (c === null ? null : (c - 1 + images.length) % images.length))}
+                onClick={() => navigate(-1)}
                 className="select-none text-3xl text-brand-muted transition-colors duration-200 active:text-brand-accent"
                 aria-label="previous"
               >
@@ -193,7 +208,7 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
               </div>
               <button
                 type="button"
-                onClick={() => setSelected((c) => (c === null ? null : (c + 1) % images.length))}
+                onClick={() => navigate(1)}
                 className="select-none text-3xl text-brand-muted transition-colors duration-200 active:text-brand-accent"
                 aria-label="next"
               >
@@ -206,7 +221,7 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
           <div className="hidden h-full items-center justify-center md:flex">
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); setSelected((c) => (c === null ? null : (c - 1 + images.length) % images.length)); }}
+              onClick={(e) => { e.stopPropagation(); navigate(-1); }}
               className="absolute left-8 z-10 select-none text-3xl text-brand-muted transition-colors duration-200 hover:text-brand-accent"
               aria-label="previous"
             >
@@ -214,11 +229,12 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
             </button>
 
             <div
-              className="flex flex-col items-center"
+              className="relative flex flex-col items-center"
               style={{ width: "calc(100vw - 120px)", maxHeight: "100vh", padding: "20px 0" }}
               onClick={(e) => e.stopPropagation()}
             >
               <Image
+                key={selectedImage.url}
                 src={selectedImage.url}
                 alt={label(selectedImage.key)}
                 width={1920}
@@ -226,9 +242,15 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
                 quality={80}
                 sizes="80vw"
                 priority
-                className="max-w-full rounded-[4px] object-contain"
+                onLoad={() => markLoaded(selectedImage.url)}
+                className={`max-w-full rounded-[4px] object-contain transition-opacity duration-200 ${imageLoaded ? "opacity-100" : "opacity-0"}`}
                 style={{ maxHeight: "calc(100vh - 72px)" }}
               />
+              {!imageLoaded && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-brand-muted/30 border-t-brand-muted" />
+                </div>
+              )}
               <div className="mt-3 flex items-center gap-4">
                 <p className="text-center text-sm font-light tracking-widest text-brand-muted lowercase">
                   {label(selectedImage.key)}
@@ -242,7 +264,7 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
 
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); setSelected((c) => (c === null ? null : (c + 1) % images.length)); }}
+              onClick={(e) => { e.stopPropagation(); navigate(1); }}
               className="absolute right-8 z-10 select-none text-3xl text-brand-muted transition-colors duration-200 hover:text-brand-accent"
               aria-label="next"
             >
