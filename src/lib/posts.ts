@@ -1,3 +1,4 @@
+import { unstable_cache } from 'next/cache';
 import { supabase } from './supabaseClient';
 
 export interface Post {
@@ -13,17 +14,21 @@ export type PostMetadata = {
   date: string;
 };
 
-export async function getAllPosts() {
-  const { data, error } = await supabase
-    .from('posts')
-    .select('slug, title, date')
-    .order('date', { ascending: false });
-  if (error) {
-    console.error('Error fetching posts:', error);
-    return [];
-  }
-  return data as PostMetadata[];
-}
+export const getAllPosts = unstable_cache(
+  async () => {
+    const { data, error } = await supabase
+      .from('posts')
+      .select('slug, title, date')
+      .order('date', { ascending: false });
+    if (error) {
+      console.error('Error fetching posts:', error);
+      return [];
+    }
+    return data as PostMetadata[];
+  },
+  ['all-posts'],
+  { revalidate: 3600, tags: ['posts'] }
+);
 
 export async function getPostBySlug(slug: string) {
   const { data, error } = await supabase

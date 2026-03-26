@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { motion } from "motion/react";
 import { slugFromKey } from "@/lib/gallery";
 
 const EAGER_ABOVE_FOLD_IMAGES = 6;
@@ -125,7 +126,12 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
   return (
     <>
       {/* ── Masonry grid ────────────────────────────────────────────────────── */}
-      <div className="columns-1 gap-4 space-y-4 sm:columns-2 lg:columns-3">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8 }}
+        className="columns-1 gap-4 space-y-4 sm:columns-2 lg:columns-3"
+      >
         {images.map((img, index) => {
           const isPreloadedLeadImage = index === 0;
           const isLikelyAboveFoldImage = index < EAGER_ABOVE_FOLD_IMAGES;
@@ -158,7 +164,7 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
             </button>
           );
         })}
-      </div>
+      </motion.div>
 
       {/* ── Modal ───────────────────────────────────────────────────────────── */}
       {selectedImage && (
