@@ -8,7 +8,7 @@ export default async function GalleryPage() {
 
   return (
     <div className="min-h-screen bg-brand-bg text-brand-text pb-24 pt-24 px-8">
-      <div className="mx-auto max-w-6xl space-y-16">
+      <div className="mx-auto max-w-8xl space-y-16">
         {images.length > 0 ? (
           <GalleryClient images={images} />
         ) : (
