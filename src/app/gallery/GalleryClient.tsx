@@ -6,6 +6,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { slugFromKey } from "@/lib/gallery";
 
+const EAGER_ABOVE_FOLD_IMAGES = 6;
+const HIGH_PRIORITY_IMAGES = 3;
+
 interface GalleryImage {
   key: string;
   size: number;
@@ -123,31 +126,38 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
     <>
       {/* ── Masonry grid ────────────────────────────────────────────────────── */}
       <div className="columns-1 gap-4 space-y-4 sm:columns-2 lg:columns-3">
-        {images.map((img, index) => (
-          <button
-            key={img.key}
-            type="button"
-            onClick={() => setSelected(index)}
-            className="group relative block w-full break-inside-avoid cursor-pointer overflow-hidden rounded-sm text-left transition-all duration-300 hover:shadow-[0_10px_28px_rgba(0,0,0,0.35),0_0_0_1px_rgba(245,245,245,0.08)]"
-          >
-            <Image
-              src={img.url}
-              alt={label(img.key)}
-              width={1600}
-              height={1067}
-              quality={68}
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-              priority={index === 0}
-              fetchPriority={index === 0 ? "high" : "auto"}
-              className="h-auto w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-            />
-            <div className="absolute inset-0 flex items-end bg-brand-bg/0 transition-all duration-300 group-hover:bg-brand-bg/40">
-              <p className="w-full truncate px-3 py-2 text-xs font-light tracking-widest text-brand-text lowercase opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                {label(img.key)}
-              </p>
-            </div>
-          </button>
-        ))}
+        {images.map((img, index) => {
+          const isPreloadedLeadImage = index === 0;
+          const isLikelyAboveFoldImage = index < EAGER_ABOVE_FOLD_IMAGES;
+          const isLikelyLcpCandidate = index < HIGH_PRIORITY_IMAGES;
+
+          return (
+            <button
+              key={img.key}
+              type="button"
+              onClick={() => setSelected(index)}
+              className="group relative block w-full break-inside-avoid cursor-pointer overflow-hidden rounded-sm text-left transition-all duration-300 hover:shadow-[0_10px_28px_rgba(0,0,0,0.35),0_0_0_1px_rgba(245,245,245,0.08)]"
+            >
+              <Image
+                src={img.url}
+                alt={label(img.key)}
+                width={1600}
+                height={1067}
+                quality={68}
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                priority={isPreloadedLeadImage}
+                loading={isLikelyAboveFoldImage ? "eager" : "lazy"}
+                fetchPriority={isLikelyLcpCandidate ? "high" : "auto"}
+                className="h-auto w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+              />
+              <div className="absolute inset-0 flex items-end bg-brand-bg/0 transition-all duration-300 group-hover:bg-brand-bg/40">
+                <p className="w-full truncate px-3 py-2 text-xs font-light tracking-widest text-brand-text lowercase opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                  {label(img.key)}
+                </p>
+              </div>
+            </button>
+          );
+        })}
       </div>
 
       {/* ── Modal ───────────────────────────────────────────────────────────── */}
