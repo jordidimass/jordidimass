@@ -545,7 +545,11 @@ export default function FloatingTerminal() {
       if (!q) { setLines((prev) => [...prev, mkLine("usage: ask <your question>", true)]); return; }
       sendMessage({ text: q }); return;
     }
-    setLines((prev) => [...prev, mkLine(`command not found: ${cmd}`, true)]);
+    setLines((prev) => [
+      ...prev,
+      mkLine(`command not found: ${cmd}`, true),
+      mkLine('type "help" for available commands.', true),
+    ]);
   }, [playing, switchTrack, togglePlay, sendMessage, router]);
 
   // ── Keyboard handler ──────────────────────────────────────────────────────────
