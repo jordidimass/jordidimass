@@ -62,15 +62,27 @@ export default {
 
     // GET / — list all images
     if (!path || path === "") {
-      const listed = await env.GALLERY.list();
-      const images = listed.objects
-        .slice()
+      const allObjects: R2Object[] = [];
+      let cursor: string | undefined;
+      do {
+        const listed = await env.GALLERY.list({ cursor });
+        allObjects.push(...listed.objects);
+        cursor = listed.truncated ? listed.cursor : undefined;
+      } while (cursor);
+
+      const seen = new Set<string>();
+      const images = allObjects
+        .filter((obj) => {
+          if (seen.has(obj.key)) return false;
+          seen.add(obj.key);
+          return true;
+        })
         .sort((a, b) => Number(new Date(b.uploaded)) - Number(new Date(a.uploaded)))
         .map((obj) => ({
-        key: obj.key,
-        size: obj.size,
-        uploaded: obj.uploaded,
-        url: `${url.origin}/image/${encodeURIComponent(obj.key)}`,
+          key: obj.key,
+          size: obj.size,
+          uploaded: obj.uploaded,
+          url: `${url.origin}/image/${encodeURIComponent(obj.key)}`,
         }));
 
       return Response.json(

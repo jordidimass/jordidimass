@@ -23,7 +23,13 @@ export async function getGalleryImages(): Promise<GalleryImage[]> {
     const res = await fetch(WORKER_URL, { next: { revalidate: 300 } });
     if (!res.ok) return [];
     const data = (await res.json()) as { images?: GalleryImage[] };
-    return data.images ?? [];
+    const images = data.images ?? [];
+    const seen = new Set<string>();
+    return images.filter((img) => {
+      if (seen.has(img.key)) return false;
+      seen.add(img.key);
+      return true;
+    });
   } catch {
     return [];
   }
