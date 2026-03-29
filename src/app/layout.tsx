@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import Navbar from '@/components/Navbar';
 import RouteScopedFloatingTerminal from "@/components/RouteScopedFloatingTerminal";
 import { Cormorant } from 'next/font/google';
@@ -7,7 +8,7 @@ import { Analytics } from "@vercel/analytics/react"
 import "./globals.css";
 
 const cormorant = Cormorant({
-  weight: ['300', '400', '500', '600', '700'],
+  weight: ['300', '400', '500', '700'],
   subsets: ['latin'],
   variable: '--font-cormorant',
 });
@@ -91,7 +92,9 @@ export default function RootLayout({
           {children}
           {isVercel ? <Analytics /> : null}
         </main>
-        <RouteScopedFloatingTerminal />
+        <Suspense>
+          <RouteScopedFloatingTerminal />
+        </Suspense>
       </body>
     </html>
   );

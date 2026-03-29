@@ -75,6 +75,24 @@ body {
   }
 }
 
+@keyframes hero-enter {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-hero-enter {
+  animation: hero-enter 0.8s ease forwards;
+}
+
+.animate-fade-in {
+  animation: fade-in 1s ease forwards;
+}
+
 @layer base {
   :root {
     --background: 0 0% 6.7%; /* #111010 */
