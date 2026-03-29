@@ -12,7 +12,7 @@ const cormorant = Cormorant({
   variable: '--font-cormorant',
 });
 
-const SITE_URL = "https://jordidimas.com";
+const SITE_URL = "https://www.jordidimass.com";
 const OG_IMAGE = "https://utfs.io/f/c07cbb6c-bf22-46bc-bdc3-c711408f5856-1xaifo.jpg";
 
 export const metadata: Metadata = {

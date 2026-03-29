@@ -12,10 +12,10 @@ export async function generateMetadata({ params }: { params: Promise<PostPagePar
     openGraph: {
       title: `${metadata.title} | Jordi Dimas`,
       type: "article",
-      url: `https://jordidimas.com/posts/${slug}`,
+      url: `https://www.jordidimass.com/posts/${slug}`,
       publishedTime: metadata.date,
     },
-    alternates: { canonical: `https://jordidimas.com/posts/${slug}` },
+    alternates: { canonical: `https://www.jordidimass.com/posts/${slug}` },
   };
 }
 

@@ -11,9 +11,9 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Blog | Jordi Dimas",
     description: "Thoughts on software development, physics, and whatever else is on my mind.",
-    url: "https://jordidimas.com/blog",
+    url: "https://www.jordidimass.com/blog",
   },
-  alternates: { canonical: "https://jordidimas.com/blog" },
+  alternates: { canonical: "https://www.jordidimass.com/blog" },
 };
 
 export default async function BlogPage() {

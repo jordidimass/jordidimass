@@ -10,9 +10,9 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Gallery | Jordi Dimas",
     description: "A collection of photography and visual work.",
-    url: "https://jordidimas.com/gallery",
+    url: "https://www.jordidimass.com/gallery",
   },
-  alternates: { canonical: "https://jordidimas.com/gallery" },
+  alternates: { canonical: "https://www.jordidimass.com/gallery" },
 };
 
 export default async function GalleryPage() {
