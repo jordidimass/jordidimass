@@ -1,7 +1,23 @@
+import type { Metadata } from 'next';
 import { getAllPosts, getPostBySlug } from '@/lib/posts';
 import BlogPostDisplay, { PostMetadata } from '@/components/BlogPostDisplay';
 
 type PostPageParams = { slug: string };
+
+export async function generateMetadata({ params }: { params: Promise<PostPageParams> }): Promise<Metadata> {
+  const { slug } = await params;
+  const { metadata } = await getPostBySlug(slug);
+  return {
+    title: metadata.title,
+    openGraph: {
+      title: `${metadata.title} | Jordi Dimas`,
+      type: "article",
+      url: `https://jordidimas.com/posts/${slug}`,
+      publishedTime: metadata.date,
+    },
+    alternates: { canonical: `https://jordidimas.com/posts/${slug}` },
+  };
+}
 
 export const dynamic = "force-static";
 export const revalidate = 3600; // seconds

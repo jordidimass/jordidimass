@@ -12,9 +12,35 @@ const cormorant = Cormorant({
   variable: '--font-cormorant',
 });
 
+const SITE_URL = "https://jordidimas.com";
+const OG_IMAGE = "https://utfs.io/f/c07cbb6c-bf22-46bc-bdc3-c711408f5856-1xaifo.jpg";
+
 export const metadata: Metadata = {
-  title: "Jordi Dimas",
-  description: "Welcome to my place on the internet",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "Jordi Dimas",
+    template: "%s | Jordi Dimas",
+  },
+  description: "Software developer from Guatemala with a deep fascination for physics, systems theory, and computer science.",
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: SITE_URL,
+    siteName: "Jordi Dimas",
+    title: "Jordi Dimas",
+    description: "Software developer from Guatemala with a deep fascination for physics, systems theory, and computer science.",
+    images: [{ url: OG_IMAGE, width: 400, height: 400, alt: "Jordi Dimas" }],
+  },
+  twitter: {
+    card: "summary",
+    title: "Jordi Dimas",
+    description: "Software developer from Guatemala with a deep fascination for physics, systems theory, and computer science.",
+    creator: "@jordidimass",
+    images: [OG_IMAGE],
+  },
+  alternates: {
+    canonical: SITE_URL,
+  },
 };
 
 export default function RootLayout({
@@ -28,6 +54,36 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@graph": [
+                {
+                  "@type": "WebSite",
+                  "@id": `${SITE_URL}/#website`,
+                  "url": SITE_URL,
+                  "name": "Jordi Dimas",
+                  "description": "Software developer from Guatemala with a deep fascination for physics, systems theory, and computer science.",
+                },
+                {
+                  "@type": "Person",
+                  "@id": `${SITE_URL}/#person`,
+                  "name": "Jordi Dimas",
+                  "url": SITE_URL,
+                  "image": OG_IMAGE,
+                  "sameAs": [
+                    "https://x.com/jordidimass",
+                    "https://github.com/jordidimass",
+                    "https://www.linkedin.com/in/jordidimass/",
+                    "https://instagram.com/jordidimass",
+                  ],
+                },
+              ],
+            }),
+          }}
+        />
       </head>
       <body className={`${cormorant.variable} ${GeistSans.variable} font-sans antialiased`}>
         <Navbar />

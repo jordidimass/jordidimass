@@ -1,7 +1,19 @@
+import type { Metadata } from "next";
 import GalleryClient from "./GalleryClient";
 import { getGalleryImages } from "@/lib/gallery";
 
 export const revalidate = 300;
+
+export const metadata: Metadata = {
+  title: "Gallery",
+  description: "A collection of photography and visual work.",
+  openGraph: {
+    title: "Gallery | Jordi Dimas",
+    description: "A collection of photography and visual work.",
+    url: "https://jordidimas.com/gallery",
+  },
+  alternates: { canonical: "https://jordidimas.com/gallery" },
+};
 
 export default async function GalleryPage() {
   const images = await getGalleryImages();

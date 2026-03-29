@@ -1,8 +1,20 @@
+import type { Metadata } from 'next';
 import { getAllPosts } from '../../lib/posts';
 import AnimatedBlogPost from '@/components/AnimatedBlogPost';
 
 export const dynamic = "force-static";
 export const revalidate = 3600; // seconds
+
+export const metadata: Metadata = {
+  title: "Blog",
+  description: "Thoughts on software development, physics, and whatever else is on my mind.",
+  openGraph: {
+    title: "Blog | Jordi Dimas",
+    description: "Thoughts on software development, physics, and whatever else is on my mind.",
+    url: "https://jordidimas.com/blog",
+  },
+  alternates: { canonical: "https://jordidimas.com/blog" },
+};
 
 export default async function BlogPage() {
   const posts = await getAllPosts();
