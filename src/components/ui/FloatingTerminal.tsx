@@ -229,8 +229,8 @@ function InputRow({
 }) {
   return (
     <div
-      className="flex items-center gap-2 px-4 py-2 shrink-0"
-      style={{ borderTop: `1px solid ${C.border}` }}
+      className="flex items-center gap-2 px-4 shrink-0"
+      style={{ borderTop: `1px solid ${C.border}`, height: "60px" }}
     >
       <span style={{ fontSize: 12, color: C.accent, userSelect: "none" }}>&gt;</span>
       <input
@@ -250,10 +250,10 @@ function InputRow({
       {isMobile && (
         <button
           onPointerDown={(e) => { e.preventDefault(); onSubmit(); }}
-          style={{ color: input.trim() ? C.accent : C.muted, lineHeight: 0, transition: "color 150ms", padding: "6px 2px" }}
+          style={{ color: input.trim() ? C.accent : C.muted, lineHeight: 0, transition: "color 150ms", padding: "6px 2px", width: "21px" }}
           aria-label="Submit"
         >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <svg width="24" height="24" viewBox="0 0 14 14" fill="none">
             <path d="M1 7h10M7 3l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
@@ -608,9 +608,9 @@ export default function FloatingTerminal() {
       {/* ── Toggle button ── */}
       <button
         onClick={() => setIsOpen((o) => !o)}
-        className="fixed bottom-6 right-6 z-50 text-neutral-500 hover:text-neutral-200 transition-colors duration-200"
+        className="fixed bottom-6 right-6 z-50 hover:text-neutral-200 transition-colors duration-200"
+        style={{ color: "rgba(255, 136, 0, 1)", lineHeight: 0, minWidth: isMobile ? 44 : undefined, minHeight: isMobile ? 44 : undefined, display: "flex", alignItems: "center", justifyContent: "center" }}
         aria-label="Toggle terminal"
-        style={{ lineHeight: 0, minWidth: isMobile ? 44 : undefined, minHeight: isMobile ? 44 : undefined, display: "flex", alignItems: "center", justifyContent: "center" }}
       >
         <TerminalIcon ref={iconRef} size={22} />
       </button>
