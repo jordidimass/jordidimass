@@ -166,12 +166,14 @@ export default function GalaxyBackground() {
     camera.position.set(0, 0, 5);
 
     const controls = new OrbitControls(camera, renderer.domElement);
+    const isMobile = window.innerWidth < 1024;
     controls.enableDamping  = true;
-    controls.dampingFactor  = 0.04;
+    controls.dampingFactor  = isMobile ? 0.015 : 0.04;
     controls.autoRotate     = true;
-    controls.autoRotateSpeed = 0.14;
+    controls.autoRotateSpeed = isMobile ? 0.35 : 0.14;
     controls.enableZoom = false;
     controls.enablePan  = false;
+    controls.rotateSpeed = isMobile ? 0.4 : 1.0;
 
     scene.add(new THREE.AmbientLight(0xffeedd, 3));
     const keyLight = new THREE.PointLight(0xff8800, 15, 50);
@@ -307,7 +309,7 @@ export default function GalaxyBackground() {
         autoMorphTimeout = setTimeout(scheduleNextMorph, MORPH_DURATION * 1000 + 200);
       }, SHAPE_DURATIONS[currentShape]);
     }
-    scheduleNextMorph();
+    if (!isMobile) scheduleNextMorph();
 
     const raycaster  = new THREE.Raycaster();
     const mouseNDC   = new THREE.Vector2(9999, 9999);
@@ -323,11 +325,20 @@ export default function GalaxyBackground() {
       mouseOn = true;
     };
     const onMouseLeave = () => { mouseNDC.set(9999, 9999); mouseOn = false; };
+    const onTouchMove = (e: TouchEvent) => {
+      const t = e.touches[0];
+      const r = container.getBoundingClientRect();
+      mouseNDC.set(((t.clientX - r.left) / r.width) * 2 - 1, -((t.clientY - r.top) / r.height) * 2 + 1);
+      mouseOn = true;
+    };
+    const onTouchEnd = () => { mouseOn = false; };
     container.addEventListener('mousemove', onMouseMove);
     container.addEventListener('mouseleave', onMouseLeave);
+    container.addEventListener('touchmove', onTouchMove, { passive: true });
+    container.addEventListener('touchend', onTouchEnd);
 
     let raf: number;
-    const ROT_SPEEDS = [0.009, 0.035, 0.035];
+    const ROT_SPEEDS = isMobile ? [0.022, 0.06, 0.06] : [0.009, 0.035, 0.035];
     let rotSpeed = ROT_SPEEDS[0];
     let rotAccum = 0;
     let lastT = 0;
@@ -397,6 +408,8 @@ export default function GalaxyBackground() {
       window.removeEventListener('resize', onResize);
       container.removeEventListener('mousemove', onMouseMove);
       container.removeEventListener('mouseleave', onMouseLeave);
+      container.removeEventListener('touchmove', onTouchMove);
+      container.removeEventListener('touchend', onTouchEnd);
       controls.dispose();
       renderer.dispose();
       geometry.dispose();
