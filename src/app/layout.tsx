@@ -4,7 +4,8 @@ import Navbar from '@/components/Navbar';
 import RouteScopedFloatingTerminal from "@/components/RouteScopedFloatingTerminal";
 import { Cormorant } from 'next/font/google';
 import { GeistSans } from 'geist/font/sans';
-import { Analytics } from "@vercel/analytics/react"
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
 const cormorant = Cormorant({
@@ -90,7 +91,12 @@ export default function RootLayout({
         <Navbar />
         <main className="pt-16">
           {children}
-          {isVercel ? <Analytics /> : null}
+          {isVercel ? (
+            <>
+              <Analytics />
+              <SpeedInsights />
+            </>
+          ) : null}
         </main>
         <Suspense>
           <RouteScopedFloatingTerminal />
