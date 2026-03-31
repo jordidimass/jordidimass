@@ -229,8 +229,8 @@ function InputRow({
 }) {
   return (
     <div
-      className="flex items-center gap-2 px-4 shrink-0"
-      style={{ borderTop: `1px solid ${C.border}`, height: "60px" }}
+      className="flex items-center gap-2 px-4 py-2 shrink-0"
+      style={{ borderTop: `1px solid ${C.border}`, ...(isMobile && { height: "60px" }) }}
     >
       <span style={{ fontSize: 12, color: C.accent, userSelect: "none" }}>&gt;</span>
       <input
