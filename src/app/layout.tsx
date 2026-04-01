@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import Navbar from '@/components/Navbar';
 import RouteScopedFloatingTerminal from "@/components/RouteScopedFloatingTerminal";
+import CommandPalette from "@/components/CommandPalette";
 import { Cormorant } from 'next/font/google';
 import { GeistSans } from 'geist/font/sans';
 import { Analytics } from "@vercel/analytics/react";
@@ -101,6 +102,7 @@ export default function RootLayout({
         <Suspense>
           <RouteScopedFloatingTerminal />
         </Suspense>
+        <CommandPalette />
       </body>
     </html>
   );

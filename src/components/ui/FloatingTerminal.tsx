@@ -351,12 +351,21 @@ export default function FloatingTerminal() {
     }
   }, [isOpen]);
 
-  // ── Cmd/Ctrl+K → clear ──────────────────────────────────────────────────────
+  // ── open-terminal event ──────────────────────────────────────────────────────
+  useEffect(() => {
+    const handler = () => setIsOpen(true);
+    window.addEventListener("open-terminal", handler);
+    return () => window.removeEventListener("open-terminal", handler);
+  }, []);
+
+  // ── Cmd/Ctrl+K → clear (only when palette is not open) ──────────────────────
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: KeyboardEvent) => {
       const mac = navigator.platform.toUpperCase().includes("MAC");
       if ((mac ? e.metaKey : e.ctrlKey) && e.key === "k") {
+        // Let the command palette intercept Cmd+K when it's open
+        if (document.querySelector("[cmdk-dialog]")) return;
         e.preventDefault();
         setLines([]);
         lastMsgId.current = null;
@@ -445,6 +454,38 @@ export default function FloatingTerminal() {
     }
     return next;
   }, [playing]);
+
+  // ── Music control events from CommandPalette ─────────────────────────────────
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const onPlay = () => { audio.play().then(() => setPlaying(true)).catch(() => {}); };
+    const onPause = () => { audio.pause(); setPlaying(false); };
+    const onNext = () => switchTrack(1);
+    const onPrev = () => switchTrack(-1);
+    const onTrack = (e: Event) => {
+      const key = (e as CustomEvent<{ track: TrackKey }>).detail?.track;
+      if (!key || !TRACKS[key]) return;
+      audio.pause(); setPlaying(false);
+      trackRef.current = key; setTrackDisplay(key);
+      audio.src = TRACKS[key].src; audio.load();
+      audio.play().then(() => setPlaying(true)).catch(() => {});
+    };
+
+    window.addEventListener("music-play", onPlay);
+    window.addEventListener("music-pause", onPause);
+    window.addEventListener("music-next", onNext);
+    window.addEventListener("music-prev", onPrev);
+    window.addEventListener("music-track", onTrack);
+    return () => {
+      window.removeEventListener("music-play", onPlay);
+      window.removeEventListener("music-pause", onPause);
+      window.removeEventListener("music-next", onNext);
+      window.removeEventListener("music-prev", onPrev);
+      window.removeEventListener("music-track", onTrack);
+    };
+  }, [switchTrack]);
 
   // ── Command processor ─────────────────────────────────────────────────────────
   const run = useCallback(async (raw: string) => {
