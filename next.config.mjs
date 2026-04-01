@@ -9,7 +9,7 @@ const nextConfig = {
     ],
   },
   experimental: {
-    optimizePackageImports: ['@mui/icons-material', 'lucide-react', 'motion'],
+    optimizePackageImports: ['@mui/icons-material', 'lucide-react', 'motion', '@react-three/drei'],
   },
   async headers() {
     return [

@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import Navbar from '@/components/Navbar';
 import RouteScopedFloatingTerminal from "@/components/RouteScopedFloatingTerminal";
 import RouteScopedShortcutsHelp from "@/components/RouteScopedShortcutsHelp";
-import CommandPalette from "@/components/CommandPalette";
+import CommandPaletteClient from '@/components/CommandPaletteClient';
 import { Cormorant } from 'next/font/google';
 import { GeistSans } from 'geist/font/sans';
 import { Analytics } from "@vercel/analytics/react";
@@ -58,6 +58,8 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="preconnect" href="https://gallery-worker.jordidimas.workers.dev" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
@@ -104,7 +106,7 @@ export default function RootLayout({
           <RouteScopedFloatingTerminal />
           <RouteScopedShortcutsHelp />
         </Suspense>
-        <CommandPalette />
+        <CommandPaletteClient />
       </body>
     </html>
   );
