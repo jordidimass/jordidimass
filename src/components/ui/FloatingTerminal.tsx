@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, isTextUIPart } from "ai";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from "motion/react";
 import { X, SkipBack, SkipForward, Pause } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { TerminalIcon, type TerminalIconHandle } from "./TerminalIcon";
@@ -314,6 +314,121 @@ export default function FloatingTerminal() {
   const lastMsgId = useRef<string | null>(null);
 
   const { messages, sendMessage, status } = useChat({ id: "ft", transport });
+
+  // ── Mobile: horizontal elastic pull → open terminal (release to trigger) ────
+  const pullRaw = useMotionValue(0);
+  const pull = useSpring(pullRaw, { stiffness: 520, damping: 44, mass: 0.8 });
+  const pullLeftW = useTransform(pull, (v) => Math.max(0, Math.min(160, v)));
+  const pullRightW = useTransform(pull, (v) => Math.max(0, Math.min(160, -v)));
+  const pullLeftOpacity = useTransform(pullLeftW, (w) => Math.min(0.95, w / 70));
+  const pullRightOpacity = useTransform(pullRightW, (w) => Math.min(0.95, w / 70));
+  const pullStart = useRef<{ x: number; y: number } | null>(null);
+  const pullLastDx = useRef(0);
+  const pullActiveDx = useRef(0);
+  const pullDecided = useRef<"h" | "v" | null>(null);
+  const pullScrollEl = useRef<HTMLElement | null>(null);
+  const pullScrollMax = useRef(0);
+
+  useEffect(() => {
+    if (!isMobile) return;
+    if (isOpen) return;
+
+    const isEditableTarget = (el: Element | null) => {
+      if (!el) return false;
+      const tag = el.tagName;
+      return (el as HTMLElement).isContentEditable || tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+    };
+
+    const getScrollableXAncestor = (el: Element | null): HTMLElement | null => {
+      let cur: Element | null = el;
+      while (cur && cur !== document.body) {
+        const style = window.getComputedStyle(cur);
+        const overflowX = style.overflowX;
+        const node = cur as HTMLElement;
+        if ((overflowX === "auto" || overflowX === "scroll") && node.scrollWidth > node.clientWidth) {
+          return node;
+        }
+        cur = cur.parentElement;
+      }
+      return null;
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (document.querySelector("[cmdk-dialog]")) return;
+      if (document.querySelector("[data-jd-terminal]")) return;
+
+      const target = e.target instanceof Element ? e.target : null;
+      if (isEditableTarget(target)) return;
+
+      const scrollEl = getScrollableXAncestor(target);
+      pullScrollEl.current = scrollEl;
+      pullScrollMax.current = scrollEl ? Math.max(0, scrollEl.scrollWidth - scrollEl.clientWidth) : 0;
+
+      const t = e.touches[0];
+      pullStart.current = { x: t.clientX, y: t.clientY };
+      pullLastDx.current = 0;
+      pullActiveDx.current = 0;
+      pullDecided.current = null;
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (!pullStart.current) return;
+      const t = e.touches[0];
+      const dx = t.clientX - pullStart.current.x;
+      const dy = t.clientY - pullStart.current.y;
+      pullLastDx.current = dx;
+
+      if (!pullDecided.current) {
+        const adx = Math.abs(dx);
+        const ady = Math.abs(dy);
+        if (adx < 10 && ady < 10) return;
+        pullDecided.current = adx > ady ? "h" : "v";
+      }
+      if (pullDecided.current !== "h") return;
+
+      const scrollEl = pullScrollEl.current;
+      if (scrollEl) {
+        const max = pullScrollMax.current;
+        const left = scrollEl.scrollLeft;
+        const atLeft = left <= 0.5;
+        const atRight = left >= max - 0.5;
+        const wantsPull = (dx > 0 && atLeft) || (dx < 0 && atRight);
+        if (!wantsPull) {
+          pullActiveDx.current = 0;
+          pullRaw.set(0);
+          return;
+        }
+      }
+
+      pullActiveDx.current = dx;
+      pullRaw.set(Math.max(-160, Math.min(160, dx)));
+    };
+
+    const finish = () => {
+      if (!pullStart.current) return;
+      const dx = pullActiveDx.current;
+      const shouldOpen = pullDecided.current === "h" && Math.abs(dx) >= 120;
+      pullStart.current = null;
+      pullDecided.current = null;
+      pullLastDx.current = 0;
+      pullActiveDx.current = 0;
+      pullScrollEl.current = null;
+      pullScrollMax.current = 0;
+      pullRaw.set(0);
+      if (shouldOpen) window.dispatchEvent(new CustomEvent("open-terminal"));
+    };
+
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: true });
+    window.addEventListener("touchend", finish, { passive: true });
+    window.addEventListener("touchcancel", finish, { passive: true });
+    return () => {
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", finish);
+      window.removeEventListener("touchcancel", finish);
+    };
+  }, [isMobile, isOpen, pullRaw]);
 
   // ── Audio init ───────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -684,18 +799,48 @@ export default function FloatingTerminal() {
 
   return (
     <>
-      {/* ── Toggle button ── */}
-      <button
-        onClick={() => {
-          setInstantClose(false);
-          setIsOpen((o) => !o);
-        }}
-        className="fixed bottom-6 right-6 z-50 hover:text-neutral-200 transition-colors duration-200"
-        style={{ color: "rgba(255, 136, 0, 1)", lineHeight: 0, minWidth: isMobile ? 44 : undefined, minHeight: isMobile ? 44 : undefined, display: "flex", alignItems: "center", justifyContent: "center" }}
-        aria-label="Toggle terminal"
-      >
-        <TerminalIcon ref={iconRef} size={22} />
-      </button>
+      {/* ── Toggle button (desktop only) ── */}
+      {!isMobile && (
+        <button
+          onClick={() => {
+            setInstantClose(false);
+            setIsOpen((o) => !o);
+          }}
+          className="fixed bottom-6 right-6 z-50 hover:text-neutral-200 transition-colors duration-200"
+          style={{ color: "rgba(255, 136, 0, 1)", lineHeight: 0, display: "flex", alignItems: "center", justifyContent: "center" }}
+          aria-label="Toggle terminal"
+        >
+          <TerminalIcon ref={iconRef} size={22} />
+        </button>
+      )}
+
+      {/* ── Mobile pull-stretch cue ── */}
+      {isMobile && !isOpen && (
+        <>
+          <motion.div
+            aria-hidden="true"
+            className="fixed left-0 top-0 bottom-0 z-30 pointer-events-none"
+            style={{
+              width: pullLeftW,
+              opacity: pullLeftOpacity,
+              background: "linear-gradient(90deg, rgba(255,188,188,0.18), rgba(255,188,188,0.00))",
+              borderRight: "1px solid rgba(255,255,255,0.10)",
+              backdropFilter: "blur(10px)",
+            }}
+          />
+          <motion.div
+            aria-hidden="true"
+            className="fixed right-0 top-0 bottom-0 z-30 pointer-events-none"
+            style={{
+              width: pullRightW,
+              opacity: pullRightOpacity,
+              background: "linear-gradient(270deg, rgba(255,188,188,0.18), rgba(255,188,188,0.00))",
+              borderLeft: "1px solid rgba(255,255,255,0.10)",
+              backdropFilter: "blur(10px)",
+            }}
+          />
+        </>
+      )}
 
       <AnimatePresence>
         {isOpen && (
