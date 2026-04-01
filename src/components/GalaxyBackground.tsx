@@ -419,7 +419,7 @@ export default function GalaxyBackground() {
       onCreated={({ gl }) => {
         gl.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       }}
-      style={{ position: 'absolute', top: 0, bottom: 0, right: 0, left: '-15vw', width: 'calc(100% + 15vw)', background: 'transparent' }}
+      style={{ position: 'absolute', inset: 0, background: 'transparent' }}
     >
       <fog attach="fog" args={[0x111010, 0, 55]} />
       <OrbitControls

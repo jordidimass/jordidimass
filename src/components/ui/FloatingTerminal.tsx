@@ -315,19 +315,17 @@ export default function FloatingTerminal() {
 
   const { messages, sendMessage, status } = useChat({ id: "ft", transport });
 
-  // ── Mobile: horizontal elastic pull → open terminal (release to trigger) ────
-  const pullRaw = useMotionValue(0);
-  const pull = useSpring(pullRaw, { stiffness: 520, damping: 44, mass: 0.8 });
-  const pullLeftW = useTransform(pull, (v) => Math.max(0, Math.min(160, v)));
-  const pullRightW = useTransform(pull, (v) => Math.max(0, Math.min(160, -v)));
-  const pullLeftOpacity = useTransform(pullLeftW, (w) => Math.min(0.95, w / 70));
-  const pullRightOpacity = useTransform(pullRightW, (w) => Math.min(0.95, w / 70));
+  // ── Mobile: bottom-edge pull → open terminal (release to trigger) ───────────
+  const vPullRaw = useMotionValue(0);
+  const vPull = useSpring(vPullRaw, { stiffness: 520, damping: 44, mass: 0.8 });
+  const vPullBottomH = useTransform(vPull, (v) => Math.max(0, Math.min(140, -v)));
+  const vPullBottomOpacity = useTransform(vPullBottomH, (h) => Math.min(0.95, h / 60));
   const pullStart = useRef<{ x: number; y: number } | null>(null);
-  const pullLastDx = useRef(0);
-  const pullActiveDx = useRef(0);
+  const pullLastDy = useRef(0);
+  const pullActiveDy = useRef(0);
   const pullDecided = useRef<"h" | "v" | null>(null);
-  const pullScrollEl = useRef<HTMLElement | null>(null);
-  const pullScrollMax = useRef(0);
+  const vPullScrollEl = useRef<HTMLElement | null>(null);
+  const vPullScrollMax = useRef(0);
 
   useEffect(() => {
     if (!isMobile) return;
@@ -339,17 +337,20 @@ export default function FloatingTerminal() {
       return (el as HTMLElement).isContentEditable || tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
     };
 
-    const getScrollableXAncestor = (el: Element | null): HTMLElement | null => {
+    const getScrollableYAncestor = (el: Element | null): HTMLElement | null => {
       let cur: Element | null = el;
       while (cur && cur !== document.body) {
         const style = window.getComputedStyle(cur);
-        const overflowX = style.overflowX;
+        const overflowY = style.overflowY;
         const node = cur as HTMLElement;
-        if ((overflowX === "auto" || overflowX === "scroll") && node.scrollWidth > node.clientWidth) {
+        if ((overflowY === "auto" || overflowY === "scroll") && node.scrollHeight > node.clientHeight) {
           return node;
         }
         cur = cur.parentElement;
       }
+
+      const root = document.scrollingElement as HTMLElement | null;
+      if (root && root.scrollHeight > root.clientHeight) return root;
       return null;
     };
 
@@ -360,14 +361,14 @@ export default function FloatingTerminal() {
       const target = e.target instanceof Element ? e.target : null;
       if (isEditableTarget(target)) return;
 
-      const scrollEl = getScrollableXAncestor(target);
-      pullScrollEl.current = scrollEl;
-      pullScrollMax.current = scrollEl ? Math.max(0, scrollEl.scrollWidth - scrollEl.clientWidth) : 0;
+      const vScrollEl = getScrollableYAncestor(target);
+      vPullScrollEl.current = vScrollEl;
+      vPullScrollMax.current = vScrollEl ? Math.max(0, vScrollEl.scrollHeight - vScrollEl.clientHeight) : 0;
 
       const t = e.touches[0];
       pullStart.current = { x: t.clientX, y: t.clientY };
-      pullLastDx.current = 0;
-      pullActiveDx.current = 0;
+      pullLastDy.current = 0;
+      pullActiveDy.current = 0;
       pullDecided.current = null;
     };
 
@@ -376,7 +377,7 @@ export default function FloatingTerminal() {
       const t = e.touches[0];
       const dx = t.clientX - pullStart.current.x;
       const dy = t.clientY - pullStart.current.y;
-      pullLastDx.current = dx;
+      pullLastDy.current = dy;
 
       if (!pullDecided.current) {
         const adx = Math.abs(dx);
@@ -384,37 +385,45 @@ export default function FloatingTerminal() {
         if (adx < 10 && ady < 10) return;
         pullDecided.current = adx > ady ? "h" : "v";
       }
-      if (pullDecided.current !== "h") return;
+      // Only act on vertical intent.
+      if (pullDecided.current !== "v") return;
 
-      const scrollEl = pullScrollEl.current;
+      const scrollEl = vPullScrollEl.current;
       if (scrollEl) {
-        const max = pullScrollMax.current;
-        const left = scrollEl.scrollLeft;
-        const atLeft = left <= 0.5;
-        const atRight = left >= max - 0.5;
-        const wantsPull = (dx > 0 && atLeft) || (dx < 0 && atRight);
+        const max = vPullScrollMax.current;
+        const top = scrollEl.scrollTop;
+        const atBottom = top >= max - 0.5;
+        const wantsPull = dy < 0 && atBottom;
         if (!wantsPull) {
-          pullActiveDx.current = 0;
-          pullRaw.set(0);
+          pullActiveDy.current = 0;
+          vPullRaw.set(0);
+          return;
+        }
+      } else {
+        // No vertical scroll container: treat as already at the end.
+        if (dy >= 0) {
+          pullActiveDy.current = 0;
+          vPullRaw.set(0);
           return;
         }
       }
 
-      pullActiveDx.current = dx;
-      pullRaw.set(Math.max(-160, Math.min(160, dx)));
+      pullActiveDy.current = dy;
+      vPullRaw.set(Math.max(-140, Math.min(0, dy)));
     };
 
     const finish = () => {
       if (!pullStart.current) return;
-      const dx = pullActiveDx.current;
-      const shouldOpen = pullDecided.current === "h" && Math.abs(dx) >= 120;
+      const dy = pullActiveDy.current;
+      const shouldOpenY = pullDecided.current === "v" && Math.abs(dy) >= 120;
+      const shouldOpen = shouldOpenY;
       pullStart.current = null;
       pullDecided.current = null;
-      pullLastDx.current = 0;
-      pullActiveDx.current = 0;
-      pullScrollEl.current = null;
-      pullScrollMax.current = 0;
-      pullRaw.set(0);
+      pullLastDy.current = 0;
+      pullActiveDy.current = 0;
+      vPullScrollEl.current = null;
+      vPullScrollMax.current = 0;
+      vPullRaw.set(0);
       if (shouldOpen) window.dispatchEvent(new CustomEvent("open-terminal"));
     };
 
@@ -428,7 +437,31 @@ export default function FloatingTerminal() {
       window.removeEventListener("touchend", finish);
       window.removeEventListener("touchcancel", finish);
     };
-  }, [isMobile, isOpen, pullRaw]);
+  }, [isMobile, isOpen, vPullRaw]);
+
+  // Apply a subtle global "rubber band" transform to the page while pulling.
+  useEffect(() => {
+    if (!isMobile) return;
+    const main = document.querySelector("main");
+    if (!(main instanceof HTMLElement)) return;
+
+    const setVars = (h: number) => {
+      const shift = Math.round(h * 0.22);
+      const scale = Math.max(0.94, 1 - h / 1100);
+      main.style.setProperty("--jd-terminal-pull-shift", `${shift}px`);
+      main.style.setProperty("--jd-terminal-pull-scale", `${scale}`);
+      main.style.setProperty("--jd-terminal-pull-radius", `${Math.round(Math.min(22, h / 5))}px`);
+    };
+
+    setVars(0);
+    const unsub = vPullBottomH.on("change", (h) => setVars(h));
+    return () => {
+      unsub();
+      main.style.removeProperty("--jd-terminal-pull-shift");
+      main.style.removeProperty("--jd-terminal-pull-scale");
+      main.style.removeProperty("--jd-terminal-pull-radius");
+    };
+  }, [isMobile, vPullBottomH]);
 
   // ── Audio init ───────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -819,24 +852,16 @@ export default function FloatingTerminal() {
         <>
           <motion.div
             aria-hidden="true"
-            className="fixed left-0 top-0 bottom-0 z-30 pointer-events-none"
+            className="fixed left-0 right-0 bottom-0 z-30 pointer-events-none"
             style={{
-              width: pullLeftW,
-              opacity: pullLeftOpacity,
-              background: "linear-gradient(90deg, rgba(255,188,188,0.18), rgba(255,188,188,0.00))",
-              borderRight: "1px solid rgba(255,255,255,0.10)",
-              backdropFilter: "blur(10px)",
-            }}
-          />
-          <motion.div
-            aria-hidden="true"
-            className="fixed right-0 top-0 bottom-0 z-30 pointer-events-none"
-            style={{
-              width: pullRightW,
-              opacity: pullRightOpacity,
-              background: "linear-gradient(270deg, rgba(255,188,188,0.18), rgba(255,188,188,0.00))",
-              borderLeft: "1px solid rgba(255,255,255,0.10)",
-              backdropFilter: "blur(10px)",
+              height: vPullBottomH,
+              opacity: vPullBottomOpacity,
+              background: "linear-gradient(0deg, rgba(17,16,16,0.92), rgba(17,16,16,0.25), rgba(17,16,16,0.00))",
+              borderTop: "1px solid rgba(255,255,255,0.12)",
+              boxShadow: "0 -18px 60px rgba(0,0,0,0.55)",
+              backdropFilter: "blur(14px)",
+              borderTopLeftRadius: "var(--jd-terminal-pull-radius, 22px)",
+              borderTopRightRadius: "var(--jd-terminal-pull-radius, 22px)",
             }}
           />
         </>

@@ -69,6 +69,16 @@ body {
   background: var(--background);
 }
 
+@media (max-width: 768px) {
+  main {
+    transform:
+      translate3d(0, calc(var(--jd-terminal-pull-shift, 0px) * -1), 0)
+      scaleY(var(--jd-terminal-pull-scale, 1));
+    transform-origin: bottom center;
+    will-change: transform;
+  }
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;
