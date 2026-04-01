@@ -168,6 +168,9 @@ export default function MatrixComponent() {
     const handleKeyDown = (e: KeyboardEvent) => {
       const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
       if ((isMac && e.metaKey && e.key === "k") || (!isMac && e.ctrlKey && e.key === "k")) {
+        const el = (e.target instanceof Element ? e.target : null) ?? (document.activeElement instanceof Element ? document.activeElement : null);
+        // Only clear when the keystroke came from inside the matrix terminal.
+        if (!el?.closest?.("[data-jd-terminal]")) return;
         e.preventDefault(); // Prevent default browser behavior (if any)
         setTerminalOutput([]); // Clear the terminal
       }
@@ -823,6 +826,7 @@ export default function MatrixComponent() {
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.8, opacity: 0, y: -100 }}
             ref={terminalRef}
+            data-jd-terminal=""
             className="absolute bg-black border border-[#0FFD20] shadow-lg"
             style={{
               left: `${terminalPosition.x}px`,

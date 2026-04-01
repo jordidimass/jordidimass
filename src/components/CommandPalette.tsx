@@ -341,6 +341,9 @@ export default function CommandPalette() {
     const handler = (e: KeyboardEvent) => {
       const mac = navigator.platform.toUpperCase().includes("MAC");
       if ((mac ? e.metaKey : e.ctrlKey) && e.key === "k") {
+        const el = (e.target instanceof Element ? e.target : null) ?? (document.activeElement instanceof Element ? document.activeElement : null);
+        // Let terminal UIs use Cmd/Ctrl+K for clear without opening the palette.
+        if (el?.closest?.("[data-jd-terminal]")) return;
         e.preventDefault();
         setOpen((v) => !v);
       } else if (e.key === "Escape") {
@@ -395,7 +398,7 @@ export default function CommandPalette() {
   if (!mounted || !open) return null;
 
   const palette = (
-    <div className="jd-cmdk-overlay" onClick={() => setOpen(false)}>
+    <div cmdk-dialog="" className="jd-cmdk-overlay" onClick={() => setOpen(false)}>
       <div className="jd-cmdk-panel" onClick={(e) => e.stopPropagation()}>
         <Command label="Command palette">
           <div cmdk-input-wrapper="">

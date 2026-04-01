@@ -277,6 +277,8 @@ export default function FloatingTerminal() {
   }, []);
 
   const [isOpen, setIsOpen] = useState(false);
+  // When the user closes via Escape, skip exit animation.
+  const [instantClose, setInstantClose] = useState(false);
   const [input, setInput] = useState("");
   const [lines, setLines] = useState<Line[]>(BOOT);
   const [cmdHistory, setCmdHistory] = useState<string[]>([]);
@@ -358,17 +360,53 @@ export default function FloatingTerminal() {
     return () => window.removeEventListener("open-terminal", handler);
   }, []);
 
-  // ── Cmd/Ctrl+K → clear (only when palette is not open) ──────────────────────
+  // ── Global toggle: Cmd+Shift+K / Ctrl+Shift+K ───────────────────────────────
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const mac = navigator.platform.toUpperCase().includes("MAC");
+      const isToggle = (mac ? e.metaKey : e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "k";
+      if (!isToggle) return;
+
+      // Don't steal the shortcut while typing or when cmdk is open.
+      if (document.querySelector("[cmdk-dialog]")) return;
+      const el = (e.target instanceof Element ? e.target : null) ?? (document.activeElement instanceof Element ? document.activeElement : null);
+      if (el) {
+        const tag = el.tagName;
+        const isEditable = (el as HTMLElement).isContentEditable;
+        if (isEditable || tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      }
+
+      e.preventDefault();
+      setInstantClose(false);
+      setIsOpen((v) => !v);
+    };
+
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
+  // Clear instant-close flag when opened.
+  useEffect(() => {
+    if (isOpen) setInstantClose(false);
+  }, [isOpen]);
+
+  // ── Keybinds: Cmd/Ctrl+K → clear; Escape → close ───────────────────────────
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: KeyboardEvent) => {
       const mac = navigator.platform.toUpperCase().includes("MAC");
       if ((mac ? e.metaKey : e.ctrlKey) && e.key === "k") {
+        const el = (e.target instanceof Element ? e.target : null) ?? (document.activeElement instanceof Element ? document.activeElement : null);
+        // Only clear when the keystroke came from inside the terminal UI.
+        if (!el?.closest?.("[data-jd-terminal]")) return;
         // Let the command palette intercept Cmd+K when it's open
         if (document.querySelector("[cmdk-dialog]")) return;
         e.preventDefault();
         setLines([]);
         lastMsgId.current = null;
+      } else if (e.key === "Escape") {
+        setInstantClose(true);
+        setIsOpen(false);
       }
     };
     window.addEventListener("keydown", handler);
@@ -648,7 +686,10 @@ export default function FloatingTerminal() {
     <>
       {/* ── Toggle button ── */}
       <button
-        onClick={() => setIsOpen((o) => !o)}
+        onClick={() => {
+          setInstantClose(false);
+          setIsOpen((o) => !o);
+        }}
         className="fixed bottom-6 right-6 z-50 hover:text-neutral-200 transition-colors duration-200"
         style={{ color: "rgba(255, 136, 0, 1)", lineHeight: 0, minWidth: isMobile ? 44 : undefined, minHeight: isMobile ? 44 : undefined, display: "flex", alignItems: "center", justifyContent: "center" }}
         aria-label="Toggle terminal"
@@ -660,32 +701,36 @@ export default function FloatingTerminal() {
         {isOpen && (
           <>
             {/* ── Mobile backdrop ── */}
-            {isMobile && (
-              <motion.div
-                key="backdrop"
-                className="fixed inset-0 z-40"
-                style={{ background: "rgba(0,0,0,0.5)" }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                onClick={() => setIsOpen(false)}
-              />
-            )}
+              {isMobile && (
+                <motion.div
+                  key="backdrop"
+                  className="fixed inset-0 z-40"
+                  style={{ background: "rgba(0,0,0,0.5)" }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={instantClose ? { duration: 0 } : { duration: 0.2 }}
+                  onClick={() => {
+                    setInstantClose(false);
+                    setIsOpen(false);
+                  }}
+                />
+              )}
 
-            {isMobile ? (
-              /* ── Mobile: bottom sheet ──────────────────────────────────────── */
-              <motion.div
-                key="sheet"
-                ref={panelRef}
-                initial={{ y: "100%" }}
-                animate={{ y: 0 }}
-                exit={{ y: "100%" }}
-                transition={{ type: "spring", damping: 30, stiffness: 300 }}
-                className="fixed inset-x-0 bottom-0 z-50 flex flex-col"
-                style={{
-                  ...sharedPanelStyle,
-                  height: "65vh",
+             {isMobile ? (
+               /* ── Mobile: bottom sheet ──────────────────────────────────────── */
+               <motion.div
+                 key="sheet"
+                 data-jd-terminal=""
+                 ref={panelRef}
+                 initial={{ y: "100%" }}
+                 animate={{ y: 0 }}
+                 exit={{ y: "100%" }}
+                 transition={instantClose ? { duration: 0 } : { type: "spring", damping: 30, stiffness: 300 }}
+                 className="fixed inset-x-0 bottom-0 z-50 flex flex-col"
+                 style={{
+                   ...sharedPanelStyle,
+                   height: "65vh",
                   borderTop: `1px solid ${C.border}`,
                   borderLeft: `1px solid ${C.border}`,
                   borderRight: `1px solid ${C.border}`,
@@ -711,8 +756,12 @@ export default function FloatingTerminal() {
                   className="shrink-0 flex items-center justify-between px-5 pb-2"
                 >
                   <span style={{ color: C.muted, fontSize: 11, letterSpacing: "0.1em" }}>terminal</span>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setIsOpen(false); }}
+                   <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setInstantClose(false);
+                      setIsOpen(false);
+                    }}
                     style={{ color: C.muted, lineHeight: 0 }}
                     aria-label="Close"
                   >
@@ -730,11 +779,12 @@ export default function FloatingTerminal() {
               /* ── Desktop: floating panel ───────────────────────────────────── */
               <motion.div
                 key="panel"
+                data-jd-terminal=""
                 ref={panelRef}
                 initial={{ opacity: 0, y: 6, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 6, scale: 0.98 }}
-                transition={{ duration: 0.14, ease: "easeOut" }}
+                transition={instantClose ? { duration: 0 } : { duration: 0.14, ease: "easeOut" }}
                 className="fixed z-50 flex flex-col"
                 style={{
                   ...sharedPanelStyle,
@@ -754,7 +804,11 @@ export default function FloatingTerminal() {
                 >
                   <span style={{ color: C.muted, fontSize: 11, letterSpacing: "0.1em" }}>terminal</span>
                   <button
-                    onClick={(e) => { e.stopPropagation(); setIsOpen(false); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setInstantClose(false);
+                      setIsOpen(false);
+                    }}
                     style={{ color: C.muted, lineHeight: 0 }}
                     onMouseEnter={(e) => (e.currentTarget.style.color = C.text)}
                     onMouseLeave={(e) => (e.currentTarget.style.color = C.muted)}
