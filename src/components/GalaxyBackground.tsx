@@ -400,7 +400,7 @@ function Particles({ isMobile }: { isMobile: boolean }) {
   );
 }
 
-export default function GalaxyBackground() {
+export default function GalaxyBackground({ onReady }: { onReady?: () => void }) {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -418,6 +418,7 @@ export default function GalaxyBackground() {
       }}
       onCreated={({ gl }) => {
         gl.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        onReady?.();
       }}
       style={{ position: 'absolute', inset: 0, background: 'transparent' }}
     >
