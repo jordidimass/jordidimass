@@ -1,7 +1,5 @@
-'use client';
-
 import Markdown from 'markdown-to-jsx';
-import { motion } from 'motion/react';
+import BlogFadeIn from './BlogFadeIn';
 
 export interface PostMetadata {
   title: string;
@@ -23,25 +21,18 @@ const markdownOptions: any = {
   },
 };
 
-const BlogPostDisplay = ({ metadata, content }: BlogPostDisplayProps) => {
+export default function BlogPostDisplay({ metadata, content }: BlogPostDisplayProps) {
   const formattedDate = new Intl.DateTimeFormat('en-US', {
     year: 'numeric', month: 'long', day: 'numeric',
   }).format(new Date(metadata.date));
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.5 }}
-      className="max-w-3xl mx-auto py-8 px-5"
-    >
+    <BlogFadeIn>
       <h1 className="text-4xl font-light tracking-widest mb-4 font-serif text-brand-accent">{metadata.title}</h1>
       <p className="text-gray-400 italic text-sm mb-6">{formattedDate}</p>
       <article className="prose max-w-none text-[24px] text-brand-muted">
         <Markdown options={markdownOptions}>{content}</Markdown>
       </article>
-    </motion.div>
+    </BlogFadeIn>
   );
-};
-
-export default BlogPostDisplay;
+}

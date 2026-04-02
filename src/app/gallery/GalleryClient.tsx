@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -167,9 +168,9 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
       </motion.div>
 
       {/* ── Modal ───────────────────────────────────────────────────────────── */}
-      {selectedImage && (
+      {selectedImage && createPortal(
         <div
-          className="fixed inset-0 z-50 bg-brand-bg/95 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex flex-col bg-brand-bg/95 backdrop-blur-sm"
           onClick={() => setSelected(null)}
         >
           {/* Close */}
@@ -183,26 +184,18 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
           </button>
 
           {/* ── Mobile ── */}
-          <div className="flex h-full flex-col md:hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="relative flex flex-1 items-center justify-center overflow-hidden px-4 pb-4 pt-14">
+          <div className="flex flex-1 flex-col md:hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex flex-1 items-center justify-center overflow-hidden px-4 pb-4 pt-14">
               <Image
-                key={selectedImage.url}
                 src={selectedImage.url}
                 alt={label(selectedImage.key)}
                 width={1920}
                 height={1280}
                 quality={78}
                 sizes="100vw"
-                priority
-                onLoad={() => markLoaded(selectedImage.url)}
-                className={`max-h-full w-full rounded-[4px] object-contain transition-opacity duration-200 ${imageLoaded ? "opacity-100" : "opacity-0"}`}
+                className="max-h-full w-full rounded-[4px] object-contain"
                 style={{ maxHeight: "calc(100dvh - 160px)" }}
               />
-              {!imageLoaded && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-brand-muted/30 border-t-brand-muted" />
-                </div>
-              )}
             </div>
             <div className="flex items-center justify-between px-8 pb-10">
               <button
@@ -234,7 +227,7 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
           </div>
 
           {/* ── Desktop ── */}
-          <div className="hidden h-full items-center justify-center md:flex">
+          <div className="hidden flex-1 items-center justify-center md:flex">
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); navigate(-1); }}
@@ -287,7 +280,8 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
               →
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
