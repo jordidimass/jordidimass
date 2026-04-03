@@ -4,6 +4,7 @@ import Navbar from '@/components/Navbar';
 import RouteScopedFloatingTerminal from "@/components/RouteScopedFloatingTerminal";
 import RouteScopedShortcutsHelp from "@/components/RouteScopedShortcutsHelp";
 import CommandPaletteClient from '@/components/CommandPaletteClient';
+import MotionProvider from '@/components/MotionProvider';
 import { Cormorant } from 'next/font/google';
 import { GeistSans } from 'geist/font/sans';
 import { Analytics } from "@vercel/analytics/react";
@@ -58,6 +59,8 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        {/* Sync data-motion before first paint to avoid animation flash */}
+        <script dangerouslySetInnerHTML={{ __html: `try{document.documentElement.setAttribute('data-motion',localStorage.getItem('jd-motion')==='false'?'off':'on')}catch(e){}` }} />
         <link rel="preconnect" href="https://gallery-worker.jordidimas.workers.dev" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <script
@@ -92,21 +95,23 @@ export default function RootLayout({
         />
       </head>
       <body className={`${cormorant.variable} ${GeistSans.variable} font-sans antialiased`}>
-        <Navbar />
-        <main className="pt-16">
-          {children}
-          {isVercel ? (
-            <>
-              <Analytics />
-              <SpeedInsights />
-            </>
-          ) : null}
-        </main>
-        <Suspense>
-          <RouteScopedFloatingTerminal />
-          <RouteScopedShortcutsHelp />
-        </Suspense>
-        <CommandPaletteClient />
+        <MotionProvider>
+          <Navbar />
+          <main className="pt-16">
+            {children}
+            {isVercel ? (
+              <>
+                <Analytics />
+                <SpeedInsights />
+              </>
+            ) : null}
+          </main>
+          <Suspense>
+            <RouteScopedFloatingTerminal />
+            <RouteScopedShortcutsHelp />
+          </Suspense>
+          <CommandPaletteClient />
+        </MotionProvider>
       </body>
     </html>
   );

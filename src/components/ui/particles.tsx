@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
+import { useMotionContext } from "@/components/MotionProvider";
 
 interface MousePosition {
   x: number;
@@ -43,7 +44,7 @@ function hexToRgb(hex: string): number[] {
   return [(hexInt >> 16) & 255, (hexInt >> 8) & 255, hexInt & 255];
 }
 
-const Particles: React.FC<ParticlesProps> = ({
+const ParticlesCanvas: React.FC<ParticlesProps> = ({
   className = "",
   quantity = 450,
   staticity = 10,
@@ -225,6 +226,13 @@ const Particles: React.FC<ParticlesProps> = ({
       <canvas ref={canvasRef} className="size-full" />
     </div>
   );
+};
+
+// Outer gate: unmounts ParticlesCanvas entirely when motion is off so hooks reset cleanly on re-enable
+const Particles: React.FC<ParticlesProps> = (props) => {
+  const { motionEnabled } = useMotionContext();
+  if (!motionEnabled) return null;
+  return <ParticlesCanvas {...props} />;
 };
 
 export default Particles;

@@ -7,6 +7,7 @@ import { createPortal } from "react-dom";
 import { profileData } from "@/config/profile";
 import { slugFromKey, type GalleryImage } from "@/lib/gallery";
 import type { PostMetadata } from "@/lib/posts";
+import { useMotionContext } from "./MotionProvider";
 
 // ── Icons ────────────────────────────────────────────────────────────────────
 
@@ -66,6 +67,14 @@ function IconCalendar() {
       <line x1="16" y1="2" x2="16" y2="6" />
       <line x1="8" y1="2" x2="8" y2="6" />
       <line x1="3" y1="10" x2="21" y2="10" />
+    </svg>
+  );
+}
+
+function IconZap() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
     </svg>
   );
 }
@@ -290,6 +299,7 @@ const CMDK_STYLES = `
 
 export default function CommandPalette() {
   const router = useRouter();
+  const { motionEnabled, toggleMotion } = useMotionContext();
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [posts, setPosts] = useState<PostMetadata[]>([]);
@@ -374,6 +384,11 @@ export default function CommandPalette() {
     [runAndClose]
   );
 
+  const handleToggleMotion = useCallback(
+    () => runAndClose(toggleMotion),
+    [runAndClose, toggleMotion]
+  );
+
   const musicPlay = useCallback(
     () => runAndClose(() => window.dispatchEvent(new CustomEvent("music-play"))),
     [runAndClose]
@@ -446,27 +461,34 @@ export default function CommandPalette() {
               </Command.Group>
             )}
 
-            {/* Gallery */}
-            {images.length > 0 && (
-              <Command.Group heading="Gallery">
-                {images.slice(0, 12).map((img) => {
-                  const slug = slugFromKey(img.key);
-                  const name = img.key.replace(/\.[^.]+$/, "");
-                  return (
-                    <Command.Item
-                      key={img.key}
-                      value={name}
-                      keywords={["gallery", "photo", "image"]}
-                      onSelect={() => navigate(`/gallery/${slug}`)}
-                    >
-                      <span className="jd-icon"><IconPhoto /></span>
-                      <span className="jd-label">{name}</span>
-                      <span className="jd-hint">/gallery</span>
-                    </Command.Item>
-                  );
-                })}
-              </Command.Group>
-            )}
+            {/* Actions */}
+            <Command.Group heading="Actions">
+              <Command.Item
+                value="open terminal"
+                keywords={["terminal", "cli", "command", "shell"]}
+                onSelect={openTerminal}
+              >
+                <span className="jd-icon"><IconTerminal /></span>
+                <span className="jd-label">Open Terminal</span>
+              </Command.Item>
+              <Command.Item
+                value="book a meeting"
+                keywords={["meeting", "calendar", "schedule", "cal"]}
+                onSelect={() => openExternal("https://cal.com/jordidimass")}
+              >
+                <span className="jd-icon"><IconCalendar /></span>
+                <span className="jd-label">Book a Meeting</span>
+                <span className="jd-hint">↗</span>
+              </Command.Item>
+              <Command.Item
+                value={motionEnabled ? 'animations off' : 'animations on'}
+                keywords={["animations", "motion", "disable", "enable", "minimal", "lite", "performance"]}
+                onSelect={handleToggleMotion}
+              >
+                <span className="jd-icon"><IconZap /></span>
+                <span className="jd-label">{motionEnabled ? 'Animations Off' : 'Animations On'}</span>
+              </Command.Item>
+            </Command.Group>
 
             {/* Social */}
             <Command.Group heading="Social">
@@ -499,6 +521,28 @@ export default function CommandPalette() {
                 </Command.Item>
               ))}
             </Command.Group>
+
+            {/* Gallery */}
+            {images.length > 0 && (
+              <Command.Group heading="Gallery">
+                {images.slice(0, 12).map((img) => {
+                  const slug = slugFromKey(img.key);
+                  const name = img.key.replace(/\.[^.]+$/, "");
+                  return (
+                    <Command.Item
+                      key={img.key}
+                      value={name}
+                      keywords={["gallery", "photo", "image"]}
+                      onSelect={() => navigate(`/gallery/${slug}`)}
+                    >
+                      <span className="jd-icon"><IconPhoto /></span>
+                      <span className="jd-label">{name}</span>
+                      <span className="jd-hint">/gallery</span>
+                    </Command.Item>
+                  );
+                })}
+              </Command.Group>
+            )}
 
             {/* Music */}
             <Command.Group heading="Music">
@@ -546,27 +590,6 @@ export default function CommandPalette() {
                   <span className="jd-hint">▶</span>
                 </Command.Item>
               ))}
-            </Command.Group>
-
-            {/* Actions */}
-            <Command.Group heading="Actions">
-              <Command.Item
-                value="open terminal"
-                keywords={["terminal", "cli", "command", "shell"]}
-                onSelect={openTerminal}
-              >
-                <span className="jd-icon"><IconTerminal /></span>
-                <span className="jd-label">Open Terminal</span>
-              </Command.Item>
-              <Command.Item
-                value="book a meeting"
-                keywords={["meeting", "calendar", "schedule", "cal"]}
-                onSelect={() => openExternal("https://cal.com/jordidimass")}
-              >
-                <span className="jd-icon"><IconCalendar /></span>
-                <span className="jd-label">Book a Meeting</span>
-                <span className="jd-hint">↗</span>
-              </Command.Item>
             </Command.Group>
           </Command.List>
 

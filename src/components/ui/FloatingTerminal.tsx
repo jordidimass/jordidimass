@@ -8,6 +8,7 @@ import { X, SkipBack, SkipForward, Pause } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { TerminalIcon, type TerminalIconHandle } from "./TerminalIcon";
 import { profileData } from "@/config/profile";
+import { useMotionContext } from "@/components/MotionProvider";
 
 // ─── Vesper palette ────────────────────────────────────────────────────────────
 const C = {
@@ -266,6 +267,7 @@ function InputRow({
 export default function FloatingTerminal() {
   const pathname = usePathname();
   const router = useRouter();
+  const { motionEnabled, toggleMotion } = useMotionContext();
 
   // ── Mobile detection (same pattern as matrixComponent) ──────────────────────
   const [isMobile, setIsMobile] = useState(false);
@@ -695,6 +697,7 @@ export default function FloatingTerminal() {
         mkLine("  prev             previous track"),
         mkLine("  pages            show all site pages"),
         mkLine("  toggle-matrix    open the matrix"),
+        mkLine("  animation        toggle animations on/off"),
         mkLine("  clear            clear terminal  (Cmd/Ctrl+K)"),
         mkLine("  exit             close terminal"),
       ]); return;
@@ -743,6 +746,12 @@ export default function FloatingTerminal() {
       setLines((prev) => [...prev, mkLine("entering the matrix...", true)]);
       setTimeout(() => router.push("/matrix"), 700); return;
     }
+    if (lo === "animation") {
+      toggleMotion();
+      const next = !motionEnabled;
+      setLines((prev) => [...prev, mkLine(`animations ${next ? "on" : "off"}`, true)]);
+      return;
+    }
     if (lo === "play") {
       const audio = audioRef.current;
       if (!audio) return;
@@ -777,7 +786,7 @@ export default function FloatingTerminal() {
       mkLine(`command not found: ${cmd}`, true),
       mkLine('type "help" for available commands.', true),
     ]);
-  }, [playing, switchTrack, togglePlay, sendMessage, router]);
+  }, [playing, switchTrack, togglePlay, sendMessage, router, motionEnabled, toggleMotion]);
 
   // ── Keyboard handler ──────────────────────────────────────────────────────────
   const onKey = (e: React.KeyboardEvent<HTMLInputElement>) => {

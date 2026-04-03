@@ -400,7 +400,9 @@ function Particles({ isMobile }: { isMobile: boolean }) {
   );
 }
 
-export default function GalaxyBackground({ onReady }: { onReady?: () => void }) {
+import { useMotionContext } from './MotionProvider';
+
+function GalaxyCanvas({ onReady }: { onReady?: () => void }) {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -435,4 +437,16 @@ export default function GalaxyBackground({ onReady }: { onReady?: () => void }) 
       <Particles isMobile={isMobile} />
     </Canvas>
   );
+}
+
+export default function GalaxyBackground({ onReady }: { onReady?: () => void }) {
+  const { motionEnabled } = useMotionContext();
+
+  // When motion is off, signal ready immediately so the page stays visible
+  useEffect(() => {
+    if (!motionEnabled) onReady?.();
+  }, [motionEnabled, onReady]);
+
+  if (!motionEnabled) return null;
+  return <GalaxyCanvas onReady={onReady} />;
 }

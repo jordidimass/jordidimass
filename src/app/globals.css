@@ -79,6 +79,11 @@ body {
   }
 }
 
+[data-motion="off"] * {
+  transition: none !important;
+  animation: none !important;
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;
