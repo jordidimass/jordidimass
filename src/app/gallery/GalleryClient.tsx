@@ -155,6 +155,7 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
                 priority={isPreloadedLeadImage}
                 loading={isLikelyAboveFoldImage ? "eager" : "lazy"}
                 fetchPriority={isLikelyLcpCandidate ? "high" : "auto"}
+                unoptimized
                 className="h-auto w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
               />
               <div className="absolute inset-0 flex items-end bg-brand-bg/0 transition-all duration-300 group-hover:bg-brand-bg/40">
@@ -193,6 +194,7 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
                 height={1280}
                 quality={78}
                 sizes="100vw"
+                unoptimized
                 className="max-h-full w-full rounded-[4px] object-contain"
                 style={{ maxHeight: "calc(100dvh - 160px)" }}
               />
@@ -251,6 +253,7 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
                 quality={80}
                 sizes="80vw"
                 priority
+                unoptimized
                 onLoad={() => markLoaded(selectedImage.url)}
                 className={`max-w-full rounded-[4px] object-contain transition-opacity duration-200 ${imageLoaded ? "opacity-100" : "opacity-0"}`}
                 style={{ maxHeight: "calc(100vh - 72px)" }}

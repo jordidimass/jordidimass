@@ -86,6 +86,7 @@ export default async function ImagePage({ params }: Props) {
           quality={92}
           sizes="(max-width: 768px) 100vw, 90vw"
           priority
+          unoptimized
           className="max-h-[80vh] w-auto max-w-full rounded-[4px] object-contain"
         />
       </main>
