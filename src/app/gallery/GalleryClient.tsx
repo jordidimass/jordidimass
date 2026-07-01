@@ -8,8 +8,8 @@ import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import { slugFromKey } from "@/lib/gallery";
 
-const EAGER_ABOVE_FOLD_IMAGES = 6;
-const HIGH_PRIORITY_IMAGES = 3;
+const EAGER_ABOVE_FOLD_IMAGES = 2;
+const HIGH_PRIORITY_IMAGES = 1;
 
 interface GalleryImage {
   key: string;
