@@ -33,6 +33,7 @@ export default function ConnectPage() {
               src={profileData.avatar}
               width={120}
               height={120}
+              unoptimized
             />
           </Link>
         </motion.div>
