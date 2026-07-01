@@ -4,7 +4,7 @@ const nextConfig = {
   images: {
     remotePatterns: [
       { hostname: 'utfs.io' },
-      { hostname: 'gallery-worker.jordidimas.workers.dev' },
+      { hostname: 'gallery-worker.jordidimass.workers.dev' },
       { hostname: '*.workers.dev' },
     ],
   },
