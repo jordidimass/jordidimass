@@ -151,7 +151,7 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
                 width={1600}
                 height={1067}
                 quality={68}
-                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 700px"
                 priority={isPreloadedLeadImage}
                 loading={isLikelyAboveFoldImage ? "eager" : "lazy"}
                 fetchPriority={isLikelyLcpCandidate ? "high" : "auto"}
