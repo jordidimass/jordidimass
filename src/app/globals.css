@@ -49,6 +49,13 @@
   --radius-sm: calc(var(--radius) - 4px);
 }
 
+@theme {
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --default-transition-duration: 180ms;
+}
+
 :root {
   --background: #111010;
   --foreground: #E8E0D8;
@@ -71,11 +78,7 @@ body {
 
 @media (max-width: 768px) {
   main {
-    transform:
-      translate3d(0, calc(var(--jd-terminal-pull-shift, 0px) * -1), 0)
-      scaleY(var(--jd-terminal-pull-scale, 1));
     transform-origin: bottom center;
-    will-change: transform;
   }
 }
 
@@ -87,6 +90,13 @@ body {
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+
+  .jd-pressable {
+    transition: transform 160ms var(--ease-out);
+  }
+  .jd-pressable:active {
+    transform: scale(0.97);
   }
 }
 

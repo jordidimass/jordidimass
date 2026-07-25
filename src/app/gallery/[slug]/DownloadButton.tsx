@@ -33,7 +33,7 @@ export default function DownloadButton({ url, filename }: Props) {
       type="button"
       onClick={handleDownload}
       disabled={loading}
-      className="text-brand-muted/60 transition-colors duration-200 hover:text-brand-accent disabled:opacity-40"
+      className="jd-pressable text-brand-muted/60 transition-colors duration-200 hover:text-brand-accent disabled:opacity-40"
       aria-label="download image"
     >
       <DownloadIcon size={18} />

@@ -22,9 +22,9 @@ export default function ConnectPage() {
       </div>
       <div className="relative flex mx-auto items-center justify-start flex-col w-full min-h-screen px-8 max-w-2xl z-10 pt-24 md:pt-4 pb-4"> 
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+          transition={{ duration: 0.3 }}
         >
           <Link href="/matrix">
             <Image
@@ -39,17 +39,17 @@ export default function ConnectPage() {
         </motion.div>
         <motion.h1 
           className="font-bold mt-4 mb-8 text-xl text-brand-accent font-serif"
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
+          transition={{ duration: 0.3, delay: 0.05 }}
         >
           {profileData.name}
         </motion.h1>
         <motion.div 
           className="flex flex-col items-center space-y-4 w-full max-w-md"
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
         >
           {profileData.links.map((link) => (
             <LinkCard key={link.href} {...link} />
@@ -57,9 +57,9 @@ export default function ConnectPage() {
         </motion.div>
         <motion.div 
           className="mt-8 flex justify-center w-full"
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
+          transition={{ duration: 0.3, delay: 0.15 }}
         >
           <SocialIcons socials={profileData.socials} />
         </motion.div>

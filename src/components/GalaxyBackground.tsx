@@ -4,18 +4,20 @@ import { useRef, useMemo, useEffect, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
+import { useMotionContext } from './MotionProvider';
 
 const PARTICLE_COUNT = 25000;
+const MOBILE_PARTICLE_COUNT = 10000;
 const MORPH_DURATION = 3.0;
 const SHAPE_DURATIONS = [40000, 20000, 20000];
 
-function makeGalaxy(): Float32Array {
-  const pos = new Float32Array(PARTICLE_COUNT * 3);
+function makeGalaxy(count: number): Float32Array {
+  const pos = new Float32Array(count * 3);
   const numArms = 4;
-  const armCount  = Math.floor(PARTICLE_COUNT * 0.70);
-  const coreCount = Math.floor(PARTICLE_COUNT * 0.20);
-  const hazeCount = PARTICLE_COUNT - armCount - coreCount;
-  const raw = new Float32Array(PARTICLE_COUNT * 3);
+  const armCount  = Math.floor(count * 0.70);
+  const coreCount = Math.floor(count * 0.20);
+  const hazeCount = count - armCount - coreCount;
+  const raw = new Float32Array(count * 3);
   let i = 0;
 
   for (let p = 0; p < armCount; p++) {
@@ -44,7 +46,7 @@ function makeGalaxy(): Float32Array {
   }
 
   const cosT = Math.cos(0.66), sinT = Math.sin(0.66);
-  for (let p = 0; p < PARTICLE_COUNT; p++) {
+  for (let p = 0; p < count; p++) {
     const x = raw[p * 3], y = raw[p * 3 + 1], z = raw[p * 3 + 2];
     pos[p * 3]     = x;
     pos[p * 3 + 1] = y * cosT - z * sinT;
@@ -53,9 +55,9 @@ function makeGalaxy(): Float32Array {
   return pos;
 }
 
-function makeDNA(): Float32Array {
-  const pos = new Float32Array(PARTICLE_COUNT * 3);
-  const half = Math.floor(PARTICLE_COUNT / 2);
+function makeDNA(count: number): Float32Array {
+  const pos = new Float32Array(count * 3);
+  const half = Math.floor(count / 2);
   for (let h = 0; h < 2; h++) {
     const phaseOffset = h * Math.PI;
     for (let p = 0; p < half; p++) {
@@ -77,8 +79,8 @@ function makeDNA(): Float32Array {
   return pos;
 }
 
-function makeNeural(): Float32Array {
-  const pos = new Float32Array(PARTICLE_COUNT * 3);
+function makeNeural(count: number): Float32Array {
+  const pos = new Float32Array(count * 3);
   const layerX     = [-1.4, -0.47, 0.47, 1.4];
   const layerSizes = [4, 6, 6, 3];
   const ySpread    = 0.55;
@@ -105,9 +107,9 @@ function makeNeural(): Float32Array {
   }
 
   const totalNodes = layerSizes.reduce((s, n) => s + n, 0);
-  const perNode    = 260;
+  const perNode    = Math.max(40, Math.floor((count * 0.2) / totalNodes));
   const nodeTotal  = totalNodes * perNode;
-  const perConn    = Math.floor((PARTICLE_COUNT - nodeTotal) / connections.length);
+  const perConn    = Math.floor((count - nodeTotal) / connections.length);
   let idx = 0;
 
   for (const layer of nodes) {
@@ -133,13 +135,14 @@ function makeNeural(): Float32Array {
       pos[idx++] = s*s*az + 2*s*t*mz + t*t*bz + (Math.random()-0.5)*0.01;
     }
   }
-  while (idx < PARTICLE_COUNT * 3) pos[idx++] = 0;
+  while (idx < count * 3) pos[idx++] = 0;
   return pos;
 }
 
 const vertexShader = `
   attribute float aSize;
   attribute float aRandom;
+  attribute vec3 aTarget;
   varying vec3 vColor;
   varying float vAlpha;
   uniform float uTime;
@@ -150,7 +153,7 @@ const vertexShader = `
 
   void main() {
     vColor = color;
-    vec3 pos = position;
+    vec3 pos = mix(position, aTarget, uMorph);
 
     pos += normalize(pos + vec3(0.001)) * sin(uTime * 0.5 + aRandom * 6.28) * 0.018;
     pos += normalize(pos + vec3(0.001)) * sin(uMorph * 3.14159) * 0.28 * aRandom;
@@ -202,10 +205,10 @@ function Particles({ isMobile }: { isMobile: boolean }) {
   const invMatrix  = useRef(new THREE.Matrix4());
   const localPoint = useRef(new THREE.Vector3());
   const mouseOn    = useRef(false);
+  const mouseDirty = useRef(false);
   const mouseSmooth = useRef(0);
 
   const rotAccum = useRef(0);
-  const lastT    = useRef(0);
   const rotSpeed = useRef(0);
 
   const morphState = useRef({
@@ -216,19 +219,26 @@ function Particles({ isMobile }: { isMobile: boolean }) {
     timeout: null as ReturnType<typeof setTimeout> | null,
   });
 
-  const shapes = useMemo(() => [makeGalaxy(), makeDNA(), makeNeural()], []);
+  const count = isMobile ? MOBILE_PARTICLE_COUNT : PARTICLE_COUNT;
 
-  const { positions, colors, sizes, randoms } = useMemo(() => {
-    const positions = new Float32Array(PARTICLE_COUNT * 3);
-    const colors    = new Float32Array(PARTICLE_COUNT * 3);
-    const sizes     = new Float32Array(PARTICLE_COUNT);
-    const randoms   = new Float32Array(PARTICLE_COUNT);
+  const shapes = useMemo(
+    () => [makeGalaxy(count), makeDNA(count), makeNeural(count)],
+    [count]
+  );
+
+  const { positions, targets, colors, sizes, randoms } = useMemo(() => {
+    const positions = new Float32Array(count * 3);
+    const targets   = new Float32Array(count * 3);
+    const colors    = new Float32Array(count * 3);
+    const sizes     = new Float32Array(count);
+    const randoms   = new Float32Array(count);
     positions.set(shapes[0]);
+    targets.set(shapes[0]);
     const cWhite  = new THREE.Color(0xffffff);
     const cOrange = new THREE.Color(0xff8800);
     const cDeep   = new THREE.Color(0xff4400);
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
-      const r = i / PARTICLE_COUNT;
+    for (let i = 0; i < count; i++) {
+      const r = i / count;
       const color = r < 0.4
         ? cWhite.clone().lerp(cOrange, r / 0.4)
         : cOrange.clone().lerp(cDeep, (r - 0.4) / 0.6);
@@ -238,8 +248,8 @@ function Particles({ isMobile }: { isMobile: boolean }) {
       sizes[i]   = 0.012 + Math.random() * 0.02;
       randoms[i] = Math.random();
     }
-    return { positions, colors, sizes, randoms };
-  }, [shapes]);
+    return { positions, targets, colors, sizes, randoms };
+  }, [shapes, count]);
 
   const uniforms = useMemo(() => ({
     uTime:        { value: 0 },
@@ -260,7 +270,16 @@ function Particles({ isMobile }: { isMobile: boolean }) {
     const ms = morphState.current;
 
     function startMorph(to: number) {
+      const geo = geoRef.current;
+      const mat = matRef.current;
+      if (!geo || !mat) return;
       if (ms.isMorphing || to === ms.currentShape) return;
+
+      const targetAttr = geo.attributes.aTarget as THREE.BufferAttribute;
+      (targetAttr.array as Float32Array).set(shapes[to]);
+      targetAttr.needsUpdate = true;
+
+      mat.uniforms.uMorph.value = 0;
       ms.targetShape  = to;
       ms.isMorphing   = true;
       ms.morphStartTime = performance.now() / 1000;
@@ -291,6 +310,7 @@ function Particles({ isMobile }: { isMobile: boolean }) {
         -((e.clientY - r.top) / r.height) * 2 + 1
       );
       mouseOn.current = true;
+      mouseDirty.current = true;
     };
     const onMouseLeave = () => { mouseNDC.current.set(9999, 9999); mouseOn.current = false; };
     const onTouchMove = (e: TouchEvent) => {
@@ -301,6 +321,7 @@ function Particles({ isMobile }: { isMobile: boolean }) {
         -((t.clientY - r.top) / r.height) * 2 + 1
       );
       mouseOn.current = true;
+      mouseDirty.current = true;
     };
     const onTouchEnd = () => { mouseOn.current = false; };
 
@@ -329,28 +350,26 @@ function Particles({ isMobile }: { isMobile: boolean }) {
     mouseSmooth.current += ((mouseOn.current ? 1 : 0) - mouseSmooth.current) * 0.08;
     mat.uniforms.uMouseActive.value = mouseSmooth.current;
 
-    raycaster.setFromCamera(mouseNDC.current, camera);
-    raycaster.ray.intersectPlane(mousePlane.current, hitPoint.current);
-    invMatrix.current.copy(mesh.matrixWorld).invert();
-    localPoint.current.copy(hitPoint.current).applyMatrix4(invMatrix.current);
-    mat.uniforms.uMouse3D.value.copy(localPoint.current);
+    if (mouseDirty.current || mouseSmooth.current > 0.001) {
+      raycaster.setFromCamera(mouseNDC.current, camera);
+      raycaster.ray.intersectPlane(mousePlane.current, hitPoint.current);
+      invMatrix.current.copy(mesh.matrixWorld).invert();
+      localPoint.current.copy(hitPoint.current).applyMatrix4(invMatrix.current);
+      mat.uniforms.uMouse3D.value.copy(localPoint.current);
+      mouseDirty.current = false;
+    }
 
     if (ms.isMorphing) {
-      const raw  = Math.min((t - ms.morphStartTime) / MORPH_DURATION, 1);
-      const prog = ease(raw);
-      mat.uniforms.uMorph.value = prog;
-
-      const src = shapes[ms.currentShape];
-      const tgt = shapes[ms.targetShape];
-      const arr = geo.attributes.position.array as Float32Array;
-      for (let i = 0; i < PARTICLE_COUNT * 3; i++) {
-        arr[i] = src[i] + (tgt[i] - src[i]) * prog;
-      }
-      geo.attributes.position.needsUpdate = true;
+      const raw = Math.min((t - ms.morphStartTime) / MORPH_DURATION, 1);
+      mat.uniforms.uMorph.value = ease(raw);
 
       if (raw >= 1) {
-        ms.isMorphing    = false;
-        ms.currentShape  = ms.targetShape;
+        const posAttr = geo.attributes.position as THREE.BufferAttribute;
+        (posAttr.array as Float32Array).set(shapes[ms.targetShape]);
+        posAttr.needsUpdate = true;
+
+        ms.isMorphing   = false;
+        ms.currentShape = ms.targetShape;
         mat.uniforms.uMorph.value = 0;
       }
     }
@@ -366,8 +385,6 @@ function Particles({ isMobile }: { isMobile: boolean }) {
       keyLight.current.position.x = Math.sin(t * 0.2) * 4;
       keyLight.current.position.z = Math.cos(t * 0.2) * 4;
     }
-
-    lastT.current = t;
   });
 
   return (
@@ -381,6 +398,7 @@ function Particles({ isMobile }: { isMobile: boolean }) {
       <points ref={meshRef}>
         <bufferGeometry ref={geoRef}>
           <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+          <bufferAttribute attach="attributes-aTarget"  args={[targets, 3]} />
           <bufferAttribute attach="attributes-color"    args={[colors, 3]} />
           <bufferAttribute attach="attributes-aSize"    args={[sizes, 1]} />
           <bufferAttribute attach="attributes-aRandom"  args={[randoms, 1]} />
@@ -400,53 +418,64 @@ function Particles({ isMobile }: { isMobile: boolean }) {
   );
 }
 
-import { useMotionContext } from './MotionProvider';
-
-function GalaxyCanvas({ onReady }: { onReady?: () => void }) {
-  const [isMobile, setIsMobile] = useState(false);
+function GalaxyCanvas() {
+  const [isMobile, setIsMobile] = useState<boolean | null>(null);
+  const [visible, setVisible] = useState(false);
+  const [hidden, setHidden] = useState(false);
 
   useEffect(() => {
     setIsMobile(window.innerWidth < 1024);
   }, []);
 
+  useEffect(() => {
+    const onVisibility = () => setHidden(document.visibilityState === 'hidden');
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, []);
+
+  if (isMobile === null) return null;
+
   return (
-    <Canvas
-      camera={{ position: [0, 0, 5], fov: 40, near: 0.1, far: 100 }}
-      gl={{
-        antialias: true,
-        alpha: true,
-        toneMapping: THREE.ACESFilmicToneMapping,
-        toneMappingExposure: 2.2,
+    <div
+      className="absolute inset-0"
+      style={{
+        opacity: visible ? 1 : 0,
+        transition: 'opacity 400ms var(--ease-out)',
       }}
-      onCreated={({ gl }) => {
-        gl.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        onReady?.();
-      }}
-      style={{ position: 'absolute', inset: 0, background: 'transparent' }}
     >
-      <fog attach="fog" args={[0x111010, 0, 55]} />
-      <OrbitControls
-        enableDamping
-        dampingFactor={isMobile ? 0.015 : 0.04}
-        autoRotate
-        autoRotateSpeed={isMobile ? 0.35 : 0.14}
-        enableZoom={false}
-        enablePan={false}
-        rotateSpeed={isMobile ? 0.4 : 1.0}
-      />
-      <Particles isMobile={isMobile} />
-    </Canvas>
+      <Canvas
+        frameloop={hidden ? 'never' : 'always'}
+        camera={{ position: [0, 0, 5], fov: 40, near: 0.1, far: 100 }}
+        gl={{
+          antialias: !isMobile,
+          alpha: true,
+          toneMapping: THREE.ACESFilmicToneMapping,
+          toneMappingExposure: 2.2,
+        }}
+        onCreated={({ gl }) => {
+          gl.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2));
+          setVisible(true);
+        }}
+        style={{ position: 'absolute', inset: 0, background: 'transparent' }}
+      >
+        <fog attach="fog" args={[0x111010, 0, 55]} />
+        <OrbitControls
+          enableDamping
+          dampingFactor={isMobile ? 0.015 : 0.04}
+          autoRotate
+          autoRotateSpeed={isMobile ? 0.35 : 0.14}
+          enableZoom={false}
+          enablePan={false}
+          rotateSpeed={isMobile ? 0.4 : 1.0}
+        />
+        <Particles isMobile={isMobile} />
+      </Canvas>
+    </div>
   );
 }
 
-export default function GalaxyBackground({ onReady }: { onReady?: () => void }) {
+export default function GalaxyBackground() {
   const { motionEnabled } = useMotionContext();
-
-  // When motion is off, signal ready immediately so the page stays visible
-  useEffect(() => {
-    if (!motionEnabled) onReady?.();
-  }, [motionEnabled, onReady]);
-
   if (!motionEnabled) return null;
-  return <GalaxyCanvas onReady={onReady} />;
+  return <GalaxyCanvas />;
 }

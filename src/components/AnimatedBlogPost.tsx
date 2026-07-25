@@ -3,6 +3,7 @@
 import { motion } from 'motion/react';
 import Link from 'next/link';
 import { PostMetadata } from '../lib/posts';
+import { EASE_OUT } from '@/lib/motion';
 
 export default function AnimatedBlogPost({ 
   post, 
@@ -15,14 +16,14 @@ export default function AnimatedBlogPost({
     <motion.div 
       key={post.slug} 
       className="mb-8"
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.8, delay: index * 0.1 }}
+      transition={{ duration: 0.3, delay: Math.min(index, 6) * 0.05, ease: EASE_OUT }}
     >
       <div className="flex flex-col md:flex-row md:items-center md:justify-between">
         <Link
           href={`/posts/${post.slug}`}
-          className="text-2xl font-light tracking-widest text-brand-accent hover:text-brand-white transition-all duration-300 font-serif"
+          className="text-2xl font-light tracking-widest text-brand-accent hover:text-brand-white transition-colors duration-200 font-serif"
         >
           {post.title}
         </Link>

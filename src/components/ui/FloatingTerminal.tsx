@@ -109,6 +109,7 @@ const MIN_W = 340;
 const MIN_H = 220;
 const DEFAULT_W = 500;
 const DEFAULT_H = 380;
+const PULL_CUE_HEIGHT = 140;
 
 // ─── Stable transport ──────────────────────────────────────────────────────────
 const transport = new DefaultChatTransport({ api: "/api/terminal" });
@@ -320,8 +321,9 @@ export default function FloatingTerminal() {
   // ── Mobile: bottom-edge pull → open terminal (release to trigger) ───────────
   const vPullRaw = useMotionValue(0);
   const vPull = useSpring(vPullRaw, { stiffness: 520, damping: 44, mass: 0.8 });
-  const vPullBottomH = useTransform(vPull, (v) => Math.max(0, Math.min(140, -v)));
+  const vPullBottomH = useTransform(vPull, (v) => Math.max(0, Math.min(PULL_CUE_HEIGHT, -v)));
   const vPullBottomOpacity = useTransform(vPullBottomH, (h) => Math.min(0.95, h / 60));
+  const vPullBottomY = useTransform(vPullBottomH, (h) => PULL_CUE_HEIGHT - h);
   const pullStart = useRef<{ x: number; y: number } | null>(null);
   const pullLastDy = useRef(0);
   const pullActiveDy = useRef(0);
@@ -411,7 +413,7 @@ export default function FloatingTerminal() {
       }
 
       pullActiveDy.current = dy;
-      vPullRaw.set(Math.max(-140, Math.min(0, dy)));
+      vPullRaw.set(Math.max(-PULL_CUE_HEIGHT, Math.min(0, dy)));
     };
 
     const finish = () => {
@@ -447,21 +449,24 @@ export default function FloatingTerminal() {
     const main = document.querySelector("main");
     if (!(main instanceof HTMLElement)) return;
 
-    const setVars = (h: number) => {
+    const apply = (h: number) => {
+      if (h <= 0) {
+        main.style.transform = "";
+        main.style.willChange = "";
+        return;
+      }
       const shift = Math.round(h * 0.22);
       const scale = Math.max(0.94, 1 - h / 1100);
-      main.style.setProperty("--jd-terminal-pull-shift", `${shift}px`);
-      main.style.setProperty("--jd-terminal-pull-scale", `${scale}`);
-      main.style.setProperty("--jd-terminal-pull-radius", `${Math.round(Math.min(22, h / 5))}px`);
+      main.style.willChange = "transform";
+      main.style.transform = `translate3d(0, ${-shift}px, 0) scaleY(${scale})`;
     };
 
-    setVars(0);
-    const unsub = vPullBottomH.on("change", (h) => setVars(h));
+    apply(0);
+    const unsub = vPullBottomH.on("change", apply);
     return () => {
       unsub();
-      main.style.removeProperty("--jd-terminal-pull-shift");
-      main.style.removeProperty("--jd-terminal-pull-scale");
-      main.style.removeProperty("--jd-terminal-pull-radius");
+      main.style.transform = "";
+      main.style.willChange = "";
     };
   }, [isMobile, vPullBottomH]);
 
@@ -848,7 +853,7 @@ export default function FloatingTerminal() {
             setInstantClose(false);
             setIsOpen((o) => !o);
           }}
-          className="fixed bottom-6 right-6 z-50 hover:text-neutral-200 transition-colors duration-200"
+          className="jd-pressable fixed bottom-6 right-6 z-50 hover:text-neutral-200 transition-colors duration-200"
           style={{ color: "rgba(255, 136, 0, 1)", lineHeight: 0, display: "flex", alignItems: "center", justifyContent: "center" }}
           aria-label="Toggle terminal"
         >
@@ -863,14 +868,14 @@ export default function FloatingTerminal() {
             aria-hidden="true"
             className="fixed left-0 right-0 bottom-0 z-30 pointer-events-none"
             style={{
-              height: vPullBottomH,
+              height: PULL_CUE_HEIGHT,
+              y: vPullBottomY,
               opacity: vPullBottomOpacity,
               background: "linear-gradient(0deg, rgba(17,16,16,0.92), rgba(17,16,16,0.25), rgba(17,16,16,0.00))",
               borderTop: "1px solid rgba(255,255,255,0.12)",
               boxShadow: "0 -18px 60px rgba(0,0,0,0.55)",
-              backdropFilter: "blur(14px)",
-              borderTopLeftRadius: "var(--jd-terminal-pull-radius, 22px)",
-              borderTopRightRadius: "var(--jd-terminal-pull-radius, 22px)",
+              borderTopLeftRadius: 22,
+              borderTopRightRadius: 22,
             }}
           />
         </>

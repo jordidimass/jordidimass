@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 import { CircleHelpIcon } from "./CircleHelpIcon";
+import { EASE_OUT } from "@/lib/motion";
 
 function Kbd({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
@@ -123,7 +124,8 @@ export default function ShortcutsHelp() {
               initial={{ opacity: 0, y: 8, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.98 }}
-              transition={{ duration: 0.14, ease: "easeOut" }}
+              transition={{ duration: 0.14, ease: EASE_OUT }}
+              style={{ transformOrigin: "bottom left" }}
               role="dialog"
               aria-label="Shortcuts"
               onClick={(e) => e.stopPropagation()}

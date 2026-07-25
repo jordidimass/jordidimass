@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { motion } from "motion/react";
+import { EASE_OUT } from '@/lib/motion';
 
 interface Skill {
   name: string;
@@ -24,9 +25,9 @@ export default function AboutPage() {
       <div className="max-w-4xl mx-auto space-y-16">
         {/* intro section */}
         <motion.section 
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
+          transition={{ duration: 0.3, ease: EASE_OUT }}
           className="space-y-6"
         >
           <h1 className="text-4xl font-light tracking-widest font-serif text-brand-accent">
@@ -40,9 +41,9 @@ export default function AboutPage() {
 
         {/* philosophy section */}
         <motion.section
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.2 }}
+          transition={{ duration: 0.3, delay: 0.05, ease: EASE_OUT }}
           className="space-y-6"
         >
           <h2 className="text-2xl font-light tracking-widest font-serif text-brand-accent">philosophy</h2>
@@ -55,9 +56,9 @@ export default function AboutPage() {
 
         {/* skills section */}
         <motion.section
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.4 }}
+          transition={{ duration: 0.3, delay: 0.1, ease: EASE_OUT }}
           className="space-y-6"
         >
           <h2 className="text-2xl font-light tracking-widest font-serif text-brand-accent">current toolkit</h2>
@@ -65,14 +66,14 @@ export default function AboutPage() {
             {skills.map((skill, index) => (
               <motion.div
                 key={skill.name}
-                initial={{ opacity: 0, scale: 0.8 }}
+                initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
+                transition={{ duration: 0.3, delay: 0.1 + index * 0.05, ease: EASE_OUT }}
                 className="group"
               >
                 <div 
-                   className="p-4 border border-brand-muted rounded-lg transition-all duration-300
-                           hover:bg-brand-muted hover:text-brand-subtle cursor-pointer"
+                   className="p-4 border border-brand-muted rounded-lg transition-colors duration-200
+                           hover:bg-brand-muted hover:text-brand-subtle cursor-pointer jd-pressable"
                 >
                   <p className="text-center font-light">{skill.name}</p>
                 </div>
@@ -83,9 +84,9 @@ export default function AboutPage() {
 
         {/* contact/collaboration section */}
         <motion.section
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.6 }}
+          transition={{ duration: 0.3, delay: 0.15, ease: EASE_OUT }}
           className="space-y-6"
         >
           <h2 className="text-2xl font-light tracking-widest font-serif text-brand-accent">let's build together</h2>
@@ -102,7 +103,7 @@ export default function AboutPage() {
               target="_blank" 
               rel="noopener noreferrer"
               className="inline-block px-6 py-3 text-brand-accent bg-transparent border-2 border-brand-muted 
-                       rounded-lg hover:bg-brand-muted hover:text-brand-subtle transition-colors duration-300"
+                       rounded-lg hover:bg-brand-muted hover:text-brand-subtle transition-colors duration-200 jd-pressable"
             >
               book a meeting
             </a>

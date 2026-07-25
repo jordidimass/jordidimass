@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "motion:audit": "node scripts/motion-audit.mjs"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.30",

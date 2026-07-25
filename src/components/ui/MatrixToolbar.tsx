@@ -37,9 +37,9 @@ export default function MatrixToolbar({ minimizedWindows }: MatrixToolbarProps) 
           {minimizedWindows.map((window) => (
             <motion.button
               key={window.id}
-              initial={{ scale: 0.8, opacity: 0 }}
+              initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.8, opacity: 0 }}
+              exit={{ scale: 0.95, opacity: 0 }}
               onClick={window.restore}
               className="px-3 py-0.5 text-xs hover:bg-[#0FFD20] hover:bg-opacity-20 rounded flex items-center space-x-1"
             >

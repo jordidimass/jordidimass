@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import { slugFromKey } from "@/lib/gallery";
+import { EASE_OUT } from "@/lib/motion";
 
 const EAGER_ABOVE_FOLD_IMAGES = 2;
 const HIGH_PRIORITY_IMAGES = 1;
@@ -128,9 +129,9 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
     <>
       {/* ── Masonry grid ────────────────────────────────────────────────────── */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8 }}
+        transition={{ duration: 0.3, ease: EASE_OUT }}
         className="columns-1 gap-4 space-y-4 sm:columns-2 lg:columns-3"
       >
         {images.map((img, index) => {
@@ -139,11 +140,11 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
           const isLikelyLcpCandidate = index < HIGH_PRIORITY_IMAGES;
 
           return (
+            <div key={img.key} className="group relative break-inside-avoid">
             <button
-              key={img.key}
               type="button"
               onClick={() => setSelected(index)}
-              className="group relative block w-full break-inside-avoid cursor-pointer overflow-hidden rounded-sm text-left transition-all duration-300 hover:shadow-[0_10px_28px_rgba(0,0,0,0.35),0_0_0_1px_rgba(245,245,245,0.08)]"
+              className="relative block w-full cursor-pointer overflow-hidden rounded-sm text-left"
             >
               <Image
                 src={img.url}
@@ -156,14 +157,19 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
                 loading={isLikelyAboveFoldImage ? "eager" : "lazy"}
                 fetchPriority={isLikelyLcpCandidate ? "high" : "auto"}
                 unoptimized
-                className="h-auto w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                className="h-auto w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03]"
               />
-              <div className="absolute inset-0 flex items-end bg-brand-bg/0 transition-all duration-300 group-hover:bg-brand-bg/40">
-                <p className="w-full truncate px-3 py-2 text-xs font-light tracking-widest text-brand-text lowercase opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+              <div className="absolute inset-0 flex items-end bg-brand-bg/0 transition-colors duration-200 group-hover:bg-brand-bg/40">
+                <p className="w-full truncate px-3 py-2 text-xs font-light tracking-widest text-brand-text lowercase opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                   {label(img.key)}
                 </p>
               </div>
             </button>
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 rounded-sm opacity-0 shadow-[0_10px_28px_rgba(0,0,0,0.35),0_0_0_1px_rgba(245,245,245,0.08)] transition-opacity duration-200 group-hover:opacity-100"
+            />
+            </div>
           );
         })}
       </motion.div>

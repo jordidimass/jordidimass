@@ -31,10 +31,11 @@ export function SocialIcons({ socials }: { socials: Link[] }) {
               title={link.title}
               target="_blank"
               rel="noopener noreferrer"
-              whileHover={{ scale: 1.5 }}
-              whileTap={{ scale: 0.9 }}
+              whileHover={{ scale: 1.4 }}
+              whileTap={{ scale: 0.97 }}
+              transition={{ type: "spring", duration: 0.3, bounce: 0.2 }}
             >
-              <Icon className="w-8 h-8 transition-all duration-200" />
+              <Icon className="w-8 h-8 transition-colors duration-200" />
             </motion.a>
           ) : null;
         })}

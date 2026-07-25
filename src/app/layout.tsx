@@ -59,8 +59,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        {/* Sync data-motion before first paint to avoid animation flash */}
-        <script dangerouslySetInnerHTML={{ __html: `try{document.documentElement.setAttribute('data-motion',localStorage.getItem('jd-motion')==='false'?'off':'on')}catch(e){}` }} />
+        <script dangerouslySetInnerHTML={{ __html: `try{var s=localStorage.getItem('jd-motion');var on=s===null?!window.matchMedia('(prefers-reduced-motion: reduce)').matches:s!=='false';document.documentElement.setAttribute('data-motion',on?'on':'off')}catch(e){}` }} />
         <link rel="preconnect" href="https://gallery-worker.jordidimas.workers.dev" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <script

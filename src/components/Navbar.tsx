@@ -18,20 +18,22 @@ export default function Navbar() {
 
   useEffect(() => {
     const handleScroll = () => {
-      if (window.scrollY > 50) {
-        setIsScrolled(true);
-      } else {
-        setIsScrolled(false);
-      }
+      const next = window.scrollY > 50;
+      setIsScrolled((prev) => (prev === next ? prev : next));
     };
 
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (navRef.current && !navRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
     };
 
-    window.addEventListener('scroll', handleScroll);
     document.addEventListener('mousedown', handleClickOutside);
 
     if (isOpen) {
@@ -41,11 +43,10 @@ export default function Navbar() {
     }
 
     return () => {
-      window.removeEventListener('scroll', handleScroll);
       document.removeEventListener('mousedown', handleClickOutside);
       document.body.style.overflow = '';
     };
-  }, [isOpen]); 
+  }, [isOpen]);
 
   return (
     <nav
@@ -91,11 +92,11 @@ export default function Navbar() {
               className="relative z-50 w-8 h-8 flex items-center justify-center focus:outline-none"
               aria-label="Toggle Menu"
             >
-              <div className="relative flex overflow-hidden items-center justify-center w-[20px] h-[20px] transform transition-all duration-200">
-                <div className={`flex flex-col justify-between w-[20px] h-[20px] transform transition-all duration-300 origin-center overflow-hidden ${isOpen ? 'translate-x-1.5' : ''}`}>
-                  <div className={`bg-white h-[2px] w-7 transform transition-all duration-300 origin-left ${isOpen ? 'rotate-[42deg] w-2/3 -translate-y-1' : ''}`}></div>
-                  <div className={`bg-white h-[2px] w-7 rounded transform transition-all duration-300 ${isOpen ? 'opacity-0' : ''}`}></div>
-                  <div className={`bg-white h-[2px] w-7 transform transition-all duration-300 origin-left ${isOpen ? '-rotate-[42deg] w-2/3 translate-y-1' : ''}`}></div>
+              <div className="relative flex overflow-hidden items-center justify-center w-[20px] h-[20px]">
+                <div className={`flex flex-col justify-between w-[20px] h-[20px] transform transition-transform duration-200 origin-center overflow-hidden ${isOpen ? 'translate-x-1.5' : ''}`}>
+                  <div className={`bg-white h-[2px] w-7 transform transition-transform duration-200 origin-left ${isOpen ? 'rotate-[42deg] scale-x-[0.476] -translate-y-1' : ''}`}></div>
+                  <div className={`bg-white h-[2px] w-7 rounded transition-opacity duration-200 ${isOpen ? 'opacity-0' : ''}`}></div>
+                  <div className={`bg-white h-[2px] w-7 transform transition-transform duration-200 origin-left ${isOpen ? '-rotate-[42deg] scale-x-[0.476] translate-y-1' : ''}`}></div>
                 </div>
               </div>
             </button>

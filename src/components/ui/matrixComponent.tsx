@@ -5,6 +5,7 @@ import { X, Minus, Maximize2, Play, Pause, SkipBack, SkipForward, Terminal, Musi
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import MatrixToolbar from "./MatrixToolbar";
+import { useMotionContext } from "@/components/MotionProvider";
 
 type TrackOption = "clubbed" | "spybreak" | "prime_audio_soup" | "mindfields" | "happiness" | "windowlicker" | "blockrockin" | "places" | "rave_zion";
 
@@ -29,6 +30,7 @@ export default function MatrixComponent() {
   const [isResizingTerminal, setIsResizingTerminal] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const { motionEnabled } = useMotionContext();
   const [isMatrixAnimating, setIsMatrixAnimating] = useState(true);
   const [audioProgress, setAudioProgress] = useState(0);
   const [remainingTime, setRemainingTime] = useState(0);
@@ -232,13 +234,18 @@ export default function MatrixComponent() {
     }
 
     function animate() {
-      if (isMatrixAnimating) {
+      if (isMatrixAnimating && motionEnabled) {
         draw();
         animationRef.current = requestAnimationFrame(animate);
       }
     }
 
-    animate();
+    if (motionEnabled) {
+      animate();
+    } else {
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
 
     const handleResize = () => {
       updateCanvasSize();
@@ -255,7 +262,7 @@ export default function MatrixComponent() {
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [isMatrixAnimating]);
+  }, [isMatrixAnimating, motionEnabled]);
 
   // Audio progress and remaining time
   useEffect(() => {
@@ -822,9 +829,9 @@ export default function MatrixComponent() {
       <AnimatePresence>
         {!minimizedWindows.find(w => w.id === 'terminal') && (
           <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
+            initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.8, opacity: 0, y: -100 }}
+            exit={{ scale: 0.95, opacity: 0, y: -100 }}
             ref={terminalRef}
             data-jd-terminal=""
             className="absolute bg-black border border-[#0FFD20] shadow-lg"
@@ -901,9 +908,9 @@ export default function MatrixComponent() {
       {/* Music Control Window - Now conditionally rendered */}
       {showMusicWindow && !minimizedWindows.find(w => w.id === 'music') && (
         <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
+          initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.8, opacity: 0, y: -100 }}
+          exit={{ scale: 0.95, opacity: 0, y: -100 }}
           ref={musicWindowRef}
           className={`absolute bg-black shadow-lg ${
             isMobile ? 'border-b border-[#0FFD20]' : 'border border-[#0FFD20]'

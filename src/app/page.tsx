@@ -1,20 +1,9 @@
-'use client';
-
-import { useState } from 'react';
-import { motion } from 'motion/react';
 import Particles from '@/components/ui/particles';
 import GalaxyBackground from '@/components/GalaxyBackground';
 
 export default function HomePage() {
-  const [ready, setReady] = useState(false);
-
   return (
-    <motion.div
-      className="fixed inset-0 w-screen h-screen flex flex-col lg:flex-row bg-brand-bg overflow-hidden"
-      initial={{ opacity: 0, y: 20 }}
-      animate={ready ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
-      transition={{ duration: 0.8, ease: 'easeOut' }}
-    >
+    <div className="fixed inset-0 w-screen h-screen flex flex-col lg:flex-row bg-brand-bg overflow-hidden">
       <Particles
         className="absolute inset-0 w-full h-full z-0"
         quantity={350}
@@ -35,8 +24,8 @@ export default function HomePage() {
       </div>
 
       <div className="flex-1 lg:w-1/2 relative z-10">
-        <GalaxyBackground onReady={() => setReady(true)} />
+        <GalaxyBackground />
       </div>
-    </motion.div>
+    </div>
   );
 }

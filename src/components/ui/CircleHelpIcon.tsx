@@ -79,7 +79,7 @@ const CircleHelpIcon = forwardRef<CircleHelpIconHandle, CircleHelpIconProps>(
           <motion.g
             animate={controls}
             transition={{
-              duration: 0.5,
+              duration: 0.3,
               ease: "easeInOut",
             }}
             variants={VARIANTS}
