@@ -1,23 +1,19 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion } from "motion/react";
-import { slugFromKey } from "@/lib/gallery";
+import { motion, useInView } from "motion/react";
+import { slugFromKey, FALLBACK_WIDTH, FALLBACK_HEIGHT, type GalleryImage } from "@/lib/gallery";
+import { imageSource } from "@/lib/galleryLoader";
 import { EASE_OUT } from "@/lib/motion";
 
-const EAGER_ABOVE_FOLD_IMAGES = 2;
-const HIGH_PRIORITY_IMAGES = 1;
-
-interface GalleryImage {
-  key: string;
-  size: number;
-  uploaded: string;
-  url: string;
-}
+const EAGER_ABOVE_FOLD_IMAGES = 6;
+const HIGH_PRIORITY_IMAGES = 3;
+const STAGGERED_TILES = 9;
+const STAGGER_STEP = 0.05;
 
 function label(key: string): string {
   return key.replace(/\.[^.]+$/, "");
@@ -46,11 +42,111 @@ const OpenPageIcon = (
   </svg>
 );
 
+// CSS multi-column fills column-first, so DOM index runs down column 1 before
+// reaching column 2. Staggering on the raw index would wipe column by column;
+// the visual row is what makes the cascade read top-to-bottom.
+function useColumnCount(): number {
+  const [columns, setColumns] = useState(3);
+
+  useEffect(() => {
+    const queries: [MediaQueryList, number][] = [
+      [window.matchMedia("(min-width: 1024px)"), 3],
+      [window.matchMedia("(min-width: 640px)"), 2],
+    ];
+    const update = () => {
+      const match = queries.find(([q]) => q.matches);
+      setColumns(match ? match[1] : 1);
+    };
+    update();
+    queries.forEach(([q]) => q.addEventListener("change", update));
+    return () => queries.forEach(([q]) => q.removeEventListener("change", update));
+  }, []);
+
+  return columns;
+}
+
+function GalleryTile({
+  img,
+  index,
+  visualRow,
+  onSelect,
+}: {
+  img: GalleryImage;
+  index: number;
+  visualRow: number;
+  onSelect: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
+  const [loaded, setLoaded] = useState(false);
+  const inView = useInView(ref, { once: true, margin: "200px" });
+
+  // A cached image can finish before React attaches onLoad; without this the
+  // tile would stay at opacity 0 forever.
+  useEffect(() => {
+    if (imgRef.current?.complete) setLoaded(true);
+  }, []);
+
+  const isAboveFold = index < EAGER_ABOVE_FOLD_IMAGES;
+  const isLcpCandidate = index < HIGH_PRIORITY_IMAGES;
+  const revealed = inView && loaded;
+
+  return (
+    <motion.div
+      ref={ref}
+      data-gallery-tile={index}
+      className="group relative break-inside-avoid"
+      initial={{ opacity: 0, y: 8 }}
+      animate={revealed ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
+      transition={{
+        duration: 0.3,
+        ease: EASE_OUT,
+        delay: visualRow < STAGGERED_TILES ? visualRow * STAGGER_STEP : 0,
+      }}
+    >
+      <button
+        type="button"
+        onClick={onSelect}
+        className="relative block w-full cursor-pointer overflow-hidden rounded-sm text-left"
+      >
+        <Image
+          ref={imgRef}
+          {...imageSource(img)}
+          alt={label(img.key)}
+          width={img.width ?? FALLBACK_WIDTH}
+          height={img.height ?? FALLBACK_HEIGHT}
+          quality={82}
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          priority={isLcpCandidate}
+          loading={isAboveFold ? undefined : "lazy"}
+          fetchPriority={isLcpCandidate ? "high" : "auto"}
+          placeholder={img.blurDataURL ? "blur" : "empty"}
+          blurDataURL={img.blurDataURL}
+          onLoad={() => setLoaded(true)}
+          onError={() => setLoaded(true)}
+          className="h-auto w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03]"
+        />
+        <div className="absolute inset-0 flex items-end bg-brand-bg/0 transition-colors duration-200 group-hover:bg-brand-bg/40">
+          <p className="w-full truncate px-3 py-2 text-xs font-light tracking-widest text-brand-text lowercase opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+            {label(img.key)}
+          </p>
+        </div>
+      </button>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 rounded-sm opacity-0 shadow-[0_10px_28px_rgba(0,0,0,0.35),0_0_0_1px_rgba(245,245,245,0.08)] transition-opacity duration-200 group-hover:opacity-100"
+      />
+    </motion.div>
+  );
+}
+
 export default function GalleryClient({ images }: { images: GalleryImage[] }) {
   const router = useRouter();
   const [selected, setSelected] = useState<number | null>(null);
   const [loadedUrls, setLoadedUrls] = useState<Set<string>>(new Set());
   const [downloading, setDownloading] = useState(false);
+  const columns = useColumnCount();
+  const perColumn = Math.max(1, Math.ceil(images.length / columns));
 
   const selectedImage = selected === null ? null : images[selected];
   const imageLoaded = selectedImage ? loadedUrls.has(selectedImage.url) : false;
@@ -95,6 +191,7 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
     if (!selectedImage || downloading) return;
     setDownloading(true);
     try {
+      // Always the untouched original, never a derived variant.
       await downloadImage(selectedImage.url, selectedImage.key);
     } finally {
       setDownloading(false);
@@ -108,7 +205,7 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
         type="button"
         onClick={handleDownload}
         disabled={downloading}
-        className="select-none text-brand-muted/60 transition-colors duration-200 hover:text-brand-accent active:text-brand-accent disabled:opacity-40"
+        className="jd-pressable select-none text-brand-muted/60 transition-colors duration-200 hover:text-brand-accent active:text-brand-accent disabled:opacity-40"
         aria-label="download"
       >
         {DownloadIcon}
@@ -117,7 +214,7 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
       <Link
         href={`/gallery/${slugFromKey(selectedImage.key)}`}
         onClick={() => { document.body.style.overflow = ""; }}
-        className="select-none text-brand-muted/60 transition-colors duration-200 hover:text-brand-accent active:text-brand-accent"
+        className="jd-pressable select-none text-brand-muted/60 transition-colors duration-200 hover:text-brand-accent active:text-brand-accent"
         aria-label="open image page"
       >
         {OpenPageIcon}
@@ -128,51 +225,17 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
   return (
     <>
       {/* ── Masonry grid ────────────────────────────────────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, ease: EASE_OUT }}
-        className="columns-1 gap-4 space-y-4 sm:columns-2 lg:columns-3"
-      >
-        {images.map((img, index) => {
-          const isPreloadedLeadImage = index === 0;
-          const isLikelyAboveFoldImage = index < EAGER_ABOVE_FOLD_IMAGES;
-          const isLikelyLcpCandidate = index < HIGH_PRIORITY_IMAGES;
-
-          return (
-            <div key={img.key} className="group relative break-inside-avoid">
-            <button
-              type="button"
-              onClick={() => setSelected(index)}
-              className="relative block w-full cursor-pointer overflow-hidden rounded-sm text-left"
-            >
-              <Image
-                src={img.url}
-                alt={label(img.key)}
-                width={1600}
-                height={1067}
-                quality={68}
-                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 700px"
-                priority={isPreloadedLeadImage}
-                loading={isLikelyAboveFoldImage ? "eager" : "lazy"}
-                fetchPriority={isLikelyLcpCandidate ? "high" : "auto"}
-                unoptimized
-                className="h-auto w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03]"
-              />
-              <div className="absolute inset-0 flex items-end bg-brand-bg/0 transition-colors duration-200 group-hover:bg-brand-bg/40">
-                <p className="w-full truncate px-3 py-2 text-xs font-light tracking-widest text-brand-text lowercase opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                  {label(img.key)}
-                </p>
-              </div>
-            </button>
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0 rounded-sm opacity-0 shadow-[0_10px_28px_rgba(0,0,0,0.35),0_0_0_1px_rgba(245,245,245,0.08)] transition-opacity duration-200 group-hover:opacity-100"
-            />
-            </div>
-          );
-        })}
-      </motion.div>
+      <div data-gallery-grid className="columns-1 gap-4 space-y-4 sm:columns-2 lg:columns-3">
+        {images.map((img, index) => (
+          <GalleryTile
+            key={img.key}
+            img={img}
+            index={index}
+            visualRow={index % perColumn}
+            onSelect={() => setSelected(index)}
+          />
+        ))}
+      </div>
 
       {/* ── Modal ───────────────────────────────────────────────────────────── */}
       {selectedImage && createPortal(
@@ -184,7 +247,7 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
           <button
             type="button"
             onClick={() => setSelected(null)}
-            className="absolute right-6 top-6 z-10 text-xl text-brand-muted transition-colors duration-200 hover:text-brand-accent"
+            className="jd-pressable absolute right-6 top-6 z-10 text-xl text-brand-muted transition-colors duration-200 hover:text-brand-accent"
             aria-label="close"
           >
             ✕
@@ -194,13 +257,14 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
           <div className="flex flex-1 flex-col md:hidden" onClick={(e) => e.stopPropagation()}>
             <div className="flex flex-1 items-center justify-center overflow-hidden px-4 pb-4 pt-14">
               <Image
-                src={selectedImage.url}
+                {...imageSource(selectedImage)}
                 alt={label(selectedImage.key)}
-                width={1920}
-                height={1280}
-                quality={78}
+                width={selectedImage.width ?? FALLBACK_WIDTH}
+                height={selectedImage.height ?? FALLBACK_HEIGHT}
+                quality={86}
                 sizes="100vw"
-                unoptimized
+                placeholder={selectedImage.blurDataURL ? "blur" : "empty"}
+                blurDataURL={selectedImage.blurDataURL}
                 className="max-h-full w-full rounded-[4px] object-contain"
                 style={{ maxHeight: "calc(100dvh - 160px)" }}
               />
@@ -209,7 +273,7 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
               <button
                 type="button"
                 onClick={() => navigate(-1)}
-                className="select-none text-3xl text-brand-muted transition-colors duration-200 active:text-brand-accent"
+                className="jd-pressable select-none text-3xl text-brand-muted transition-colors duration-200 active:text-brand-accent"
                 aria-label="previous"
               >
                 ←
@@ -226,7 +290,7 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
               <button
                 type="button"
                 onClick={() => navigate(1)}
-                className="select-none text-3xl text-brand-muted transition-colors duration-200 active:text-brand-accent"
+                className="jd-pressable select-none text-3xl text-brand-muted transition-colors duration-200 active:text-brand-accent"
                 aria-label="next"
               >
                 →
@@ -239,7 +303,7 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); navigate(-1); }}
-              className="absolute left-8 z-10 select-none text-3xl text-brand-muted transition-colors duration-200 hover:text-brand-accent"
+              className="jd-pressable absolute left-8 z-10 select-none text-3xl text-brand-muted transition-colors duration-200 hover:text-brand-accent"
               aria-label="previous"
             >
               ←
@@ -252,14 +316,15 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
             >
               <Image
                 key={selectedImage.url}
-                src={selectedImage.url}
+                {...imageSource(selectedImage)}
                 alt={label(selectedImage.key)}
-                width={1920}
-                height={1280}
-                quality={80}
+                width={selectedImage.width ?? FALLBACK_WIDTH}
+                height={selectedImage.height ?? FALLBACK_HEIGHT}
+                quality={88}
                 sizes="80vw"
                 priority
-                unoptimized
+                placeholder={selectedImage.blurDataURL ? "blur" : "empty"}
+                blurDataURL={selectedImage.blurDataURL}
                 onLoad={() => markLoaded(selectedImage.url)}
                 className={`max-w-full rounded-[4px] object-contain transition-opacity duration-200 ${imageLoaded ? "opacity-100" : "opacity-0"}`}
                 style={{ maxHeight: "calc(100vh - 72px)" }}
@@ -283,7 +348,7 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); navigate(1); }}
-              className="absolute right-8 z-10 select-none text-3xl text-brand-muted transition-colors duration-200 hover:text-brand-accent"
+              className="jd-pressable absolute right-8 z-10 select-none text-3xl text-brand-muted transition-colors duration-200 hover:text-brand-accent"
               aria-label="next"
             >
               →

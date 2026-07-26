@@ -1,9 +1,9 @@
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getGalleryImages, slugFromKey } from "@/lib/gallery";
 import DownloadButton from "./DownloadButton";
+import PhotoView from "./PhotoView";
 
 export const revalidate = 300;
 
@@ -76,19 +76,8 @@ export default async function ImagePage({ params }: Props) {
         </div>
       </nav>
 
-      {/* Image — highest quality via Next.js optimization */}
       <main className="flex flex-1 items-center justify-center px-4 py-8">
-        <Image
-          src={image.url}
-          alt={label(image.key)}
-          width={1920}
-          height={1280}
-          quality={92}
-          sizes="(max-width: 768px) 100vw, 90vw"
-          priority
-          unoptimized
-          className="max-h-[80vh] w-auto max-w-full rounded-[4px] object-contain"
-        />
+        <PhotoView image={image} alt={label(image.key)} />
       </main>
 
       {/* Footer */}

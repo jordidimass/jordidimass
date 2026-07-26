@@ -5,7 +5,18 @@ export interface GalleryImage {
   size: number;
   uploaded: string;
   url: string;
+  // Present once cloudflare/derive.mjs has published manifest.json. Optional so
+  // the site still renders against a worker that predates it.
+  width?: number;
+  height?: number;
+  blurDataURL?: string;
+  widths?: number[];
+  version?: string;
 }
+
+// Fallback ratio for images not yet in the manifest.
+export const FALLBACK_WIDTH = 1600;
+export const FALLBACK_HEIGHT = 1067;
 
 export function slugFromKey(key: string): string {
   return key
@@ -22,8 +33,8 @@ export async function getGalleryImages(): Promise<GalleryImage[]> {
   try {
     const res = await fetch(WORKER_URL, { next: { revalidate: 300 } });
     if (!res.ok) return [];
-    const data = (await res.json()) as { images?: GalleryImage[] };
-    const images = data.images ?? [];
+    const data = (await res.json()) as { images?: GalleryImage[]; version?: string };
+    const images = (data.images ?? []).map((img) => ({ ...img, version: data.version }));
     const seen = new Set<string>();
     return images.filter((img) => {
       if (seen.has(img.key)) return false;

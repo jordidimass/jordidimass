@@ -2,6 +2,10 @@
 const nextConfig = {
   transpilePackages: ['three', '@react-three/fiber', '@react-three/drei'],
   images: {
+    // Must stay in sync with GALLERY_WIDTHS in src/lib/galleryLoader.ts and the
+    // LADDER in cloudflare/derive.mjs — Next only asks the loader for these.
+    deviceSizes: [640, 828, 1280, 1920, 2560, 3200],
+    imageSizes: [256, 384],
     remotePatterns: [
       { hostname: 'utfs.io' },
       { hostname: 'gallery-worker.jordidimass.workers.dev' },

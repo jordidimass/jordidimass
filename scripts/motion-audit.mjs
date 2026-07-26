@@ -275,6 +275,106 @@ check('every rAF background respects the motion toggle', () => {
   return null;
 });
 
+/* ── Gallery image pipeline ───────────────────────────────────────────────── */
+
+check('gallery images pick their source from worker capability', () => {
+  const bad = [];
+  for (const f of SRC.filter((x) => x.includes('/gallery/'))) {
+    const s = read(f);
+    for (const tag of s.match(/<Image\b[\s\S]*?\/>/g) || []) {
+      if (!/\{\.\.\.imageSource\(/.test(tag)) bad.push(`${f}: <Image> not routed through imageSource()`);
+      if (/width=\{1600\}/.test(tag)) bad.push(`${f}: hardcoded width 1600`);
+      if (/\bunoptimized\b/.test(tag)) bad.push(`${f}: hardcoded unoptimized`);
+    }
+  }
+  return bad.length ? bad.join(', ') : null;
+});
+
+check('variants are only requested once the worker advertises them', () => {
+  const s = read('src/lib/galleryLoader.ts');
+  if (!/export function imageSource/.test(s)) return 'no imageSource helper';
+  if (!/\(img\.widths\?\.length \?\? 0\) === 0/.test(s))
+    return 'source is not gated on the manifest widths the worker returns';
+  if (!/src: img\.url, unoptimized: true/.test(s))
+    return 'no original fallback for a worker without derived variants';
+  if (!/\?v=\$\{version\}/.test(read('src/lib/galleryLoader.ts')))
+    return 'derived URLs are not versioned, so a re-derive would serve stale immutable variants';
+  return null;
+});
+
+check('image width ladder is consistent across loader, config and derive script', () => {
+  const loader = read('src/lib/galleryLoader.ts');
+  const ladder = /GALLERY_WIDTHS = \[([^\]]+)\]/.exec(loader)?.[1];
+  if (!ladder) return 'GALLERY_WIDTHS not found';
+  const widths = ladder.split(',').map((n) => Number(n.trim())).filter(Boolean);
+
+  const config = read('next.config.mjs');
+  const device = /deviceSizes:\s*\[([^\]]+)\]/.exec(config)?.[1];
+  if (!device) return 'deviceSizes not set in next.config.mjs';
+  const deviceWidths = device.split(',').map((n) => Number(n.trim())).filter(Boolean);
+  if (deviceWidths.join() !== widths.join()) return `deviceSizes ${deviceWidths} != ladder ${widths}`;
+  if (Math.max(...deviceWidths) > 3200) return 'deviceSizes still reaches above 3200';
+
+  const derive = read('cloudflare/derive.mjs');
+  for (const w of widths) {
+    if (!new RegExp(`width:\\s*${w}\\b`).test(derive)) return `derive.mjs does not generate ${w}w`;
+  }
+
+  const worker = read('cloudflare/src/index.ts');
+  const allowed = /ALLOWED_WIDTHS = new Set\(\[([^\]]+)\]\)/.exec(worker)?.[1];
+  if (!allowed) return 'worker ALLOWED_WIDTHS not found';
+  const workerWidths = allowed.split(',').map((n) => Number(n.trim())).filter(Boolean);
+  if (workerWidths.join() !== widths.join()) return `worker ${workerWidths} != ladder ${widths}`;
+  return null;
+});
+
+check('gallery tile reveal is gated on both viewport and decode', () => {
+  const s = read('src/app/gallery/GalleryClient.tsx');
+  if (!/useInView\(ref,\s*\{\s*once:\s*true/.test(s)) return 'no once-only useInView on the tile';
+  if (!/onLoad=\{\(\) => setLoaded\(true\)\}/.test(s)) return 'reveal is not gated on image load';
+  if (!/onError=\{\(\) => setLoaded\(true\)\}/.test(s)) return 'a failed image would stay invisible forever';
+  if (!/imgRef\.current\?\.complete/.test(s)) return 'a cached image could miss onLoad and stay invisible';
+  if (!/revealed = inView && loaded/.test(s)) return 'reveal is not gated on both';
+  return null;
+});
+
+check('gallery stagger is row-based, within budget, and capped', () => {
+  const s = read('src/app/gallery/GalleryClient.tsx');
+  const step = Number(/STAGGER_STEP = ([\d.]+)/.exec(s)?.[1]);
+  if (!step) return 'STAGGER_STEP not found';
+  if (step > 0.08) return `stagger ${step * 1000}ms exceeds the 80ms bar`;
+  if (!/STAGGERED_TILES = \d+/.test(s)) return 'stagger is not capped';
+  // CSS columns fill column-first, so a raw index stagger would wipe by column.
+  if (!/visualRow \* STAGGER_STEP/.test(s)) return 'stagger uses raw index rather than visual row';
+  if (!/visualRow=\{index % perColumn\}/.test(s)) return 'visual row is not derived from the column count';
+  return null;
+});
+
+check('grid carries blur placeholders and real dimensions', () => {
+  const s = read('src/app/gallery/GalleryClient.tsx');
+  if (!/placeholder=\{img\.blurDataURL \? "blur" : "empty"\}/.test(s)) return 'no conditional blur placeholder';
+  if (!/width=\{img\.width \?\? FALLBACK_WIDTH\}/.test(s)) return 'tile does not use manifest width';
+  if (!/height=\{img\.height \?\? FALLBACK_HEIGHT\}/.test(s)) return 'tile does not use manifest height';
+  return null;
+});
+
+check('downloads still serve the untouched original', () => {
+  const s = read('src/app/gallery/GalleryClient.tsx');
+  if (!/downloadImage\(selectedImage\.url/.test(s)) return 'modal download no longer uses the original url';
+  const btn = read('src/app/gallery/[slug]/DownloadButton.tsx');
+  if (!/url/.test(btn)) return 'DownloadButton no longer takes a url';
+  return null;
+});
+
+check('worker keeps a fallback so a missing variant never 404s', () => {
+  const s = read('cloudflare/src/index.ts');
+  if (!/X-JD-Variant/.test(s)) return 'no variant marker header';
+  if (!/const original = await env\.GALLERY\.get\(key\)/.test(s)) return 'no original fallback in the /v/ route';
+  if (!/startsWith\(DERIVED_PREFIX\) \|\| obj\.key === MANIFEST_KEY/.test(s))
+    return 'derived objects and the manifest are not excluded from the listing';
+  return null;
+});
+
 /* ── Hygiene ──────────────────────────────────────────────────────────────── */
 
 check('no leftover references to removed pull custom properties', () => {
