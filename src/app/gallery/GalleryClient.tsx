@@ -1,19 +1,21 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion, useInView } from "motion/react";
-import { slugFromKey, FALLBACK_WIDTH, FALLBACK_HEIGHT, type GalleryImage } from "@/lib/gallery";
+import { motion, AnimatePresence, useInView } from "motion/react";
+import { slugFromKey, columnStarts, aboveFoldIndices, FALLBACK_WIDTH, FALLBACK_HEIGHT, type GalleryImage } from "@/lib/gallery";
 import { imageSource } from "@/lib/galleryLoader";
 import { EASE_OUT } from "@/lib/motion";
 
-const EAGER_ABOVE_FOLD_IMAGES = 6;
-const HIGH_PRIORITY_IMAGES = 3;
 const STAGGERED_TILES = 9;
 const STAGGER_STEP = 0.05;
+// Modals sit in the 200-500ms band; the exit is quicker because dismissing is
+// the system responding, not the user deciding.
+const MODAL_IN = 0.22;
+const MODAL_OUT = 0.15;
 
 function label(key: string): string {
   return key.replace(/\.[^.]+$/, "");
@@ -42,67 +44,69 @@ const OpenPageIcon = (
   </svg>
 );
 
-// CSS multi-column fills column-first, so DOM index runs down column 1 before
-// reaching column 2. Staggering on the raw index would wipe column by column;
-// the visual row is what makes the cascade read top-to-bottom.
-function useColumnCount(): number {
-  const [columns, setColumns] = useState(3);
+/**
+ * Progressive enhancement for below-fold tiles.
+ *
+ * The entrance itself is CSS, so it works from the prerendered HTML with no JS.
+ * This only *delays* tiles that start off-screen, so they animate as you reach
+ * them. It marks them pending in a layout effect (before paint) and clears that
+ * on intersection. If the script never runs, every tile is simply visible.
+ */
+function useScrollReveal(gridRef: React.RefObject<HTMLDivElement | null>, count: number) {
+  useLayoutEffect(() => {
+    const grid = gridRef.current;
+    if (!grid) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (document.documentElement.getAttribute("data-motion") === "off") return;
 
-  useEffect(() => {
-    const queries: [MediaQueryList, number][] = [
-      [window.matchMedia("(min-width: 1024px)"), 3],
-      [window.matchMedia("(min-width: 640px)"), 2],
-    ];
-    const update = () => {
-      const match = queries.find(([q]) => q.matches);
-      setColumns(match ? match[1] : 1);
-    };
-    update();
-    queries.forEach(([q]) => q.addEventListener("change", update));
-    return () => queries.forEach(([q]) => q.removeEventListener("change", update));
-  }, []);
+    const tiles = [...grid.querySelectorAll<HTMLElement>("[data-gallery-tile]")];
+    const cutoff = window.innerHeight * 1.2;
+    const deferred = tiles.filter((el) => el.getBoundingClientRect().top > cutoff);
+    for (const el of deferred) el.setAttribute("data-pending", "");
 
-  return columns;
+    if (!deferred.length) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (!e.isIntersecting) continue;
+          (e.target as HTMLElement).removeAttribute("data-pending");
+          io.unobserve(e.target);
+        }
+      },
+      { rootMargin: "200px" }
+    );
+    deferred.forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, [gridRef, count]);
 }
 
 function GalleryTile({
   img,
   index,
-  visualRow,
+  rows,
+  breakClass,
+  eager,
+  priority,
   onSelect,
 }: {
   img: GalleryImage;
   index: number;
-  visualRow: number;
+  rows: { one: number; two: number; three: number };
+  breakClass: string;
+  eager: boolean;
+  priority: boolean;
   onSelect: () => void;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const imgRef = useRef<HTMLImageElement>(null);
-  const [loaded, setLoaded] = useState(false);
-  const inView = useInView(ref, { once: true, margin: "200px" });
-
-  // A cached image can finish before React attaches onLoad; without this the
-  // tile would stay at opacity 0 forever.
-  useEffect(() => {
-    if (imgRef.current?.complete) setLoaded(true);
-  }, []);
-
-  const isAboveFold = index < EAGER_ABOVE_FOLD_IMAGES;
-  const isLcpCandidate = index < HIGH_PRIORITY_IMAGES;
-  const revealed = inView && loaded;
 
   return (
-    <motion.div
-      ref={ref}
+    <div
       data-gallery-tile={index}
-      className="group relative break-inside-avoid"
-      initial={{ opacity: 0, y: 8 }}
-      animate={revealed ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
-      transition={{
-        duration: 0.3,
-        ease: EASE_OUT,
-        delay: visualRow < STAGGERED_TILES ? visualRow * STAGGER_STEP : 0,
-      }}
+      className={`jd-tile group relative break-inside-avoid ${breakClass}`}
+      style={{
+        "--jd-row": rows.one,
+        "--jd-row-2": rows.two,
+        "--jd-row-3": rows.three,
+      } as React.CSSProperties}
     >
       <button
         type="button"
@@ -110,20 +114,17 @@ function GalleryTile({
         className="relative block w-full cursor-pointer overflow-hidden rounded-sm text-left"
       >
         <Image
-          ref={imgRef}
           {...imageSource(img)}
           alt={label(img.key)}
           width={img.width ?? FALLBACK_WIDTH}
           height={img.height ?? FALLBACK_HEIGHT}
           quality={82}
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-          priority={isLcpCandidate}
-          loading={isAboveFold ? undefined : "lazy"}
-          fetchPriority={isLcpCandidate ? "high" : "auto"}
+          priority={priority}
+          loading={eager ? "eager" : "lazy"}
+          fetchPriority={eager ? "high" : "auto"}
           placeholder={img.blurDataURL ? "blur" : "empty"}
           blurDataURL={img.blurDataURL}
-          onLoad={() => setLoaded(true)}
-          onError={() => setLoaded(true)}
           className="h-auto w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03]"
         />
         <div className="absolute inset-0 flex items-end bg-brand-bg/0 transition-colors duration-200 group-hover:bg-brand-bg/40">
@@ -136,7 +137,7 @@ function GalleryTile({
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 rounded-sm opacity-0 shadow-[0_10px_28px_rgba(0,0,0,0.35),0_0_0_1px_rgba(245,245,245,0.08)] transition-opacity duration-200 group-hover:opacity-100"
       />
-    </motion.div>
+    </div>
   );
 }
 
@@ -145,11 +146,35 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
   const [selected, setSelected] = useState<number | null>(null);
   const [loadedUrls, setLoadedUrls] = useState<Set<string>>(new Set());
   const [downloading, setDownloading] = useState(false);
-  const columns = useColumnCount();
-  const perColumn = Math.max(1, Math.ceil(images.length / columns));
+  const [mounted, setMounted] = useState(false);
+  const gridRef = useRef<HTMLDivElement>(null);
+  useScrollReveal(gridRef, images.length);
+
+  // Deterministic packing, computed on the server: forcing the column breaks is
+  // what lets `eager` reach the top of every column instead of only column one.
+  const layout = useMemo(() => {
+    const s2 = columnStarts(images, 2);
+    const s3 = columnStarts(images, 3);
+    const rowIn = (starts: number[], i: number) => {
+      let start = 0;
+      for (const s of starts) if (i >= s) start = s;
+      return i - start;
+    };
+    return {
+      two: new Set(s2.slice(1)),
+      three: new Set(s3.slice(1)),
+      eagerSet: aboveFoldIndices(images, 2),
+      // Must stay a subset of eagerSet: Next throws if an image carries both
+      // `priority` and loading="lazy".
+      prioritySet: aboveFoldIndices(images, 1),
+      rows: images.map((_, i) => ({ one: i, two: rowIn(s2, i), three: rowIn(s3, i) })),
+    };
+  }, [images]);
 
   const selectedImage = selected === null ? null : images[selected];
   const imageLoaded = selectedImage ? loadedUrls.has(selectedImage.url) : false;
+
+  useEffect(() => setMounted(true), []);
 
   const markLoaded = useCallback((url: string) => {
     setLoadedUrls((prev) => new Set(prev).add(url));
@@ -225,23 +250,36 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
   return (
     <>
       {/* ── Masonry grid ────────────────────────────────────────────────────── */}
-      <div data-gallery-grid className="columns-1 gap-4 space-y-4 sm:columns-2 lg:columns-3">
+      <div ref={gridRef} data-gallery-grid className="columns-1 gap-4 space-y-4 sm:columns-2 lg:columns-3">
         {images.map((img, index) => (
           <GalleryTile
             key={img.key}
             img={img}
             index={index}
-            visualRow={index % perColumn}
+            rows={layout.rows[index]}
+            breakClass={[
+              layout.two.has(index) ? "sm:max-lg:break-before-column" : "",
+              layout.three.has(index) ? "lg:break-before-column" : "",
+            ].filter(Boolean).join(" ")}
+            eager={layout.eagerSet.has(index)}
+            priority={layout.prioritySet.has(index)}
             onSelect={() => setSelected(index)}
           />
         ))}
       </div>
 
       {/* ── Modal ───────────────────────────────────────────────────────────── */}
-      {selectedImage && createPortal(
-        <div
+      {mounted && createPortal(
+        <AnimatePresence>
+        {selectedImage && (
+        <motion.div
+          key="gallery-modal"
           className="fixed inset-0 z-50 flex flex-col bg-brand-bg/95 backdrop-blur-sm"
           onClick={() => setSelected(null)}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0, transition: { duration: MODAL_OUT, ease: EASE_OUT } }}
+          transition={{ duration: MODAL_IN, ease: EASE_OUT }}
         >
           {/* Close */}
           <button
@@ -254,7 +292,14 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
           </button>
 
           {/* ── Mobile ── */}
-          <div className="flex flex-1 flex-col md:hidden" onClick={(e) => e.stopPropagation()}>
+          <motion.div
+            className="flex flex-1 flex-col md:hidden"
+            onClick={(e) => e.stopPropagation()}
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.98, transition: { duration: MODAL_OUT, ease: EASE_OUT } }}
+            transition={{ duration: MODAL_IN, ease: EASE_OUT }}
+          >
             <div className="flex flex-1 items-center justify-center overflow-hidden px-4 pb-4 pt-14">
               <Image
                 {...imageSource(selectedImage)}
@@ -296,7 +341,7 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
                 →
               </button>
             </div>
-          </div>
+          </motion.div>
 
           {/* ── Desktop ── */}
           <div className="hidden flex-1 items-center justify-center md:flex">
@@ -309,10 +354,14 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
               ←
             </button>
 
-            <div
+            <motion.div
               className="relative flex flex-col items-center"
               style={{ width: "calc(100vw - 120px)", maxHeight: "100vh", padding: "20px 0" }}
               onClick={(e) => e.stopPropagation()}
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.98, transition: { duration: MODAL_OUT, ease: EASE_OUT } }}
+              transition={{ duration: MODAL_IN, ease: EASE_OUT }}
             >
               <Image
                 key={selectedImage.url}
@@ -343,7 +392,7 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
                 </p>
                 {actionButtons}
               </div>
-            </div>
+            </motion.div>
 
             <button
               type="button"
@@ -354,7 +403,9 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
               →
             </button>
           </div>
-        </div>,
+        </motion.div>
+        )}
+        </AnimatePresence>,
         document.body
       )}
     </>

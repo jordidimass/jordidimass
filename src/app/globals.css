@@ -87,6 +87,35 @@ body {
   animation: none !important;
 }
 
+@keyframes jd-tile-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* The gallery entrance runs in CSS, off the main thread and straight from the
+   prerendered HTML. Driving it from Motion meant the tiles rendered at
+   opacity 0 and stayed invisible until hydration finished — which, on a slow
+   connection, is after the images themselves have already arrived. */
+.jd-tile {
+  animation: jd-tile-in 300ms var(--ease-out) both;
+  animation-delay: calc(min(var(--jd-row, 0), 9) * 50ms);
+}
+@media (min-width: 640px) {
+  .jd-tile { animation-delay: calc(min(var(--jd-row-2, 0), 9) * 50ms); }
+}
+@media (min-width: 1024px) {
+  .jd-tile { animation-delay: calc(min(var(--jd-row-3, 0), 9) * 50ms); }
+}
+/* Below-fold tiles wait for the viewport. Set by JS only, so a tile is always
+   visible if the script never runs. */
+.jd-tile[data-pending] {
+  animation: none;
+  opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .jd-tile { animation: jd-tile-in 300ms var(--ease-out) both; animation-delay: 0ms; }
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;

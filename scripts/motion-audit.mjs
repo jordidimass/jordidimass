@@ -277,6 +277,16 @@ check('every rAF background respects the motion toggle', () => {
 
 /* ── Gallery image pipeline ───────────────────────────────────────────────── */
 
+check('column packing fills every column and stays balanced', () => {
+  // A split that returned fewer starts than columns left the last column empty
+  // and dumped its images into the previous one.
+  const src = read('src/lib/gallery.ts');
+  if (/acc >= target \* starts\.length/.test(src))
+    return 'threshold scales with the column index while acc resets — later breaks can never fire';
+  if (!/acc >= target &&/.test(src)) return 'column break threshold not found';
+  return null;
+});
+
 check('gallery images pick their source from worker capability', () => {
   const bad = [];
   for (const f of SRC.filter((x) => x.includes('/gallery/'))) {
@@ -299,6 +309,20 @@ check('variants are only requested once the worker advertises them', () => {
     return 'no original fallback for a worker without derived variants';
   if (!/\?v=\$\{version\}/.test(read('src/lib/galleryLoader.ts')))
     return 'derived URLs are not versioned, so a re-derive would serve stale immutable variants';
+  return null;
+});
+
+check('priority images are a subset of eager ones', () => {
+  const s = read('src/app/gallery/GalleryClient.tsx');
+  // Next throws at runtime if an image carries both `priority` and
+  // loading="lazy", so the priority set must never escape the eager set.
+  const eagerRows = /eagerSet: aboveFoldIndices\(images, (\d+)\)/.exec(s)?.[1];
+  const prioRows = /prioritySet: aboveFoldIndices\(images, (\d+)\)/.exec(s)?.[1];
+  if (!eagerRows || !prioRows) return 'eager/priority sets are not both derived from the packing';
+  if (Number(prioRows) > Number(eagerRows))
+    return `priority covers ${prioRows} rows but eager only ${eagerRows} — priority would imply loading="lazy"`;
+  if (/priority=\{index < /.test(s)) return 'priority is still index-based, so it can disagree with the packing';
+  if (!/priority=\{priority\}/.test(s)) return 'priority prop is not driven by the packing';
   return null;
 });
 
@@ -328,25 +352,67 @@ check('image width ladder is consistent across loader, config and derive script'
   return null;
 });
 
-check('gallery tile reveal is gated on both viewport and decode', () => {
+check('gallery entrance runs in CSS, not behind hydration', () => {
+  const css = read('src/app/globals.css');
   const s = read('src/app/gallery/GalleryClient.tsx');
-  if (!/useInView\(ref,\s*\{\s*once:\s*true/.test(s)) return 'no once-only useInView on the tile';
-  if (!/onLoad=\{\(\) => setLoaded\(true\)\}/.test(s)) return 'reveal is not gated on image load';
-  if (!/onError=\{\(\) => setLoaded\(true\)\}/.test(s)) return 'a failed image would stay invisible forever';
-  if (!/imgRef\.current\?\.complete/.test(s)) return 'a cached image could miss onLoad and stay invisible';
-  if (!/revealed = inView && loaded/.test(s)) return 'reveal is not gated on both';
+  // A Motion-driven entrance renders opacity:0 into the SSR HTML and only
+  // clears after hydration, so on a slow connection the gallery stayed black
+  // until the JS bundle landed — after the images had already arrived.
+  if (!/@keyframes jd-tile-in/.test(css)) return 'no CSS keyframes for the tile entrance';
+  if (!/\.jd-tile\s*\{[\s\S]*?animation: jd-tile-in/.test(css)) return '.jd-tile does not run the entrance';
+  if (!/\.jd-tile\[data-pending\]/.test(css)) return 'no opt-in hidden state for below-fold tiles';
+  if (/<motion\.div[\s\S]{0,200}data-gallery-tile/.test(s)) return 'tile wrapper is still a motion component';
+  if (!/className=\{`jd-tile /.test(s)) return 'tile does not carry the jd-tile class';
+  return null;
+});
+
+check('gallery renders without JavaScript', () => {
+  const fs = readdirSync(join(ROOT, 'src/app/gallery'));
+  // loading.tsx introduces a Suspense boundary on a statically prerendered
+  // route: the real grid ships in the HTML but stays hidden until JS swaps it.
+  if (fs.includes('loading.tsx')) return 'loading.tsx makes the prerendered grid JS-dependent';
+  const s = read('src/app/gallery/GalleryClient.tsx');
+  if (/data-pending/.test(s) && !/setAttribute\("data-pending"/.test(s))
+    return 'pending state is not applied by script only';
+  return null;
+});
+
+check('column packing is deterministic so the server can set priority', () => {
+  const g = read('src/lib/gallery.ts');
+  if (!/export function columnStarts/.test(g)) return 'no deterministic column split';
+  if (!/export function aboveFoldIndices/.test(g)) return 'no above-fold index set';
+  const s = read('src/app/gallery/GalleryClient.tsx');
+  if (!/break-before-column/.test(s)) return 'column breaks are not forced, so CSS balances unpredictably';
+  if (!/eager=\{layout\.eagerSet\.has\(index\)\}/.test(s)) return 'eager is not driven by the packing';
+  if (!/loading=\{eager \? "eager" : "lazy"\}/.test(s)) return 'loading is not driven by the packing';
+  return null;
+});
+
+check('modal animates in and out, faster on exit', () => {
+  const s = read('src/app/gallery/GalleryClient.tsx');
+  if (!/<AnimatePresence>/.test(s)) return 'modal has no AnimatePresence, so it cannot animate out';
+  const inD = Number(/MODAL_IN = ([\d.]+)/.exec(s)?.[1]);
+  const outD = Number(/MODAL_OUT = ([\d.]+)/.exec(s)?.[1]);
+  if (!inD || !outD) return 'modal durations not defined';
+  if (inD > 0.5 || inD < 0.2) return `enter ${inD * 1000}ms outside the 200-500ms modal band`;
+  if (outD >= inD) return 'exit is not faster than enter';
+  if (!/scale: 0\.9[5-8]/.test(s)) return 'modal does not scale in from 0.95-0.98';
+  if (/scale: 0(\.0+)?[,}]/.test(s)) return 'modal scales from zero';
   return null;
 });
 
 check('gallery stagger is row-based, within budget, and capped', () => {
+  const css = read('src/app/globals.css');
+  const delay = /animation-delay: calc\(min\(var\(--jd-row[^)]*\), (\d+)\) \* (\d+)ms\)/.exec(css);
+  if (!delay) return 'tile stagger delay not found in CSS';
+  const [, cap, step] = delay;
+  if (Number(step) > 80) return `stagger ${step}ms exceeds the 80ms bar`;
+  if (Number(cap) > 12) return `stagger cap of ${cap} rows makes the tail too long`;
+  // CSS columns fill column-first, so the delay must key off the row within a
+  // column, not the DOM index.
+  if (!/--jd-row-3/.test(css)) return 'no per-breakpoint row delay';
   const s = read('src/app/gallery/GalleryClient.tsx');
-  const step = Number(/STAGGER_STEP = ([\d.]+)/.exec(s)?.[1]);
-  if (!step) return 'STAGGER_STEP not found';
-  if (step > 0.08) return `stagger ${step * 1000}ms exceeds the 80ms bar`;
-  if (!/STAGGERED_TILES = \d+/.test(s)) return 'stagger is not capped';
-  // CSS columns fill column-first, so a raw index stagger would wipe by column.
-  if (!/visualRow \* STAGGER_STEP/.test(s)) return 'stagger uses raw index rather than visual row';
-  if (!/visualRow=\{index % perColumn\}/.test(s)) return 'visual row is not derived from the column count';
+  if (!/"--jd-row-3": rows\.three/.test(s)) return 'rows are not passed per breakpoint';
   return null;
 });
 
