@@ -44,15 +44,60 @@ const OpenPageIcon = (
   </svg>
 );
 
+const HOLD_TIMEOUT_MS = 4000;
+
 /**
- * Progressive enhancement for below-fold tiles.
+ * Runs at HTML parse time, long before hydration.
  *
- * The entrance itself is CSS, so it works from the prerendered HTML with no JS.
- * This only *delays* tiles that start off-screen, so they animate as you reach
- * them. It marks them pending in a layout effect (before paint) and clears that
- * on intersection. If the script never runs, every tile is simply visible.
+ * The reveal has to wait for the first screenful to decode, but on a slow
+ * connection React does not hydrate until well after the images have started
+ * arriving — so a React effect released the hold far too late to matter, and
+ * the grid revealed itself piecemeal. This is inline and synchronous instead.
  */
-function useScrollReveal(gridRef: React.RefObject<HTMLDivElement | null>, count: number) {
+const RELEASE_SCRIPT = `(function(){
+  var g=document.querySelector('[data-gallery-grid][data-hold]');
+  if(!g) return;
+  var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    || document.documentElement.getAttribute('data-motion')==='off';
+  g.__jdHoldManaged = true;
+  var release=function(){ g.removeAttribute('data-hold'); };
+  if(reduce){ release(); return; }
+  var done=false, fire=function(){ if(!done){ done=true; release(); } };
+  setTimeout(fire, ${HOLD_TIMEOUT_MS});
+  var start=function(){
+    var vh=window.innerHeight, imgs=[];
+    var tiles=g.querySelectorAll('[data-gallery-tile]');
+    for(var i=0;i<tiles.length;i++){
+      if(tiles[i].getBoundingClientRect().top>=vh) continue;
+      var im=tiles[i].querySelector('img');
+      if(im) imgs.push(im);
+    }
+    if(!imgs.length){ fire(); return; }
+    var left=imgs.length;
+    var tick=function(){ if(--left<=0) fire(); };
+    for(var j=0;j<imgs.length;j++){
+      if(imgs[j].complete && imgs[j].naturalWidth>0){ tick(); continue; }
+      imgs[j].addEventListener('load', tick, {once:true});
+      imgs[j].addEventListener('error', tick, {once:true});
+    }
+  };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', start, {once:true});
+  else start();
+})();`;
+
+/**
+ * Holds the first screenful until every one of its images has decoded, then
+ * releases them together so the CSS row delays play as one cascade.
+ *
+ * Without this the reveal follows network arrival order, so the gallery filled
+ * in piecemeal and looked different on every load. Releasing as a group makes
+ * the entrance deterministic.
+ *
+ * Everything here is additive: the hold is only ever applied by script, so if
+ * this never runs the tiles animate straight from the prerendered HTML. A
+ * timeout releases them regardless, so a stalled image cannot strand the page.
+ */
+function useGalleryReveal(gridRef: React.RefObject<HTMLDivElement | null>, count: number) {
   useLayoutEffect(() => {
     const grid = gridRef.current;
     if (!grid) return;
@@ -60,23 +105,52 @@ function useScrollReveal(gridRef: React.RefObject<HTMLDivElement | null>, count:
     if (document.documentElement.getAttribute("data-motion") === "off") return;
 
     const tiles = [...grid.querySelectorAll<HTMLElement>("[data-gallery-tile]")];
-    const cutoff = window.innerHeight * 1.2;
-    const deferred = tiles.filter((el) => el.getBoundingClientRect().top > cutoff);
+    const viewport = window.innerHeight;
+    const deferred = tiles.filter((el) => el.getBoundingClientRect().top >= viewport * 1.2);
     for (const el of deferred) el.setAttribute("data-pending", "");
 
-    if (!deferred.length) return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) {
-          if (!e.isIntersecting) continue;
-          (e.target as HTMLElement).removeAttribute("data-pending");
-          io.unobserve(e.target);
-        }
-      },
-      { rootMargin: "200px" }
-    );
-    deferred.forEach((el) => io.observe(el));
-    return () => io.disconnect();
+    // On first load the inline script owns the hold and has already started
+    // waiting; releasing here too would race it and reveal an undecoded grid.
+    // Client-side navigation does not run that script, so redo its work.
+    let timer = 0;
+    // Ownership is a JS property, not an attribute: writing an attribute here
+    // would differ from the server HTML and trip a hydration mismatch.
+    if (!(grid as HTMLDivElement & { __jdHoldManaged?: boolean }).__jdHoldManaged) {
+      const firstScreen = tiles.filter((el) => el.getBoundingClientRect().top < viewport);
+      const imgs = firstScreen
+        .map((el) => el.querySelector("img"))
+        .filter((el): el is HTMLImageElement => el !== null);
+      let left = imgs.length;
+      const release = () => grid.removeAttribute("data-hold");
+      const tick = () => { if (--left <= 0) release(); };
+      for (const img of imgs) {
+        if (img.complete && img.naturalWidth > 0) { tick(); continue; }
+        img.addEventListener("load", tick, { once: true });
+        img.addEventListener("error", tick, { once: true });
+      }
+      if (!imgs.length) release();
+      timer = window.setTimeout(release, HOLD_TIMEOUT_MS);
+    }
+
+    let io: IntersectionObserver | undefined;
+    if (deferred.length) {
+      io = new IntersectionObserver(
+        (entries) => {
+          for (const e of entries) {
+            if (!e.isIntersecting) continue;
+            (e.target as HTMLElement).removeAttribute("data-pending");
+            io?.unobserve(e.target);
+          }
+        },
+        { rootMargin: "200px" }
+      );
+      deferred.forEach((el) => io!.observe(el));
+    }
+
+    return () => {
+      window.clearTimeout(timer);
+      io?.disconnect();
+    };
   }, [gridRef, count]);
 }
 
@@ -108,6 +182,8 @@ function GalleryTile({
         "--jd-row-3": rows.three,
       } as React.CSSProperties}
     >
+      <div aria-hidden="true" className="jd-skeleton" />
+      <div className="jd-tile-content">
       <button
         type="button"
         onClick={onSelect}
@@ -137,6 +213,7 @@ function GalleryTile({
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 rounded-sm opacity-0 shadow-[0_10px_28px_rgba(0,0,0,0.35),0_0_0_1px_rgba(245,245,245,0.08)] transition-opacity duration-200 group-hover:opacity-100"
       />
+      </div>
     </div>
   );
 }
@@ -148,7 +225,7 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
   const [downloading, setDownloading] = useState(false);
   const [mounted, setMounted] = useState(false);
   const gridRef = useRef<HTMLDivElement>(null);
-  useScrollReveal(gridRef, images.length);
+  useGalleryReveal(gridRef, images.length);
 
   // Deterministic packing, computed on the server: forcing the column breaks is
   // what lets `eager` reach the top of every column instead of only column one.
@@ -250,7 +327,7 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
   return (
     <>
       {/* ── Masonry grid ────────────────────────────────────────────────────── */}
-      <div ref={gridRef} data-gallery-grid className="columns-1 gap-4 space-y-4 sm:columns-2 lg:columns-3">
+      <div ref={gridRef} data-gallery-grid data-hold className="columns-1 gap-4 space-y-4 sm:columns-2 lg:columns-3">
         {images.map((img, index) => (
           <GalleryTile
             key={img.key}
@@ -267,6 +344,10 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
           />
         ))}
       </div>
+      <noscript>
+        <style>{`[data-gallery-grid][data-hold] .jd-tile-content{animation:jd-tile-in 300ms var(--ease-out) both}[data-gallery-grid][data-hold] .jd-skeleton{opacity:0}`}</style>
+      </noscript>
+      <script dangerouslySetInnerHTML={{ __html: RELEASE_SCRIPT }} />
 
       {/* ── Modal ───────────────────────────────────────────────────────────── */}
       {mounted && createPortal(

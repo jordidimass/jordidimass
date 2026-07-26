@@ -36,7 +36,9 @@ const BLUR_QUALITY = 40;
 const args = process.argv.slice(2);
 const force = args.includes("--force");
 const local = args.includes("--local");
-const photosDir = args.find((a) => !a.startsWith("--"));
+const onlyIdx = args.indexOf("--only");
+const only = onlyIdx !== -1 ? args[onlyIdx + 1] : null;
+const photosDir = args.find((a, i) => !a.startsWith("--") && (onlyIdx === -1 || i !== onlyIdx + 1));
 
 const SUPPORTED = new Set([".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif"]);
 
@@ -113,7 +115,9 @@ async function main() {
 
   // Reusing a prior manifest entry is what keeps a re-run from re-downloading
   // every original just to regenerate a blur that has not changed.
-  const priorManifest = force ? new Map() : await fetchExistingManifest();
+  // Keep the prior manifest even under --force: it is what lets --only rebuild
+  // one photo without discarding the other 42 entries.
+  const priorManifest = await fetchExistingManifest();
   if (priorManifest.size) console.log(`Reusing ${priorManifest.size} manifest entries where nothing changed.`);
 
   const scratch = mkdtempSync(join(tmpdir(), "gallery-derive-"));
@@ -127,7 +131,12 @@ async function main() {
     for (const entry of entries) {
       const key = entry.key;
 
-      const prior = priorManifest.get(key);
+      if (only && !key.toLowerCase().includes(only.toLowerCase())) {
+        const kept = priorManifest.get(key);
+        if (kept) { manifest.push(kept); reused++; continue; }
+      }
+
+      const prior = force ? undefined : priorManifest.get(key);
       if (prior?.widths?.length && prior.blurDataURL && prior.width && prior.height) {
         const complete = (
           await Promise.all(prior.widths.map((w) => variantExists(key, w)))
@@ -152,8 +161,13 @@ async function main() {
       }
 
       const meta = await sharp(buf).metadata();
-      const srcWidth = meta.width ?? 0;
-      const srcHeight = meta.height ?? 0;
+      // EXIF orientation >= 5 means the stored pixels are rotated a quarter
+      // turn from how the photo should display. sharp does not auto-orient, so
+      // without this the derived image comes out sideways and the manifest
+      // records the wrong aspect ratio.
+      const swapped = (meta.orientation ?? 1) >= 5;
+      const srcWidth = (swapped ? meta.height : meta.width) ?? 0;
+      const srcHeight = (swapped ? meta.width : meta.height) ?? 0;
       if (!srcWidth || !srcHeight) {
         console.error("    ✗ could not read dimensions");
         failed++;
@@ -180,7 +194,7 @@ async function main() {
         }
 
         const outFile = join(scratch, `${width}.webp`);
-        await sharp(buf).resize({ width: target, withoutEnlargement: true }).webp({ quality }).toFile(outFile);
+        await sharp(buf).rotate().resize({ width: target, withoutEnlargement: true }).webp({ quality }).toFile(outFile);
 
         try {
           r2Put(outKey, outFile, "image/webp");
@@ -194,7 +208,7 @@ async function main() {
         }
       }
 
-      const blur = await sharp(buf).resize({ width: BLUR_WIDTH }).webp({ quality: BLUR_QUALITY }).toBuffer();
+      const blur = await sharp(buf).rotate().resize({ width: BLUR_WIDTH }).webp({ quality: BLUR_QUALITY }).toBuffer();
 
       manifest.push({
         key,

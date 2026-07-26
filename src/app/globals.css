@@ -92,28 +92,57 @@ body {
   to   { opacity: 1; transform: none; }
 }
 
-/* The gallery entrance runs in CSS, off the main thread and straight from the
+@keyframes jd-skeleton {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 0.9; }
+}
+
+/* The entrance runs in CSS, off the main thread and straight from the
    prerendered HTML. Driving it from Motion meant the tiles rendered at
    opacity 0 and stayed invisible until hydration finished — which, on a slow
    connection, is after the images themselves have already arrived. */
-.jd-tile {
+.jd-tile-content {
   animation: jd-tile-in 300ms var(--ease-out) both;
   animation-delay: calc(min(var(--jd-row, 0), 9) * 50ms);
 }
 @media (min-width: 640px) {
-  .jd-tile { animation-delay: calc(min(var(--jd-row-2, 0), 9) * 50ms); }
+  .jd-tile-content { animation-delay: calc(min(var(--jd-row-2, 0), 9) * 50ms); }
 }
 @media (min-width: 1024px) {
-  .jd-tile { animation-delay: calc(min(var(--jd-row-3, 0), 9) * 50ms); }
+  .jd-tile-content { animation-delay: calc(min(var(--jd-row-3, 0), 9) * 50ms); }
 }
-/* Below-fold tiles wait for the viewport. Set by JS only, so a tile is always
-   visible if the script never runs. */
-.jd-tile[data-pending] {
+
+/* Skeleton fills the reserved box while a tile waits. It crossfades out as the
+   content fades in, so there is never a blank frame between the two. */
+.jd-skeleton {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--color-brand-muted) 7%, transparent);
+  opacity: 0;
+  transition: opacity 300ms var(--ease-out);
+  pointer-events: none;
+}
+
+/* data-hold: first screenful, waiting for all of its images to decode so the
+   cascade plays as one group. data-pending: below-fold, waiting for the
+   viewport. Both are set by script only, so a tile is always visible if the
+   script never runs. */
+[data-gallery-grid][data-hold] .jd-tile-content,
+.jd-tile[data-pending] .jd-tile-content {
   animation: none;
   opacity: 0;
 }
+[data-gallery-grid][data-hold] .jd-skeleton,
+.jd-tile[data-pending] .jd-skeleton {
+  opacity: 1;
+  animation: jd-skeleton 1.6s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .jd-tile { animation: jd-tile-in 300ms var(--ease-out) both; animation-delay: 0ms; }
+  .jd-tile-content { animation-delay: 0ms; }
+  [data-gallery-grid][data-hold] .jd-skeleton,
+  .jd-tile[data-pending] .jd-skeleton { animation: none; opacity: 1; }
 }
 
 @layer utilities {

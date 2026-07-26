@@ -359,10 +359,42 @@ check('gallery entrance runs in CSS, not behind hydration', () => {
   // clears after hydration, so on a slow connection the gallery stayed black
   // until the JS bundle landed — after the images had already arrived.
   if (!/@keyframes jd-tile-in/.test(css)) return 'no CSS keyframes for the tile entrance';
-  if (!/\.jd-tile\s*\{[\s\S]*?animation: jd-tile-in/.test(css)) return '.jd-tile does not run the entrance';
-  if (!/\.jd-tile\[data-pending\]/.test(css)) return 'no opt-in hidden state for below-fold tiles';
+  if (!/\.jd-tile-content\s*\{[\s\S]*?animation: jd-tile-in/.test(css)) return 'entrance is not on the tile content wrapper';
+  if (!/data-pending\] \.jd-tile-content/.test(css)) return 'no opt-in hidden state for below-fold tiles';
+  if (!/\.jd-skeleton/.test(css)) return 'no skeleton for the waiting state';
+  if (!/\.jd-skeleton\s*\{[\s\S]*?transition: opacity/.test(css))
+    return 'skeleton does not crossfade out, so it would hard-swap to the image';
   if (/<motion\.div[\s\S]{0,200}data-gallery-tile/.test(s)) return 'tile wrapper is still a motion component';
   if (!/className=\{`jd-tile /.test(s)) return 'tile does not carry the jd-tile class';
+  return null;
+});
+
+check('first screenful is held until it has fully decoded', () => {
+  const s = read('src/app/gallery/GalleryClient.tsx');
+  const css = read('src/app/globals.css');
+  // React hydrates long after the images start arriving on a slow connection,
+  // so the hold has to ship in the HTML and be released by an inline script.
+  if (!/data-gallery-grid data-hold/.test(s)) return 'grid does not render the hold into SSR HTML';
+  if (!/\[data-gallery-grid\]\[data-hold\] \.jd-tile-content/.test(css)) return 'no CSS rule backing the hold';
+  if (!/RELEASE_SCRIPT/.test(s)) return 'no inline parse-time release script';
+  if (!/__jdHoldManaged/.test(s))
+    return 'no ownership handoff — the React effect would race the inline script and reveal early';
+  if (/setAttribute\('data-hold-managed/.test(s))
+    return 'ownership written as an attribute — differs from server HTML and trips hydration';
+  if (!/<noscript>/.test(s)) return 'no noscript fallback, so the grid stays hidden without JS';
+  const timeout = Number(/HOLD_TIMEOUT_MS = (\d+)/.exec(s)?.[1]);
+  if (!timeout) return 'no safety timeout';
+  if (timeout > 6000) return `safety timeout of ${timeout}ms leaves the page blank too long`;
+  return null;
+});
+
+check('derived images honour EXIF orientation', () => {
+  const d = read('cloudflare/derive.mjs');
+  // sharp does not auto-orient; without .rotate() a portrait photo shot with an
+  // EXIF orientation tag comes out sideways and its manifest ratio is wrong.
+  if (!/sharp\(buf\)\.rotate\(\)\.resize/.test(d)) return 'variants are generated without .rotate()';
+  if (!/sharp\(buf\)\.rotate\(\)\.resize\(\{ width: BLUR_WIDTH/.test(d)) return 'blur placeholder skips .rotate()';
+  if (!/orientation \?\? 1\) >= 5/.test(d)) return 'manifest dimensions ignore EXIF orientation';
   return null;
 });
 
