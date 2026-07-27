@@ -49,3 +49,8 @@ next-env.d.ts
 
 # cloudflare / wrangler local state
 .wrangler/
+
+# agent skills / assistant config (local tooling, not app code)
+.agents/
+.factory/
+.claude/

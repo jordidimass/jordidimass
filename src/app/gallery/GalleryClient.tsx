@@ -57,7 +57,9 @@ const HOLD_TIMEOUT_MS = 4000;
 const RELEASE_SCRIPT = `(function(){
   var g=document.querySelector('[data-gallery-grid][data-hold]');
   if(!g) return;
-  var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  var single=!window.matchMedia('(min-width: 640px)').matches;
+  var reduce=single
+    || window.matchMedia('(prefers-reduced-motion: reduce)').matches
     || document.documentElement.getAttribute('data-motion')==='off';
   g.__jdHoldManaged = true;
   var release=function(){ g.removeAttribute('data-hold'); };
@@ -110,7 +112,10 @@ function useGalleryReveal(gridRef: React.RefObject<HTMLDivElement | null>, count
     for (const el of deferred) el.setAttribute("data-pending", "");
 
     let timer = 0;
-    if (!(grid as HTMLDivElement & { __jdHoldManaged?: boolean }).__jdHoldManaged) {
+    const singleColumn = !window.matchMedia("(min-width: 640px)").matches;
+    if (singleColumn) grid.removeAttribute("data-hold");
+
+    if (!singleColumn && !(grid as HTMLDivElement & { __jdHoldManaged?: boolean }).__jdHoldManaged) {
       const firstScreen = tiles.filter((el) => el.getBoundingClientRect().top < viewport);
       const imgs = firstScreen
         .map((el) => el.querySelector("img"))

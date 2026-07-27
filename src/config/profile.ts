@@ -12,7 +12,7 @@ export interface ProfileData {
 
 export const profileData: ProfileData = {
   name: "Jordi Dimas",
-  avatar: "https://utfs.io/f/c07cbb6c-bf22-46bc-bdc3-c711408f5856-1xaifo.jpg",
+  avatar: "/avatar.webp",
   links: [
     { title: "occasional photographer", href: "https://unsplash.com/@jordidimass" },
     { title: "VSCO gallery", href: "https://vsco.co/jordidimass/gallery" },

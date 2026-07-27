@@ -221,10 +221,14 @@ function Particles({ isMobile }: { isMobile: boolean }) {
 
   const count = isMobile ? MOBILE_PARTICLE_COUNT : PARTICLE_COUNT;
 
-  const shapes = useMemo(
-    () => [makeGalaxy(count), makeDNA(count), makeNeural(count)],
-    [count]
-  );
+  const builders = useMemo(() => [makeGalaxy, makeDNA, makeNeural], []);
+  const shapeCache = useRef<(Float32Array | undefined)[]>([]);
+
+  const shapes = useMemo(() => {
+    shapeCache.current = [];
+    const get = (i: number) => (shapeCache.current[i] ??= builders[i](count));
+    return { get, length: builders.length };
+  }, [builders, count]);
 
   const { positions, targets, colors, sizes, randoms } = useMemo(() => {
     const positions = new Float32Array(count * 3);
@@ -232,8 +236,9 @@ function Particles({ isMobile }: { isMobile: boolean }) {
     const colors    = new Float32Array(count * 3);
     const sizes     = new Float32Array(count);
     const randoms   = new Float32Array(count);
-    positions.set(shapes[0]);
-    targets.set(shapes[0]);
+    const first = shapes.get(0);
+    positions.set(first);
+    targets.set(first);
     const cWhite  = new THREE.Color(0xffffff);
     const cOrange = new THREE.Color(0xff8800);
     const cDeep   = new THREE.Color(0xff4400);
@@ -276,7 +281,7 @@ function Particles({ isMobile }: { isMobile: boolean }) {
       if (ms.isMorphing || to === ms.currentShape) return;
 
       const targetAttr = geo.attributes.aTarget as THREE.BufferAttribute;
-      (targetAttr.array as Float32Array).set(shapes[to]);
+      (targetAttr.array as Float32Array).set(shapes.get(to));
       targetAttr.needsUpdate = true;
 
       mat.uniforms.uMorph.value = 0;
@@ -365,7 +370,7 @@ function Particles({ isMobile }: { isMobile: boolean }) {
 
       if (raw >= 1) {
         const posAttr = geo.attributes.position as THREE.BufferAttribute;
-        (posAttr.array as Float32Array).set(shapes[ms.targetShape]);
+        (posAttr.array as Float32Array).set(shapes.get(ms.targetShape));
         posAttr.needsUpdate = true;
 
         ms.isMorphing   = false;

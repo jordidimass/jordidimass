@@ -1,10 +1,9 @@
-import Particles from '@/components/ui/particles';
-import GalaxyBackground from '@/components/GalaxyBackground';
+import { DeferredParticles, DeferredGalaxy } from '@/components/DeferredBackground';
 
 export default function HomePage() {
   return (
     <div className="fixed inset-0 w-screen h-screen flex flex-col lg:flex-row bg-brand-bg overflow-hidden">
-      <Particles
+      <DeferredParticles
         className="absolute inset-0 w-full h-full z-0"
         quantity={350}
         staticity={10}
@@ -24,7 +23,7 @@ export default function HomePage() {
       </div>
 
       <div className="flex-1 lg:w-1/2 relative z-10">
-        <GalaxyBackground />
+        <DeferredGalaxy />
       </div>
     </div>
   );

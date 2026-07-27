@@ -24,12 +24,7 @@ export default function AboutPage() {
     <div className="min-h-screen bg-brand-bg text-brand-accent pt-24 pb-24 px-8">
       <div className="max-w-4xl mx-auto space-y-16">
         {/* intro section */}
-        <motion.section 
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, ease: EASE_OUT }}
-          className="space-y-6"
-        >
+        <section className="space-y-6">
           <h1 className="text-4xl font-light tracking-widest font-serif text-brand-accent">
             jordi dimas
           </h1>
@@ -37,12 +32,12 @@ export default function AboutPage() {
             software developer from guatemala, with a deep fascination for physics, 
             systems theory, and the intricate world of computer science.
           </p>
-        </motion.section>
+        </section>
 
         {/* philosophy section */}
         <motion.section
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ y: 8 }}
+          animate={{ y: 0 }}
           transition={{ duration: 0.3, delay: 0.05, ease: EASE_OUT }}
           className="space-y-6"
         >
@@ -56,8 +51,8 @@ export default function AboutPage() {
 
         {/* skills section */}
         <motion.section
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ y: 8 }}
+          animate={{ y: 0 }}
           transition={{ duration: 0.3, delay: 0.1, ease: EASE_OUT }}
           className="space-y-6"
         >
@@ -84,8 +79,8 @@ export default function AboutPage() {
 
         {/* contact/collaboration section */}
         <motion.section
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ y: 8 }}
+          animate={{ y: 0 }}
           transition={{ duration: 0.3, delay: 0.15, ease: EASE_OUT }}
           className="space-y-6"
         >
