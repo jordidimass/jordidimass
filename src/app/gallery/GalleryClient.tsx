@@ -109,12 +109,7 @@ function useGalleryReveal(gridRef: React.RefObject<HTMLDivElement | null>, count
     const deferred = tiles.filter((el) => el.getBoundingClientRect().top >= viewport * 1.2);
     for (const el of deferred) el.setAttribute("data-pending", "");
 
-    // On first load the inline script owns the hold and has already started
-    // waiting; releasing here too would race it and reveal an undecoded grid.
-    // Client-side navigation does not run that script, so redo its work.
     let timer = 0;
-    // Ownership is a JS property, not an attribute: writing an attribute here
-    // would differ from the server HTML and trip a hydration mismatch.
     if (!(grid as HTMLDivElement & { __jdHoldManaged?: boolean }).__jdHoldManaged) {
       const firstScreen = tiles.filter((el) => el.getBoundingClientRect().top < viewport);
       const imgs = firstScreen

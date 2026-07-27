@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getGalleryImages, slugFromKey } from "@/lib/gallery";
+import { ogCardUrl, OG_WIDTH, OG_HEIGHT } from "@/lib/galleryLoader";
 import DownloadButton from "./DownloadButton";
 import PhotoView from "./PhotoView";
 
@@ -14,13 +15,39 @@ export async function generateStaticParams() {
   return images.map((img) => ({ slug: slugFromKey(img.key) }));
 }
 
+const SITE_URL = "https://www.jordidimass.com";
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const images = await getGalleryImages();
   const image = images.find((img) => slugFromKey(img.key) === slug);
+  if (!image) return { title: `${slug} — gallery` };
+
+  const title = label(image.key);
+  const description = `${title} — photography by Jordi Dimas.`;
+  const url = `${SITE_URL}/gallery/${slug}`;
+  const card = ogCardUrl(image);
+
   return {
-    title: `${slug} — gallery`,
-    openGraph: image ? { images: [{ url: image.url }] } : undefined,
+    title: `${title} — gallery`,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      type: "article",
+      title,
+      description,
+      url,
+      siteName: "Jordi Dimas",
+      images: card
+        ? [{ url: card, width: OG_WIDTH, height: OG_HEIGHT, alt: title, type: "image/jpeg" }]
+        : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: card ? [card] : undefined,
+    },
   };
 }
 

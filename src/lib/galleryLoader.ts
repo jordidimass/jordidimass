@@ -52,3 +52,12 @@ export function imageSource(img: {
     src: img.version ? `${img.key}\u0000${img.version}` : img.key,
   } as const;
 }
+
+export const OG_WIDTH = 1200;
+export const OG_HEIGHT = 630;
+
+export function ogCardUrl(img: { key: string; og?: boolean; version?: string }): string | null {
+  if (!WORKER_URL || !img.og) return null;
+  const v = img.version ? `?v=${img.version}` : "";
+  return `${WORKER_URL}/v/og/${encodeURIComponent(img.key)}${v}`;
+}

@@ -30,6 +30,10 @@ const LADDER = [
   { width: 3200, quality: 88 },
 ];
 
+const OG_WIDTH = 1200;
+const OG_HEIGHT = 630;
+const OG_QUALITY = 82;
+
 const BLUR_WIDTH = 16;
 const BLUR_QUALITY = 40;
 
@@ -60,6 +64,17 @@ async function variantExists(key, width) {
   } catch {
     return false;
   }
+}
+
+async function buildOgCard(buf, key, scratch) {
+  const outFile = join(scratch, "og.jpg");
+  await sharp(buf)
+    .rotate()
+    .resize({ width: OG_WIDTH, height: OG_HEIGHT, fit: "cover", position: sharp.strategy.attention })
+    .jpeg({ quality: OG_QUALITY, mozjpeg: true })
+    .toFile(outFile);
+  r2Put(`derived/og/${key}.jpg`, outFile, "image/jpeg");
+  return statSync(outFile).size;
 }
 
 async function fetchExistingManifest() {
@@ -115,8 +130,6 @@ async function main() {
 
   // Reusing a prior manifest entry is what keeps a re-run from re-downloading
   // every original just to regenerate a blur that has not changed.
-  // Keep the prior manifest even under --force: it is what lets --only rebuild
-  // one photo without discarding the other 42 entries.
   const priorManifest = await fetchExistingManifest();
   if (priorManifest.size) console.log(`Reusing ${priorManifest.size} manifest entries where nothing changed.`);
 
@@ -142,7 +155,22 @@ async function main() {
           await Promise.all(prior.widths.map((w) => variantExists(key, w)))
         ).every(Boolean);
         if (complete) {
-          manifest.push(prior);
+          if (!prior.og && !(await variantExists(key, "og"))) {
+            try {
+              const src = await fetch(
+                `${WORKER_URL}/v/1280/${encodeURIComponent(key)}?fresh=${Date.now()}`
+              );
+              if (src.ok) {
+                const bytes = await buildOgCard(Buffer.from(await src.arrayBuffer()), key, scratch);
+                process.stdout.write(`  ${key}\n    og card → ${(bytes / 1024).toFixed(0)} KB\n`);
+                built++;
+              }
+            } catch (err) {
+              console.error(`  ${key}\n    ✗ og card: ${err.message}`);
+              failed++;
+            }
+          }
+          manifest.push({ ...prior, og: true });
           skipped += prior.widths.length;
           reused++;
           continue;
@@ -161,10 +189,6 @@ async function main() {
       }
 
       const meta = await sharp(buf).metadata();
-      // EXIF orientation >= 5 means the stored pixels are rotated a quarter
-      // turn from how the photo should display. sharp does not auto-orient, so
-      // without this the derived image comes out sideways and the manifest
-      // records the wrong aspect ratio.
       const swapped = (meta.orientation ?? 1) >= 5;
       const srcWidth = (swapped ? meta.height : meta.width) ?? 0;
       const srcHeight = (swapped ? meta.width : meta.height) ?? 0;
@@ -208,6 +232,15 @@ async function main() {
         }
       }
 
+      try {
+        const ogBytes = await buildOgCard(buf, key, scratch);
+        process.stdout.write(`    og card → ${(ogBytes / 1024).toFixed(0)} KB\n`);
+        built++;
+      } catch (err) {
+        console.error(`    ✗ og card: ${err.message}`);
+        failed++;
+      }
+
       const blur = await sharp(buf).rotate().resize({ width: BLUR_WIDTH }).webp({ quality: BLUR_QUALITY }).toBuffer();
 
       manifest.push({
@@ -216,6 +249,7 @@ async function main() {
         height: srcHeight,
         blurDataURL: `data:image/webp;base64,${blur.toString("base64")}`,
         widths: generated.sort((a, b) => a - b),
+        og: true,
       });
     }
 
@@ -223,6 +257,7 @@ async function main() {
     // so it must only move when the derived set actually changed.
     const priorImages = entries.map((e) => priorManifest.get(e.key)).filter(Boolean);
     const unchanged =
+      built === 0 &&
       priorImages.length === manifest.length &&
       JSON.stringify(priorImages) === JSON.stringify(manifest);
 

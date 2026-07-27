@@ -11,6 +11,7 @@ export interface GalleryImage {
   height?: number;
   blurDataURL?: string;
   widths?: number[];
+  og?: boolean;
   version?: string;
 }
 

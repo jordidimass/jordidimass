@@ -22,6 +22,7 @@ interface ManifestEntry {
   height: number;
   blurDataURL: string;
   widths: number[];
+  og?: boolean;
 }
 
 function corsHeaders(origin: string): HeadersInit {
@@ -184,6 +185,7 @@ export default {
                   height: entry.height,
                   blurDataURL: entry.blurDataURL,
                   widths: entry.widths,
+                  og: entry.og ?? false,
                 }
               : {}),
           };
@@ -206,10 +208,12 @@ export default {
       const slash = rest.indexOf("/");
       if (slash === -1) return new Response("Not Found", { status: 404, headers: cors });
 
-      const width = Number(rest.slice(0, slash));
+      const sizeSegment = rest.slice(0, slash);
       const key = decodeURIComponent(rest.slice(slash + 1));
+      const isOg = sizeSegment === "og";
+      const width = Number(sizeSegment);
 
-      if (!ALLOWED_WIDTHS.has(width)) {
+      if (!isOg && !ALLOWED_WIDTHS.has(width)) {
         return new Response("Unsupported width", { status: 400, headers: cors });
       }
 
@@ -220,7 +224,9 @@ export default {
       if (cached && cached.headers.get("X-JD-Variant") === "derived") return cached;
       if (cached) ctx.waitUntil(caches.default.delete(cacheKey));
 
-      const derived = await env.GALLERY.get(`${DERIVED_PREFIX}${width}/${key}.webp`);
+      const derived = await env.GALLERY.get(
+        isOg ? `${DERIVED_PREFIX}og/${key}.jpg` : `${DERIVED_PREFIX}${width}/${key}.webp`
+      );
       if (derived) {
         return serveObject(request, ctx, derived, key, "derived", cors);
       }
@@ -233,6 +239,10 @@ export default {
     // GET /image/:key — serve the untouched original (downloads, archival)
     if (path.startsWith("image/")) {
       const key = decodeURIComponent(path.slice("image/".length));
+
+      if (key.includes("/") || key === MANIFEST_KEY) {
+        return new Response("Not Found", { status: 404, headers: cors });
+      }
 
       const cacheKey = new Request(request.url, { method: "GET" });
       const cached = await caches.default.match(cacheKey);
