@@ -470,12 +470,14 @@ export default function FloatingTerminal() {
     };
   }, [isMobile, vPullBottomH]);
 
-  // ── Audio init ───────────────────────────────────────────────────────────────
-  useEffect(() => {
+  const ensureAudioSrc = useCallback(() => {
     const audio = audioRef.current;
-    if (!audio) return;
-    audio.src = TRACKS[trackRef.current].src;
-    audio.load();
+    if (!audio) return null;
+    if (!audio.src) {
+      audio.src = TRACKS[trackRef.current].src;
+      audio.load();
+    }
+    return audio;
   }, []);
 
   // ── AI stream → lines ────────────────────────────────────────────────────────
@@ -630,7 +632,7 @@ export default function FloatingTerminal() {
     const audio = audioRef.current;
     if (!audio) return;
     if (playing) { audio.pause(); setPlaying(false); }
-    else { audio.play().then(() => setPlaying(true)).catch(() => {}); }
+    else { ensureAudioSrc(); audio.play().then(() => setPlaying(true)).catch(() => {}); }
   }, [playing]);
 
   const switchTrack = useCallback(async (dir: 1 | -1): Promise<TrackKey> => {
@@ -653,7 +655,7 @@ export default function FloatingTerminal() {
     const audio = audioRef.current;
     if (!audio) return;
 
-    const onPlay = () => { audio.play().then(() => setPlaying(true)).catch(() => {}); };
+    const onPlay = () => { ensureAudioSrc(); audio.play().then(() => setPlaying(true)).catch(() => {}); };
     const onPause = () => { audio.pause(); setPlaying(false); };
     const onNext = () => switchTrack(1);
     const onPrev = () => switchTrack(-1);
@@ -663,6 +665,7 @@ export default function FloatingTerminal() {
       audio.pause(); setPlaying(false);
       trackRef.current = key; setTrackDisplay(key);
       audio.src = TRACKS[key].src; audio.load();
+      ensureAudioSrc();
       audio.play().then(() => setPlaying(true)).catch(() => {});
     };
 
@@ -760,7 +763,7 @@ export default function FloatingTerminal() {
     if (lo === "play") {
       const audio = audioRef.current;
       if (!audio) return;
-      if (!playing) audio.play().then(() => setPlaying(true)).catch(() => {});
+      if (!playing) { ensureAudioSrc(); audio.play().then(() => setPlaying(true)).catch(() => {}); }
       setLines((prev) => [...prev, mkLine(`playing: ${TRACKS[trackRef.current].title}`)]); return;
     }
     if (lo === "pause") {
@@ -1025,7 +1028,7 @@ export default function FloatingTerminal() {
       </AnimatePresence>
 
       {/* Audio — no src prop, managed imperatively */}
-      <audio ref={audioRef} />
+      <audio ref={audioRef} preload="none" />
     </>
   );
 }

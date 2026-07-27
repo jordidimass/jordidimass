@@ -57,8 +57,7 @@ const HOLD_TIMEOUT_MS = 4000;
 const RELEASE_SCRIPT = `(function(){
   var g=document.querySelector('[data-gallery-grid][data-hold]');
   if(!g) return;
-  var single=!window.matchMedia('(min-width: 640px)').matches;
-  var reduce=single
+  var reduce=!window.matchMedia('(min-width: 640px)').matches
     || window.matchMedia('(prefers-reduced-motion: reduce)').matches
     || document.documentElement.getAttribute('data-motion')==='off';
   g.__jdHoldManaged = true;

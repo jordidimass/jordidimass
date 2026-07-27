@@ -92,11 +92,6 @@ body {
   to   { opacity: 1; transform: none; }
 }
 
-@keyframes jd-tile-slide {
-  from { transform: translateY(8px); }
-  to   { transform: none; }
-}
-
 @keyframes jd-skeleton {
   0%, 100% { opacity: 0.5; }
   50%      { opacity: 0.9; }
@@ -109,9 +104,6 @@ body {
 .jd-tile-content {
   animation: jd-tile-in 300ms var(--ease-out) both;
   animation-delay: calc(min(var(--jd-row, 0), 9) * 50ms);
-}
-@media (max-width: 639px) {
-  .jd-tile-content { animation-name: jd-tile-slide; }
 }
 @media (min-width: 640px) {
   .jd-tile-content { animation-delay: calc(min(var(--jd-row-2, 0), 9) * 50ms); }

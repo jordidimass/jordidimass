@@ -34,6 +34,7 @@ export default function ConnectPage() {
               width={120}
               height={120}
               priority
+              unoptimized
             />
           </Link>
         </motion.div>
