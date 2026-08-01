@@ -7,7 +7,7 @@ export default function TableOfContents({ headings }: { headings: PostHeading[] 
   const activeId = useActiveHeading(headings);
 
   return (
-    <nav className="hidden lg:flex sticky top-24 h-fit flex-col gap-2">
+    <nav className="hidden lg:flex sticky top-24 max-h-[calc(100vh-7rem)] flex-col gap-2 overflow-y-auto">
       <small className="text-brand-muted">On this page</small>
       {headings.map((h) => (
         <a
