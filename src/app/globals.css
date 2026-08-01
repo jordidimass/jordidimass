@@ -145,6 +145,41 @@ body {
   .jd-tile[data-pending] .jd-skeleton { animation: none; opacity: 1; }
 }
 
+html {
+  scroll-behavior: smooth;
+}
+html[data-motion="off"] {
+  scroll-behavior: auto;
+}
+
+.markdown-alert {
+  border: 1px solid color-mix(in srgb, var(--color-brand-muted) 35%, transparent);
+  background: color-mix(in srgb, var(--color-brand-muted) 8%, transparent);
+}
+.markdown-alert-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-brand-accent);
+}
+.markdown-alert-title .octicon {
+  fill: currentColor;
+}
+.markdown-alert p {
+  margin: 0;
+}
+.markdown-alert-warning,
+.markdown-alert-caution,
+.markdown-alert-important {
+  background: color-mix(in srgb, var(--color-brand-accent) 10%, transparent);
+  border-color: color-mix(in srgb, var(--color-brand-accent) 45%, transparent);
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;

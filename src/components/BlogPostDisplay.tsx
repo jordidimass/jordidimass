@@ -1,5 +1,9 @@
-import Markdown from 'markdown-to-jsx';
-import BlogFadeIn from './BlogFadeIn';
+import { renderPostMarkdown } from '@/lib/markdown';
+import TableOfContents from './blog/TableOfContents';
+import MobileToc from './blog/MobileToc';
+import ReadingProgressBar from './blog/ReadingProgressBar';
+import BackToTop from './blog/BackToTop';
+import ArticleReveal from './blog/ArticleReveal';
 
 export interface PostMetadata {
   title: string;
@@ -11,28 +15,32 @@ export interface BlogPostDisplayProps {
   content: string;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const markdownOptions: any = {
-  overrides: {
-    p:  { component: ({ children }: { children: React.ReactNode }) => <p  className="text-[24px] text-brand-muted">{children}</p> },
-    h1: { component: ({ children }: { children: React.ReactNode }) => <h1 className="text-[32px] text-brand-muted font-bold mt-8 mb-4 font-serif">{children}</h1> },
-    h2: { component: ({ children }: { children: React.ReactNode }) => <h2 className="text-[28px] text-brand-muted font-bold mt-6 mb-3 font-serif">{children}</h2> },
-    h3: { component: ({ children }: { children: React.ReactNode }) => <h3 className="text-[26px] text-brand-muted font-bold mt-5 mb-2 font-serif">{children}</h3> },
-  },
-};
-
-export default function BlogPostDisplay({ metadata, content }: BlogPostDisplayProps) {
+export default async function BlogPostDisplay({ metadata, content }: BlogPostDisplayProps) {
+  const { content: rendered, headings } = await renderPostMarkdown(content);
   const formattedDate = new Intl.DateTimeFormat('en-US', {
     year: 'numeric', month: 'long', day: 'numeric',
   }).format(new Date(metadata.date));
+  const hasToc = headings.length > 1;
 
   return (
-    <BlogFadeIn>
-      <h1 className="text-4xl font-light tracking-widest mb-4 font-serif text-brand-accent">{metadata.title}</h1>
-      <p className="text-gray-400 italic text-sm mb-6">{formattedDate}</p>
-      <article className="prose max-w-none text-[24px] text-brand-muted">
-        <Markdown options={markdownOptions}>{content}</Markdown>
-      </article>
-    </BlogFadeIn>
+    <>
+      <ReadingProgressBar />
+      <div className="mx-auto grid max-w-5xl grid-cols-1 gap-10 px-5 py-8 lg:grid-cols-[minmax(0,70ch)_220px]">
+        <article className="min-w-0">
+          <header className="mb-6">
+            <h1 className="font-serif text-4xl font-light tracking-widest text-brand-accent">{metadata.title}</h1>
+            <p className="mt-1 text-sm italic text-gray-400">{formattedDate}</p>
+          </header>
+          {hasToc && (
+            <div className="mb-6">
+              <MobileToc headings={headings} />
+            </div>
+          )}
+          <ArticleReveal>{rendered}</ArticleReveal>
+        </article>
+        {hasToc && <TableOfContents headings={headings} />}
+      </div>
+      <BackToTop />
+    </>
   );
 }
