@@ -129,6 +129,17 @@ function Hr(props: ComponentPropsWithoutRef<'hr'>) {
   return <hr className="my-8 border-brand-muted/20" {...props} />;
 }
 
+function A({ children, ...props }: ComponentPropsWithoutRef<'a'>) {
+  return (
+    <a
+      className="text-brand-accent underline underline-offset-2 decoration-brand-accent/40 transition-colors duration-200 hover:text-brand-white hover:decoration-brand-white/60"
+      {...props}
+    >
+      {children}
+    </a>
+  );
+}
+
 function MarkdownImage({ src, alt, ...props }: ComponentPropsWithoutRef<'img'>) {
   return (
     <ImageReveal>
@@ -159,4 +170,5 @@ export const markdownComponents: Record<string, any> = {
   ul: Ul,
   ol: Ol,
   hr: Hr,
+  a: A,
 };
