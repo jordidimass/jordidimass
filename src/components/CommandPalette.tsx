@@ -137,19 +137,20 @@ const NAV_ITEMS = [
 // ── Music ────────────────────────────────────────────────────────────────────
 
 type TrackKey =
-  | "rave_zion" | "prime_audio_soup" | "happiness" | "clubbed"
-  | "spybreak" | "mindfields" | "windowlicker" | "blockrockin" | "places";
+  | "volumes_dream" | "toro_loop" | "title_fight_pain" | "spiritbox_perfect_soul"
+  | "jeff_rosenstock_begged" | "jj_cale_magnolia" | "gomez_stone_wobble"
+  | "elliott_smith_pictures" | "beach_fossils_sleep_apnea";
 
 const TRACKS: { key: TrackKey; title: string }[] = [
-  { key: "rave_zion",        title: "Rave Zion" },
-  { key: "prime_audio_soup", title: "Meat Beat Manifesto - Prime Audio Soup" },
-  { key: "happiness",        title: "Porter Robinson - Is There Really No Happiness" },
-  { key: "clubbed",          title: "Rob Dougan - Clubbed to Death" },
-  { key: "spybreak",         title: "Propellerheads - Spybreak" },
-  { key: "mindfields",       title: "The Prodigy - Mindfields" },
-  { key: "windowlicker",     title: "Aphex Twin - Window Licker" },
-  { key: "blockrockin",      title: "The Chemical Brothers - Block Rockin Beats" },
-  { key: "places",           title: "Fred again.. & Anderson .Paak - places to be" },
+  { key: "volumes_dream",             title: "Volumes - Dream" },
+  { key: "toro_loop",                 title: "Toro y Moi - The Loop" },
+  { key: "title_fight_pain",          title: "Title Fight - Your Pain Is Mine Now" },
+  { key: "spiritbox_perfect_soul",    title: "Spiritbox - Perfect Soul" },
+  { key: "jeff_rosenstock_begged",    title: "Jeff Rosenstock - We Begged 2 Explode" },
+  { key: "jj_cale_magnolia",          title: "J.J. Cale - Magnolia" },
+  { key: "gomez_stone_wobble",        title: "Gomez - 78 Stone Wobble" },
+  { key: "elliott_smith_pictures",    title: "Elliott Smith - Pictures Of Me" },
+  { key: "beach_fossils_sleep_apnea", title: "Beach Fossils - Sleep Apnea" },
 ];
 
 // ── Global styles injected once ───────────────────────────────────────────────
