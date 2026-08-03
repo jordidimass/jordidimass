@@ -8,6 +8,7 @@ import { profileData } from "@/config/profile";
 import { slugFromKey, type GalleryImage } from "@/lib/gallery";
 import type { PostMetadata } from "@/lib/posts";
 import { useMotionContext } from "./MotionProvider";
+import { TRACKS as TRACK_DATA, TRACK_ORDER, type TrackKey } from "@/config/music";
 
 // ── Icons ────────────────────────────────────────────────────────────────────
 
@@ -136,22 +137,10 @@ const NAV_ITEMS = [
 
 // ── Music ────────────────────────────────────────────────────────────────────
 
-type TrackKey =
-  | "volumes_dream" | "toro_loop" | "title_fight_pain" | "spiritbox_perfect_soul"
-  | "jeff_rosenstock_begged" | "jj_cale_magnolia" | "gomez_stone_wobble"
-  | "elliott_smith_pictures" | "beach_fossils_sleep_apnea";
-
-const TRACKS: { key: TrackKey; title: string }[] = [
-  { key: "volumes_dream",             title: "Volumes - Dream" },
-  { key: "toro_loop",                 title: "Toro y Moi - The Loop" },
-  { key: "title_fight_pain",          title: "Title Fight - Your Pain Is Mine Now" },
-  { key: "spiritbox_perfect_soul",    title: "Spiritbox - Perfect Soul" },
-  { key: "jeff_rosenstock_begged",    title: "Jeff Rosenstock - We Begged 2 Explode" },
-  { key: "jj_cale_magnolia",          title: "J.J. Cale - Magnolia" },
-  { key: "gomez_stone_wobble",        title: "Gomez - 78 Stone Wobble" },
-  { key: "elliott_smith_pictures",    title: "Elliott Smith - Pictures Of Me" },
-  { key: "beach_fossils_sleep_apnea", title: "Beach Fossils - Sleep Apnea" },
-];
+const TRACKS: { key: TrackKey; title: string }[] = TRACK_ORDER.map((key) => ({
+  key,
+  title: TRACK_DATA[key].title,
+}));
 
 // ── Global styles injected once ───────────────────────────────────────────────
 

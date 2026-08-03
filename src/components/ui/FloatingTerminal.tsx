@@ -7,8 +7,10 @@ import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from
 import { X, SkipBack, SkipForward, Pause } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { TerminalIcon, type TerminalIconHandle } from "./TerminalIcon";
+import MusicPlayer from "./MusicPlayer";
 import { profileData } from "@/config/profile";
 import { useMotionContext } from "@/components/MotionProvider";
+import { TRACKS, TRACK_ORDER, type TrackKey } from "@/config/music";
 
 // ─── Vesper palette ────────────────────────────────────────────────────────────
 const C = {
@@ -19,57 +21,6 @@ const C = {
   accent: "#ff8800",
   dim: "#2a2a2a",
 } as const;
-
-// ─── Audio ─────────────────────────────────────────────────────────────────────
-type TrackKey =
-  | "volumes_dream" | "toro_loop" | "title_fight_pain" | "spiritbox_perfect_soul"
-  | "jeff_rosenstock_begged" | "jj_cale_magnolia" | "gomez_stone_wobble"
-  | "elliott_smith_pictures" | "beach_fossils_sleep_apnea";
-
-const TRACKS: Record<TrackKey, { src: string; title: string }> = {
-  volumes_dream: {
-    src: "https://1xeofxv5bf.ufs.sh/f/3u6FbciEmQpg8qHBdmAIsDQ1FzjA34lpnbtd0of6O9LNcXYw",
-    title: "Volumes - Dream",
-  },
-  toro_loop: {
-    src: "https://1xeofxv5bf.ufs.sh/f/3u6FbciEmQpgpNs05dfP1TAS7tIHOfir8NDYmEceBxCk2ubF",
-    title: "Toro y Moi - The Loop",
-  },
-  title_fight_pain: {
-    src: "https://1xeofxv5bf.ufs.sh/f/3u6FbciEmQpgMY9oQUab3adgKJBQcbSE1moz5WsTNqLuGXvA",
-    title: "Title Fight - Your Pain Is Mine Now",
-  },
-  spiritbox_perfect_soul: {
-    src: "https://1xeofxv5bf.ufs.sh/f/3u6FbciEmQpgOfDqA03D8XitW6okhZAf9QrxjYSC0gmwazqM",
-    title: "Spiritbox - Perfect Soul",
-  },
-  jeff_rosenstock_begged: {
-    src: "https://1xeofxv5bf.ufs.sh/f/3u6FbciEmQpgakKFKJyrmFGB1wC7zM34P9qol6VJ5uKhjpUx",
-    title: "Jeff Rosenstock - We Begged 2 Explode",
-  },
-  jj_cale_magnolia: {
-    src: "https://1xeofxv5bf.ufs.sh/f/3u6FbciEmQpg1o74PBuGQoD4dPUEfsiVRb2g5a6XcAZNnWMF",
-    title: "J.J. Cale - Magnolia",
-  },
-  gomez_stone_wobble: {
-    src: "https://1xeofxv5bf.ufs.sh/f/3u6FbciEmQpgjmDXn3kJFpU6XwaSAylbHo1ODQBGr9u4CndR",
-    title: "Gomez - 78 Stone Wobble",
-  },
-  elliott_smith_pictures: {
-    src: "https://1xeofxv5bf.ufs.sh/f/3u6FbciEmQpgz3O0xQ43lFvG5BIYLZQSgymkabWAKR4q9Cth",
-    title: "Elliott Smith - Pictures Of Me",
-  },
-  beach_fossils_sleep_apnea: {
-    src: "https://1xeofxv5bf.ufs.sh/f/3u6FbciEmQpgad4pw0yrmFGB1wC7zM34P9qol6VJ5uKhjpUx",
-    title: "Beach Fossils - Sleep Apnea",
-  },
-};
-
-const TRACK_ORDER: TrackKey[] = [
-  "volumes_dream", "toro_loop", "title_fight_pain", "spiritbox_perfect_soul",
-  "jeff_rosenstock_begged", "jj_cale_magnolia", "gomez_stone_wobble",
-  "elliott_smith_pictures", "beach_fossils_sleep_apnea",
-];
 
 // ─── Output lines ──────────────────────────────────────────────────────────────
 type TextLine = { id: number; type: "text"; text: string; dim?: boolean };
@@ -117,6 +68,12 @@ const PULL_CUE_HEIGHT = 140;
 const transport = new DefaultChatTransport({ api: "/api/terminal" });
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
+function pickRandomTrack(exclude: TrackKey): TrackKey {
+  const pool = TRACK_ORDER.filter((k) => k !== exclude);
+  if (pool.length === 0) return exclude;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
 function fmtTime(s: number) {
   if (!isFinite(s) || isNaN(s)) return "--:--";
   return `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, "0")}`;
@@ -311,6 +268,16 @@ export default function FloatingTerminal() {
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [remaining, setRemaining] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [musicStarted, setMusicStarted] = useState(false);
+  useEffect(() => { if (playing) setMusicStarted(true); }, [playing]);
+  const [shuffle, setShuffle] = useState(false);
+  const shuffleRef = useRef(false);
+  useEffect(() => { shuffleRef.current = shuffle; }, [shuffle]);
+  const shuffleHistoryRef = useRef<TrackKey[]>([]);
+  const [loop, setLoop] = useState(false);
+  const loopRef = useRef(false);
+  useEffect(() => { loopRef.current = loop; }, [loop]);
 
   const panelRef = useRef<HTMLDivElement>(null);
   const outputRef = useRef<HTMLDivElement>(null);
@@ -585,8 +552,9 @@ export default function FloatingTerminal() {
     const update = () => {
       setProgress((audio.currentTime / audio.duration) * 100 || 0);
       setRemaining(audio.duration - audio.currentTime);
+      setDuration(audio.duration || 0);
     };
-    const onMeta = () => setRemaining(audio.duration);
+    const onMeta = () => { setRemaining(audio.duration); setDuration(audio.duration || 0); };
     audio.addEventListener("timeupdate", update);
     audio.addEventListener("loadedmetadata", onMeta);
     return () => {
@@ -600,8 +568,20 @@ export default function FloatingTerminal() {
     const audio = audioRef.current;
     if (!audio) return;
     const onEnd = async () => {
-      const idx = TRACK_ORDER.indexOf(trackRef.current);
-      const next = TRACK_ORDER[(idx + 1) % TRACK_ORDER.length];
+      const current = trackRef.current;
+      let next: TrackKey;
+      if (shuffleRef.current) {
+        shuffleHistoryRef.current.push(current);
+        next = pickRandomTrack(current);
+      } else {
+        const idx = TRACK_ORDER.indexOf(current);
+        const isLast = idx === TRACK_ORDER.length - 1;
+        if (isLast && !loopRef.current) {
+          setPlaying(false);
+          return;
+        }
+        next = TRACK_ORDER[(idx + 1) % TRACK_ORDER.length];
+      }
       trackRef.current = next;
       setTrackDisplay(next);
       audio.src = TRACKS[next].src;
@@ -641,8 +621,19 @@ export default function FloatingTerminal() {
     const audio = audioRef.current;
     if (!audio) return trackRef.current;
     const wasPlaying = playing;
-    const idx = TRACK_ORDER.indexOf(trackRef.current);
-    const next = TRACK_ORDER[(idx + dir + TRACK_ORDER.length) % TRACK_ORDER.length];
+    const current = trackRef.current;
+    let next: TrackKey;
+    if (shuffleRef.current) {
+      if (dir === 1) {
+        shuffleHistoryRef.current.push(current);
+        next = pickRandomTrack(current);
+      } else {
+        next = shuffleHistoryRef.current.pop() ?? pickRandomTrack(current);
+      }
+    } else {
+      const idx = TRACK_ORDER.indexOf(current);
+      next = TRACK_ORDER[(idx + dir + TRACK_ORDER.length) % TRACK_ORDER.length];
+    }
     audio.pause(); setPlaying(false);
     trackRef.current = next; setTrackDisplay(next);
     audio.src = TRACKS[next].src; audio.load();
@@ -651,6 +642,32 @@ export default function FloatingTerminal() {
     }
     return next;
   }, [playing]);
+
+  const playTrack = useCallback((key: TrackKey) => {
+    const audio = audioRef.current;
+    if (!audio || !TRACKS[key]) return;
+    if (shuffleRef.current && trackRef.current !== key) shuffleHistoryRef.current.push(trackRef.current);
+    audio.pause(); setPlaying(false);
+    trackRef.current = key; setTrackDisplay(key);
+    audio.src = TRACKS[key].src; audio.load();
+    audio.play().then(() => setPlaying(true)).catch(() => {});
+  }, []);
+
+  const seek = useCallback((fraction: number) => {
+    const audio = audioRef.current;
+    if (!audio || !audio.duration) return;
+    audio.currentTime = fraction * audio.duration;
+  }, []);
+
+  const toggleShuffle = useCallback(() => setShuffle((s) => !s), []);
+  const toggleLoop = useCallback(() => setLoop((l) => !l), []);
+
+  const closePlayer = useCallback(() => {
+    const audio = audioRef.current;
+    if (audio) audio.pause();
+    setPlaying(false);
+    setMusicStarted(false);
+  }, []);
 
   // ── Music control events from CommandPalette ─────────────────────────────────
   useEffect(() => {
@@ -663,12 +680,8 @@ export default function FloatingTerminal() {
     const onPrev = () => switchTrack(-1);
     const onTrack = (e: Event) => {
       const key = (e as CustomEvent<{ track: TrackKey }>).detail?.track;
-      if (!key || !TRACKS[key]) return;
-      audio.pause(); setPlaying(false);
-      trackRef.current = key; setTrackDisplay(key);
-      audio.src = TRACKS[key].src; audio.load();
-      ensureAudioSrc();
-      audio.play().then(() => setPlaying(true)).catch(() => {});
+      if (!key) return;
+      playTrack(key);
     };
 
     window.addEventListener("music-play", onPlay);
@@ -683,7 +696,7 @@ export default function FloatingTerminal() {
       window.removeEventListener("music-prev", onPrev);
       window.removeEventListener("music-track", onTrack);
     };
-  }, [switchTrack]);
+  }, [switchTrack, playTrack]);
 
   // ── Command processor ─────────────────────────────────────────────────────────
   const run = useCallback(async (raw: string) => {
@@ -884,6 +897,27 @@ export default function FloatingTerminal() {
             }}
           />
         </>
+      )}
+
+      {/* ── Floating music player (hidden while the terminal panel is open) ── */}
+      {musicStarted && !isOpen && (
+        <MusicPlayer
+          playing={playing}
+          trackKey={trackDisplay}
+          progress={progress}
+          remaining={remaining}
+          duration={duration}
+          shuffle={shuffle}
+          loop={loop}
+          togglePlay={togglePlay}
+          switchTrack={switchTrack}
+          onSelectTrack={playTrack}
+          onToggleShuffle={toggleShuffle}
+          onToggleLoop={toggleLoop}
+          onClose={closePlayer}
+          seek={seek}
+          isMobile={isMobile}
+        />
       )}
 
       <AnimatePresence>
