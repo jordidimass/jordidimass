@@ -13,6 +13,7 @@ import { parseInlineLinks } from "./TerminalMarkdown";
 import { C, MONO } from "./vesper";
 import { profileData } from "@/config/profile";
 import { useMotionContext } from "@/components/MotionProvider";
+import { isInternalRoute } from "@/lib/siteRoutes";
 import { EASE_OUT } from "@/lib/motion";
 import { TRACKS, TRACK_ORDER, type TrackKey } from "@/config/music";
 
@@ -57,7 +58,7 @@ type SiteOps = {
 function safeInternalPath(raw: string): string | null {
   if (typeof raw !== "string") return null;
   const path = raw.trim();
-  if (!path.startsWith("/") || path.startsWith("//")) return null;
+  if (!isInternalRoute(path)) return null;
   try {
     const url = new URL(path, window.location.origin);
     if (url.origin !== window.location.origin) return null;
@@ -807,7 +808,7 @@ export default function FloatingTerminal() {
     siteOpsRef.current = {
       navigate: (path) => {
         const safe = safeInternalPath(path);
-        if (!safe) return `refused: "${path}" is not a page on this site`;
+        if (!safe) return `refused: "${path}" is not a real page on this site. valid: / /blog /gallery /about /connect /matrix /posts/<slug> /gallery/<slug>`;
         router.push(safe);
         return `navigated to ${safe}`;
       },
@@ -1082,7 +1083,7 @@ export default function FloatingTerminal() {
           transition={{ duration: 0.14, ease: EASE_OUT }}
           style={{ color: askMode ? C.text : C.muted, fontSize: 11, letterSpacing: "0.1em" }}
         >
-          {askMode ? "ask · nano" : "terminal"}
+          {askMode ? "ask · mini" : "terminal"}
         </motion.span>
       </AnimatePresence>
       {askMode && (

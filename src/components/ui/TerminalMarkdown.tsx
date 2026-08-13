@@ -2,6 +2,7 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
+import { isRenderableHref } from "@/lib/siteRoutes";
 import { C } from "./vesper";
 
 type Router = ReturnType<typeof useRouter>;
@@ -19,6 +20,7 @@ const BOLD_ONE = /^\*\*([^*\n]+)\*\*$/;
 const BULLET = /^(\s*)[-*]\s+(.*)$/;
 
 function Link({ label, href, router }: { label: string; href: string; router: Router }) {
+  if (!isRenderableHref(href)) return <>{label}</>;
   const external = href.startsWith("http");
   return (
     <a

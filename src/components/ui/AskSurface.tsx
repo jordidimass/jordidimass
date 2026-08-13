@@ -26,6 +26,7 @@ function describeTool(part: ToolUIPart): string {
   const name = getToolName(part);
   const input = (part.input ?? {}) as Record<string, unknown>;
   if (name === "navigate") return `navigate ${input.path ?? ""}`.trim();
+  if (name === "readPost") return `read ${input.slug ?? "post"}`;
   if (name === "music") {
     return `music ${[input.action, input.track].filter(Boolean).join(" ")}`.trim();
   }

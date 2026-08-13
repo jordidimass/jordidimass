@@ -3,6 +3,7 @@ import { streamText, convertToModelMessages, smoothStream, tool, jsonSchema, ste
 import { supabase } from "@/lib/supabaseClient";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { slugFromKey } from "@/lib/gallery";
+import { TRACKS, TRACK_ORDER } from "@/config/music";
 
 const MAX_MESSAGES = 20;
 const MAX_CONTENT_LENGTH = 2000;
@@ -13,6 +14,27 @@ const CACHE_TTL = 60_000;
 
 const GALLERY_WORKER_URL = process.env.NEXT_PUBLIC_GALLERY_WORKER_URL ?? "";
 
+const POST_BODY_LIMIT = 6000;
+
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  return isNaN(d.getTime())
+    ? iso
+    : d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" });
+}
+
+function excerpt(content: string | null, limit = 420): string {
+  const flat = (content ?? "")
+    .replace(/^---[\s\S]*?---/, "")
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/[#>*_`]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return flat.length > limit ? `${flat.slice(0, limit)}…` : flat;
+}
+
 /**
  * Client-side tools: declared with no `execute`, so the SDK forwards the call
  * to the browser and the terminal runs it against the real router and audio
@@ -22,19 +44,41 @@ const GALLERY_WORKER_URL = process.env.NEXT_PUBLIC_GALLERY_WORKER_URL ?? "";
 const siteTools = {
   navigate: tool({
     description:
-      "Take the visitor to a page on this site. Use this whenever they ask to go to, open, show or see something — do not just describe the page, actually take them there.",
+      "Move the visitor to a different page of THIS site. Only call this when they explicitly ask to be taken somewhere — 'take me to', 'go to', 'open', 'show me'. A question such as 'how can we have a meeting?' or 'give me your telegram' is NOT a navigation request: answer it with a link instead. This cannot open external sites, so never call it as a stand-in for one. To open a specific blog post use /posts/<slug> with a slug from the post list; /blog is only the index. Never guess a slug.",
     inputSchema: jsonSchema<{ path: string }>({
       type: "object",
       properties: {
         path: {
           type: "string",
           description:
-            "Absolute internal path. One of / , /blog , /gallery , /about , /connect , /matrix , or a specific /gallery/<slug> or /posts/<slug>.",
+            "Absolute internal path. One of / , /blog , /gallery , /about , /connect , /matrix , or a specific /posts/<slug> or /gallery/<slug> taken verbatim from the lists you were given.",
         },
       },
       required: ["path"],
       additionalProperties: false,
     }),
+  }),
+  readPost: tool({
+    description:
+      "Read the full text of one of my blog posts. Use this before answering anything specific about what a post says, argues or covers — do not guess from the title.",
+    inputSchema: jsonSchema<{ slug: string }>({
+      type: "object",
+      properties: {
+        slug: { type: "string", description: "The post slug, taken verbatim from the post list." },
+      },
+      required: ["slug"],
+      additionalProperties: false,
+    }),
+    execute: async ({ slug }: { slug: string }) => {
+      const { data, error } = await supabase
+        .from("posts")
+        .select("title, date, content")
+        .eq("slug", slug)
+        .single();
+      if (error || !data) return `No post with slug "${slug}".`;
+      const body = (data.content ?? "").slice(0, POST_BODY_LIMIT);
+      return `"${data.title}" (${formatDate(data.date)}) — /posts/${slug}\n\n${body}`;
+    },
   }),
   music: tool({
     description:
@@ -71,7 +115,7 @@ async function getSystemPrompt(): Promise<string> {
     supabase.from("ai_context").select("content").eq("enabled", true),
     supabase
       .from("posts")
-      .select("title, date")
+      .select("slug, title, date, content")
       .order("date", { ascending: false })
       .limit(10),
     GALLERY_WORKER_URL
@@ -82,7 +126,12 @@ async function getSystemPrompt(): Promise<string> {
   const sections = contextRows?.map((r) => r.content).join("\n\n") ?? "";
 
   const blogList = posts?.length
-    ? `\n\nMy recent blog posts:\n${posts.map((p) => `- "${p.title}" (${p.date})`).join("\n")}`
+    ? `\n\nMy blog posts, newest first. The first entry IS my latest/most recent post:\n${posts
+        .map(
+          (p, i) =>
+            `${i + 1}. "${p.title}" — published ${formatDate(p.date)} — url /posts/${p.slug} — slug "${p.slug}"\n   about: ${excerpt(p.content)}`
+        )
+        .join("\n")}`
     : "";
 
   const galleryImages: string[] =
@@ -116,9 +165,45 @@ Photos & profiles around the web:
 - [Spotify](https://open.spotify.com/user/jordidimass/playlists) — curated playlists
 - [GitHub repos](https://github.com/jordidimass?tab=repositories)
 
-Music note: Last.fm is the primary source for music taste and listening history. Spotify is for playlists only. VSCO is photography — never suggest it for music.`;
+Music note: Last.fm is the primary source for music taste and listening history. Spotify is for playlists only. VSCO is photography — never suggest it for music.
 
-  cachedPrompt = `You are Jordi Dimas, speaking on your own personal website. Always answer in the first person — "I", "my", "me". Never refer to Jordi in the third person and never describe yourself as an assistant. Answer concisely.\n\n${sections}${blogList}${galleryList}${siteInfo}\n\nYou can operate this site, not just describe it. You have tools to navigate the visitor to any page, control the music player, and toggle animations. Prefer acting over explaining: if someone asks to see the photos, call navigate rather than telling them where to click. After a tool runs, say what you did in one short line.
+The terminal player's playlist, exactly these ${TRACK_ORDER.length} tracks:
+${TRACK_ORDER.map((k) => `- ${TRACKS[k].title}`).join("\n")}
+
+MUSIC RULES:
+- Any band, artist or song name from that list is a music request. "put some Title Fight on", "play Elliott Smith", "some Gomez" — all mean call the music tool with action "play" and that name as track. They are never page names, never a reason to navigate.
+- "put on", "play", "throw on", "give me some" followed by a name = music, not navigation.
+- Match loosely: a band name alone is enough, I only have one track per artist.
+- If the name is not on that list, say I do not have it rather than playing something else, and never navigate instead.
+
+NAVIGATION RULES — moving someone off the page they are reading is disruptive, so the bar is high:
+- Only call navigate when they ask to BE MOVED: "take me to", "go to", "open", "show me", "bring me to", "put X on screen".
+- A question is not a navigation request. "how can we have a meeting?", "give me your telegram", "what do you write about?", "where can I find X?" — answer in words with a link, and do NOT navigate.
+- Everything off this site — scheduling, Telegram, X, Instagram, LinkedIn, GitHub, Spotify, Last.fm, Letterboxd, Goodreads, Unsplash, VSCO — is a link only. navigate moves between pages of THIS site and can never open any of them. Never navigate to /connect or /about as a substitute.
+- Never navigate to a page just to cite a link that is already in your answer.
+- "I want to X", "I'd like to X", "can I X", "how do I X" are requests for information, not for movement. Answer them with a link.
+- When unsure, answer with a link and do not navigate.
+
+WORKED EXAMPLES — follow these exactly:
+- "i want to schedule a meeting" → NO tool call. Reply: You can [schedule a meeting](https://cal.com/jordidimass) with me.
+- "give me your telegram" → NO tool call. Reply: I'm on [Telegram](https://t.me/jordidimass).
+- "how can we have a meeting?" → NO tool call. Reply: Grab a slot on my [calendar](https://cal.com/jordidimass).
+- "where are your photos?" → NO tool call. Reply: They're in my [gallery](/gallery).
+- "take me to your photos" → navigate /gallery.
+- "open your latest post" → navigate to the /posts/<slug> of the first post listed above.
+- "what is your latest post about?" → readPost with that slug, then answer in words.
+- "put some Title Fight on" → music, action play, track Title Fight.
+
+LINK RULES — these are absolute, a wrong path is a broken page:
+- The visible label must name the destination: [schedule a meeting](...), [Telegram](...), [Harness your Agent](...). Never "this link", "here", "this page", "click here".
+- A blog post lives at /posts/<slug>. NEVER /blog/<slug>. /blog is only the index listing.
+- A photo lives at /gallery/<slug>. /gallery is only the index.
+- The only other valid internal paths are exactly: /, /blog, /gallery, /about, /connect, /matrix.
+- Only ever use a slug that appears verbatim in the lists above. Never invent, guess, pluralise or reword one.
+- If you do not have a slug for something, link to the index page instead — /blog or /gallery.
+- Always use relative paths starting with /. Never write the domain name.`;
+
+  cachedPrompt = `You are Jordi Dimas, speaking on your own personal website. Always answer in the first person — "I", "my", "me". Never refer to Jordi in the third person and never describe yourself as an assistant. Answer concisely.\n\n${sections}${blogList}${galleryList}${siteInfo}\n\nYou can operate this site, not just describe it. You have tools to navigate the visitor to any page, read the full text of a post, control the music player, and toggle animations. Prefer acting over explaining: if someone asks to see the photos, call navigate rather than telling them where to click. If they ask for my latest or most recent post, navigate straight to /posts/<slug> of the FIRST post in the list above — not to /blog. After a tool runs, say what you did in one short line.
 
 If asked something you don't know, say so honestly. Keep answers brief and optimized for terminal display. IMPORTANT: Whenever you reference any URL or page in your response, always use markdown link format: [visible label](url). Never output bare URLs.`;
   cacheTime = Date.now();
@@ -167,9 +252,10 @@ export async function POST(req: Request) {
   // useChat sends UIMessage[]; streamText requires ModelMessage[]
   const modelMessages = await convertToModelMessages(messages);
   const result = streamText({
-    model: openai("gpt-4.1-nano-2025-04-14"),
+    model: openai("gpt-4.1-mini"),
     system: await getSystemPrompt(),
     messages: modelMessages,
+    temperature: 0,
     tools: siteTools,
     // One step to call a tool, another to speak after seeing the result.
     stopWhen: stepCountIs(5),
