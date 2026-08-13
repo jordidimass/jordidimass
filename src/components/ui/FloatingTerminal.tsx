@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from "motion/react";
-import { X, SkipBack, SkipForward, Pause } from "lucide-react";
+import { X, SkipBack, SkipForward, Pause, ChevronDown } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { TerminalIcon, type TerminalIconHandle } from "./TerminalIcon";
 import MusicPlayer from "./MusicPlayer";
@@ -136,7 +136,7 @@ function OutputArea({
 }
 
 function MusicBar({
-  playing, trackDisplay, remaining, progress, switchTrack, togglePlay,
+  playing, trackDisplay, remaining, progress, switchTrack, togglePlay, onSelectTrack,
 }: {
   playing: boolean;
   trackDisplay: TrackKey;
@@ -144,10 +144,46 @@ function MusicBar({
   progress: number;
   switchTrack: (dir: 1 | -1) => void;
   togglePlay: () => void;
+  onSelectTrack: (key: TrackKey) => void;
 }) {
+  const [open, setOpen] = useState(false);
+  // Nothing to fold away once the bar is gone.
+  useEffect(() => { if (!playing) setOpen(false); }, [playing]);
   if (!playing) return null;
   return (
     <>
+      {/* Unfolds upward off the bar, same accordion as the blog's mobile TOC. */}
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0, transition: { duration: 0.15, ease: EASE_OUT } }}
+            transition={{ duration: 0.25, ease: EASE_OUT }}
+            className="shrink-0 overflow-hidden"
+            style={{ borderTop: `1px solid ${C.border}` }}
+          >
+            <div className="overflow-y-auto" style={{ maxHeight: 132, scrollbarWidth: "none" }}>
+              {TRACK_ORDER.map((key) => {
+                const active = key === trackDisplay;
+                return (
+                  <button
+                    key={key}
+                    onClick={(e) => { e.stopPropagation(); onSelectTrack(key); }}
+                    className="w-full flex items-center gap-2 px-4 py-1.5 text-left"
+                    style={{ fontSize: 11, color: active ? C.accent : C.muted }}
+                    onMouseEnter={(e) => { if (!active) e.currentTarget.style.color = C.text; }}
+                    onMouseLeave={(e) => { if (!active) e.currentTarget.style.color = C.muted; }}
+                  >
+                    <span style={{ width: 10, flexShrink: 0 }}>{active ? "▸" : ""}</span>
+                    <span className="truncate">{TRACKS[key].title}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div
         className="shrink-0 px-4 py-1.5 flex items-center gap-3"
         style={{ borderTop: `1px solid ${C.border}` }}
@@ -174,9 +210,22 @@ function MusicBar({
         >
           <SkipBack size={10} style={{ transform: "scaleX(-1)" }} />
         </button>
-        <span className="flex-1 truncate" style={{ fontSize: 10, color: C.muted }}>
-          {TRACKS[trackDisplay].title}
-        </span>
+        <button
+          onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
+          aria-expanded={open}
+          aria-label={open ? "Hide playlist" : "Show playlist"}
+          className="flex-1 min-w-0 flex items-center gap-1.5 text-left"
+          style={{ fontSize: 10, color: open ? C.text : C.muted, transition: "color 150ms var(--ease-out)" }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = C.text)}
+          onMouseLeave={(e) => (e.currentTarget.style.color = open ? C.text : C.muted)}
+        >
+          <span className="truncate">{TRACKS[trackDisplay].title}</span>
+          <ChevronDown
+            size={9}
+            className={`transition-transform duration-200 ${open ? "" : "rotate-180"}`}
+            style={{ flexShrink: 0 }}
+          />
+        </button>
         <span style={{ fontSize: 10, color: C.muted }}>{fmtTime(remaining)}</span>
       </div>
       <div className="h-px w-full shrink-0" style={{ background: C.dim }}>
@@ -843,11 +892,10 @@ export default function FloatingTerminal() {
       setLines((prev) => [...prev,
         mkLine("available commands:", true),
         mkLine("  ask              start a conversation  (esc to leave)"),
-        mkLine("  ask <query>      start one with a question"),
+        mkLine("  play             start audio playback"),
         mkLine("  links            show social & profile links"),
         mkLine("  neofetch         system info"),
         mkLine("  whoami           who i am"),
-        mkLine("  play             start audio playback"),
         mkLine("  pause            pause playback"),
         mkLine("  next             next track"),
         mkLine("  prev             previous track"),
@@ -1220,7 +1268,7 @@ export default function FloatingTerminal() {
                 <div style={{ borderTop: `1px solid ${C.border}` }} />
 
                 {surface}
-                <MusicBar playing={playing} trackDisplay={trackDisplay} remaining={remaining} progress={progress} switchTrack={switchTrack} togglePlay={togglePlay} />
+                <MusicBar playing={playing} trackDisplay={trackDisplay} remaining={remaining} progress={progress} switchTrack={switchTrack} togglePlay={togglePlay} onSelectTrack={playTrack} />
                 <InputRow input={input} setInput={setInput} onKey={onKey} onSubmit={onSubmit} inputRef={inputRef} isMobile={isMobile} askMode={askMode} />
               </motion.div>
             ) : (
@@ -1267,7 +1315,7 @@ export default function FloatingTerminal() {
                 </div>
 
                 {surface}
-                <MusicBar playing={playing} trackDisplay={trackDisplay} remaining={remaining} progress={progress} switchTrack={switchTrack} togglePlay={togglePlay} />
+                <MusicBar playing={playing} trackDisplay={trackDisplay} remaining={remaining} progress={progress} switchTrack={switchTrack} togglePlay={togglePlay} onSelectTrack={playTrack} />
                 <InputRow input={input} setInput={setInput} onKey={onKey} onSubmit={onSubmit} inputRef={inputRef} isMobile={isMobile} askMode={askMode} />
 
                 {/* Resize grip */}
