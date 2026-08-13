@@ -447,11 +447,13 @@ export default function AskSurface({
   status,
   motionEnabled,
   onSend,
+  lead,
 }: {
   messages: UIMessage[];
   status: string;
   motionEnabled: boolean;
   onSend: (text: string) => void;
+  lead?: React.ReactNode;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   // Only follow the stream while the reader is already at the bottom. Yanking
@@ -488,7 +490,9 @@ export default function AskSurface({
       // An answer you cannot copy is useless, so opt back in here.
       style={{ scrollbarWidth: "none", userSelect: "text" }}
     >
-      {messages.length === 0 ? (
+      {lead}
+
+      {messages.length === 0 && !lead ? (
         <EmptyState motionEnabled={motionEnabled} onSend={onSend} />
       ) : null}
 

@@ -126,27 +126,37 @@ check('navbar scroll listener is passive and does not thrash state', () => {
   return null;
 });
 
-check('mobile pull cue animates transform, not height', () => {
+// The mobile entry point used to be a bottom-edge pull gesture. It was
+// undiscoverable — nothing on screen announced it — and it fired by accident
+// while scrolling. These three checks replace the ones that asserted it worked.
+
+check('mobile entry point is always on screen and labelled', () => {
   const s = read('src/components/ui/FloatingTerminal.tsx');
-  if (/height: vPullBottomH/.test(s)) return 'cue still animates height';
-  if (!s.includes('y: vPullBottomY')) return 'cue does not animate y';
-  if (/backdropFilter: "blur\(14px\)"/.test(s)) return 'cue still carries a 14px backdrop blur';
+  if (/vPullBottomY|PULL_CUE_HEIGHT/.test(s)) return 'the pull-to-open gesture is still wired up';
+  if (!/\{isMobile && \(\s*\n\s*<MobileAskDock/.test(s)) return 'the ask dock is not mounted unconditionally on mobile';
+  const dock = read('src/components/ui/MobileAskDock.tsx');
+  if (!/aria-label="Ask anything"/.test(dock)) return 'the collapsed trigger has no accessible label';
+  if (!/key="bar"/.test(dock)) return 'no persistent collapsed trigger';
   return null;
 });
 
-check('page rubber-band writes transform directly, not inherited CSS variables', () => {
-  const s = read('src/components/ui/FloatingTerminal.tsx');
-  if (/setProperty\("--jd-terminal-pull/.test(s)) return 'still writes --jd-terminal-pull-* custom properties';
-  if (!/main\.style\.transform = `translate3d/.test(s)) return 'does not write main.style.transform';
+check('sheet dismissal projects momentum instead of thresholding distance', () => {
+  const s = read('src/components/ui/MobileAskDock.tsx');
+  if (!/function project\(/.test(s)) return 'no momentum projection helper';
+  if (!/0\.998/.test(s)) return 'projection does not use the exponential decay rate';
+  if (!/setPointerCapture/.test(s)) return 'drag does not capture the pointer, so tracking breaks at the bounds';
+  if (!/onPointerCancel/.test(s)) return 'no pointercancel path — a cancelled touch would leak drag state';
+  if (!/function rubberband\(/.test(s)) return 'no rubber-band resistance at the top boundary';
   return null;
 });
 
-check('will-change is not permanently pinned on <main>', () => {
-  const css = read('src/app/globals.css');
-  const block = /@media \(max-width: 768px\) \{[\s\S]*?\n\}/.exec(css)?.[0] ?? '';
-  if (block.includes('will-change')) return 'globals.css still pins will-change on main';
-  const s = read('src/components/ui/FloatingTerminal.tsx');
-  if (!s.includes('main.style.willChange')) return 'will-change is never set during the pull';
+check('mobile sheet is sized from the visual viewport, never vh', () => {
+  const s = read('src/components/ui/MobileAskDock.tsx');
+  if (/\d+vh/.test(s)) return 'sheet still uses vh, which ignores the keyboard';
+  if (!/useVisualViewport/.test(s)) return 'sheet does not consult the visual viewport';
+  if (!/keyboardInset/.test(s)) return 'sheet does not offset for the keyboard';
+  const layout = read('src/app/layout.tsx');
+  if (!/viewport-fit=cover/.test(layout)) return 'viewport-fit=cover missing, so every env(safe-area-inset-*) resolves to 0';
   return null;
 });
 

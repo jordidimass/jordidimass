@@ -58,7 +58,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <script dangerouslySetInnerHTML={{ __html: `try{var s=localStorage.getItem('jd-motion');var on=s===null?!window.matchMedia('(prefers-reduced-motion: reduce)').matches:s!=='false';document.documentElement.setAttribute('data-motion',on?'on':'off')}catch(e){}` }} />
         <link rel="preconnect" href="https://gallery-worker.jordidimas.workers.dev" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

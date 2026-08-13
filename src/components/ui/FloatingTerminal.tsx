@@ -3,12 +3,13 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } from "ai";
-import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import { X, SkipBack, SkipForward, Pause, ChevronDown } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { TerminalIcon, type TerminalIconHandle } from "./TerminalIcon";
 import MusicPlayer from "./MusicPlayer";
 import AskSurface from "./AskSurface";
+import MobileAskDock from "./MobileAskDock";
 import { parseInlineLinks } from "./TerminalMarkdown";
 import { C, MONO } from "./vesper";
 import { profileData } from "@/config/profile";
@@ -36,7 +37,6 @@ const MIN_W = 340;
 const MIN_H = 220;
 const DEFAULT_W = 500;
 const DEFAULT_H = 380;
-const PULL_CUE_HEIGHT = 140;
 
 // ─── Stable transport ──────────────────────────────────────────────────────────
 const transport = new DefaultChatTransport({ api: "/api/terminal" });
@@ -91,21 +91,10 @@ function fmtTime(s: number) {
 }
 
 // ─── Shared output + input (used by both layouts) ─────────────────────────────
-function OutputArea({
-  lines, outputRef, onScroll,
-}: {
-  lines: Line[];
-  outputRef: React.RefObject<HTMLDivElement | null>;
-  onScroll: () => void;
-}) {
+function LogRows({ lines }: { lines: Line[] }) {
   const router = useRouter();
   return (
-    <div
-      ref={outputRef}
-      onScroll={onScroll}
-      className="flex-1 overflow-y-auto px-4 py-3"
-      style={{ scrollbarWidth: "none" }}
-    >
+    <>
       {lines.map((l) => {
         if (l.type === "link") {
           return (
@@ -132,6 +121,25 @@ function OutputArea({
           </div>
         );
       })}
+    </>
+  );
+}
+
+function OutputArea({
+  lines, outputRef, onScroll,
+}: {
+  lines: Line[];
+  outputRef: React.RefObject<HTMLDivElement | null>;
+  onScroll: () => void;
+}) {
+  return (
+    <div
+      ref={outputRef}
+      onScroll={onScroll}
+      className="flex-1 overflow-y-auto px-4 py-3"
+      style={{ scrollbarWidth: "none" }}
+    >
+      <LogRows lines={lines} />
     </div>
   );
 }
@@ -322,6 +330,12 @@ export default function FloatingTerminal() {
   const [instantClose, setInstantClose] = useState(false);
   const [input, setInput] = useState("");
   const [lines, setLines] = useState<Line[]>(BOOT);
+  const bootCleared = useRef(false);
+  useEffect(() => {
+    if (!isMobile || bootCleared.current) return;
+    bootCleared.current = true;
+    setLines((prev) => (prev === BOOT ? [] : prev));
+  }, [isMobile]);
   // Ask mode swaps the whole output surface for the chat view. The terminal log
   // is kept intact underneath and comes back on exit.
   const [askMode, setAskMode] = useState(false);
@@ -352,6 +366,10 @@ export default function FloatingTerminal() {
   const [remaining, setRemaining] = useState(0);
   const [duration, setDuration] = useState(0);
   const [musicStarted, setMusicStarted] = useState(false);
+  const [playerExpanded, setPlayerExpanded] = useState(false);
+  useEffect(() => {
+    if (isOpen || !musicStarted) setPlayerExpanded(false);
+  }, [isOpen, musicStarted]);
   useEffect(() => { if (playing) setMusicStarted(true); }, [playing]);
   const [shuffle, setShuffle] = useState(false);
   const shuffleRef = useRef(false);
@@ -422,158 +440,6 @@ export default function FloatingTerminal() {
       }
     },
   });
-
-  // ── Mobile: bottom-edge pull → open terminal (release to trigger) ───────────
-  const vPullRaw = useMotionValue(0);
-  const vPull = useSpring(vPullRaw, { stiffness: 520, damping: 44, mass: 0.8 });
-  const vPullBottomH = useTransform(vPull, (v) => Math.max(0, Math.min(PULL_CUE_HEIGHT, -v)));
-  const vPullBottomOpacity = useTransform(vPullBottomH, (h) => Math.min(0.95, h / 60));
-  const vPullBottomY = useTransform(vPullBottomH, (h) => PULL_CUE_HEIGHT - h);
-  const pullStart = useRef<{ x: number; y: number } | null>(null);
-  const pullLastDy = useRef(0);
-  const pullActiveDy = useRef(0);
-  const pullDecided = useRef<"h" | "v" | null>(null);
-  const vPullScrollEl = useRef<HTMLElement | null>(null);
-  const vPullScrollMax = useRef(0);
-
-  useEffect(() => {
-    if (!isMobile) return;
-    if (isOpen) return;
-
-    const isEditableTarget = (el: Element | null) => {
-      if (!el) return false;
-      const tag = el.tagName;
-      return (el as HTMLElement).isContentEditable || tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
-    };
-
-    const getScrollableYAncestor = (el: Element | null): HTMLElement | null => {
-      let cur: Element | null = el;
-      while (cur && cur !== document.body) {
-        const style = window.getComputedStyle(cur);
-        const overflowY = style.overflowY;
-        const node = cur as HTMLElement;
-        if ((overflowY === "auto" || overflowY === "scroll") && node.scrollHeight > node.clientHeight) {
-          return node;
-        }
-        cur = cur.parentElement;
-      }
-
-      const root = document.scrollingElement as HTMLElement | null;
-      if (root && root.scrollHeight > root.clientHeight) return root;
-      return null;
-    };
-
-    const onTouchStart = (e: TouchEvent) => {
-      if (document.querySelector("[cmdk-dialog]")) return;
-      if (document.querySelector("[data-jd-terminal]")) return;
-
-      const target = e.target instanceof Element ? e.target : null;
-      if (isEditableTarget(target)) return;
-
-      const vScrollEl = getScrollableYAncestor(target);
-      vPullScrollEl.current = vScrollEl;
-      vPullScrollMax.current = vScrollEl ? Math.max(0, vScrollEl.scrollHeight - vScrollEl.clientHeight) : 0;
-
-      const t = e.touches[0];
-      pullStart.current = { x: t.clientX, y: t.clientY };
-      pullLastDy.current = 0;
-      pullActiveDy.current = 0;
-      pullDecided.current = null;
-    };
-
-    const onTouchMove = (e: TouchEvent) => {
-      if (!pullStart.current) return;
-      const t = e.touches[0];
-      const dx = t.clientX - pullStart.current.x;
-      const dy = t.clientY - pullStart.current.y;
-      pullLastDy.current = dy;
-
-      if (!pullDecided.current) {
-        const adx = Math.abs(dx);
-        const ady = Math.abs(dy);
-        if (adx < 10 && ady < 10) return;
-        pullDecided.current = adx > ady ? "h" : "v";
-      }
-      // Only act on vertical intent.
-      if (pullDecided.current !== "v") return;
-
-      const scrollEl = vPullScrollEl.current;
-      if (scrollEl) {
-        const max = vPullScrollMax.current;
-        const top = scrollEl.scrollTop;
-        const atBottom = top >= max - 0.5;
-        const wantsPull = dy < 0 && atBottom;
-        if (!wantsPull) {
-          pullActiveDy.current = 0;
-          vPullRaw.set(0);
-          return;
-        }
-      } else {
-        // No vertical scroll container: treat as already at the end.
-        if (dy >= 0) {
-          pullActiveDy.current = 0;
-          vPullRaw.set(0);
-          return;
-        }
-      }
-
-      pullActiveDy.current = dy;
-      vPullRaw.set(Math.max(-PULL_CUE_HEIGHT, Math.min(0, dy)));
-    };
-
-    const finish = () => {
-      if (!pullStart.current) return;
-      const dy = pullActiveDy.current;
-      const shouldOpenY = pullDecided.current === "v" && Math.abs(dy) >= 120;
-      const shouldOpen = shouldOpenY;
-      pullStart.current = null;
-      pullDecided.current = null;
-      pullLastDy.current = 0;
-      pullActiveDy.current = 0;
-      vPullScrollEl.current = null;
-      vPullScrollMax.current = 0;
-      vPullRaw.set(0);
-      if (shouldOpen) window.dispatchEvent(new CustomEvent("open-terminal"));
-    };
-
-    window.addEventListener("touchstart", onTouchStart, { passive: true });
-    window.addEventListener("touchmove", onTouchMove, { passive: true });
-    window.addEventListener("touchend", finish, { passive: true });
-    window.addEventListener("touchcancel", finish, { passive: true });
-    return () => {
-      window.removeEventListener("touchstart", onTouchStart);
-      window.removeEventListener("touchmove", onTouchMove);
-      window.removeEventListener("touchend", finish);
-      window.removeEventListener("touchcancel", finish);
-    };
-  }, [isMobile, isOpen, vPullRaw]);
-
-  // Apply a subtle global "rubber band" transform to the page while pulling.
-  useEffect(() => {
-    if (!isMobile) return;
-    const main = document.querySelector("main");
-    if (!(main instanceof HTMLElement)) return;
-
-    const apply = (h: number) => {
-      if (h <= 0) {
-        main.style.transform = "";
-        main.style.willChange = "";
-        return;
-      }
-      const shift = Math.round(h * 0.22);
-      const scale = Math.max(0.94, 1 - h / 1100);
-      main.style.willChange = "transform";
-      main.style.transform = `translate3d(0, ${-shift}px, 0) scaleY(${scale})`;
-    };
-
-    apply(0);
-    const unsub = vPullBottomH.on("change", apply);
-    return () => {
-      unsub();
-      main.style.transform = "";
-      main.style.willChange = "";
-    };
-  }, [isMobile, vPullBottomH]);
 
   const ensureAudioSrc = useCallback(() => {
     const audio = audioRef.current;
@@ -1083,7 +949,7 @@ export default function FloatingTerminal() {
           transition={{ duration: 0.14, ease: EASE_OUT }}
           style={{ color: askMode ? C.text : C.muted, fontSize: 11, letterSpacing: "0.1em" }}
         >
-          {askMode ? "ask · mini" : "terminal"}
+          {askMode ? "ask mode" : "terminal"}
         </motion.span>
       </AnimatePresence>
       {askMode && (
@@ -1153,24 +1019,19 @@ export default function FloatingTerminal() {
         </button>
       )}
 
-      {/* ── Mobile pull-stretch cue ── */}
-      {isMobile && !isOpen && (
-        <>
-          <motion.div
-            aria-hidden="true"
-            className="fixed left-0 right-0 bottom-0 z-30 pointer-events-none"
-            style={{
-              height: PULL_CUE_HEIGHT,
-              y: vPullBottomY,
-              opacity: vPullBottomOpacity,
-              background: "linear-gradient(0deg, rgba(17,16,16,0.92), rgba(17,16,16,0.25), rgba(17,16,16,0.00))",
-              borderTop: "1px solid rgba(255,255,255,0.12)",
-              boxShadow: "0 -18px 60px rgba(0,0,0,0.55)",
-              borderTopLeftRadius: 22,
-              borderTopRightRadius: 22,
-            }}
-          />
-        </>
+      {isMobile && (
+        <MobileAskDock
+          open={isOpen}
+          onOpen={() => { setInstantClose(false); setIsOpen(true); }}
+          onClose={() => setIsOpen(false)}
+          messages={messages}
+          status={status}
+          motionEnabled={motionEnabled}
+          onSend={onAskSend}
+          onCommand={run}
+          lead={lines.length ? <LogRows lines={lines} /> : null}
+          hideTrigger={playerExpanded}
+        />
       )}
 
       {/* ── Floating music player (hidden while the terminal panel is open) ── */}
@@ -1191,88 +1052,16 @@ export default function FloatingTerminal() {
           onClose={closePlayer}
           seek={seek}
           isMobile={isMobile}
+          expanded={playerExpanded}
+          onExpandedChange={setPlayerExpanded}
+          motionEnabled={motionEnabled}
         />
       )}
 
       <AnimatePresence>
-        {isOpen && (
+        {isOpen && !isMobile && (
           <>
-            {/* ── Mobile backdrop ── */}
-              {isMobile && (
-                <motion.div
-                  key="backdrop"
-                  className="fixed inset-0 z-40"
-                  style={{ background: "rgba(0,0,0,0.5)" }}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={instantClose ? { duration: 0 } : { duration: 0.2 }}
-                  onClick={() => {
-                    setInstantClose(false);
-                    setIsOpen(false);
-                  }}
-                />
-              )}
-
-             {isMobile ? (
-               /* ── Mobile: bottom sheet ──────────────────────────────────────── */
-               <motion.div
-                 key="sheet"
-                 data-jd-terminal=""
-                 ref={panelRef}
-                 initial={{ y: "100%" }}
-                 animate={{ y: 0 }}
-                 exit={{ y: "100%" }}
-                 transition={instantClose ? { duration: 0 } : { type: "spring", damping: 30, stiffness: 300 }}
-                 className="fixed inset-x-0 bottom-0 z-50 flex flex-col"
-                 style={{
-                   ...sharedPanelStyle,
-                   height: "65vh",
-                  borderTop: `1px solid ${C.border}`,
-                  borderLeft: `1px solid ${C.border}`,
-                  borderRight: `1px solid ${C.border}`,
-                  borderRadius: "16px 16px 0 0",
-                  boxShadow: "0 -8px 40px rgba(0,0,0,0.6)",
-                }}
-                onClick={() => inputRef.current?.focus()}
-              >
-                {/* Drag pill — swipe down to dismiss */}
-                <div
-                  className="shrink-0 flex flex-col items-center pt-3 pb-2 cursor-grab"
-                  onTouchStart={onPillTouchStart}
-                  onTouchEnd={onPillTouchEnd}
-                >
-                  <div
-                    className="rounded-full"
-                    style={{ width: 36, height: 4, background: C.muted }}
-                  />
-                </div>
-
-                {/* Title row */}
-                <div
-                  className="shrink-0 flex items-center justify-between px-5 pb-2"
-                >
-                  {titleNode}
-                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setInstantClose(false);
-                      setIsOpen(false);
-                    }}
-                    style={{ color: C.muted, lineHeight: 0 }}
-                    aria-label="Close"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-
-                <div style={{ borderTop: `1px solid ${C.border}` }} />
-
-                {surface}
-                <MusicBar playing={playing} trackDisplay={trackDisplay} remaining={remaining} progress={progress} switchTrack={switchTrack} togglePlay={togglePlay} onSelectTrack={playTrack} />
-                <InputRow input={input} setInput={setInput} onKey={onKey} onSubmit={onSubmit} inputRef={inputRef} isMobile={isMobile} askMode={askMode} />
-              </motion.div>
-            ) : (
+            {
               /* ── Desktop: floating panel ───────────────────────────────────── */
               <motion.div
                 key="panel"
@@ -1332,7 +1121,7 @@ export default function FloatingTerminal() {
                   </svg>
                 </div>
               </motion.div>
-            )}
+            }
           </>
         )}
       </AnimatePresence>
