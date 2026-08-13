@@ -1,5 +1,5 @@
 import { openai } from "@ai-sdk/openai";
-import { streamText, convertToModelMessages } from "ai";
+import { streamText, convertToModelMessages, smoothStream, tool, jsonSchema, stepCountIs } from "ai";
 import { supabase } from "@/lib/supabaseClient";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { slugFromKey } from "@/lib/gallery";
@@ -12,6 +12,57 @@ let cacheTime = 0;
 const CACHE_TTL = 60_000;
 
 const GALLERY_WORKER_URL = process.env.NEXT_PUBLIC_GALLERY_WORKER_URL ?? "";
+
+/**
+ * Client-side tools: declared with no `execute`, so the SDK forwards the call
+ * to the browser and the terminal runs it against the real router and audio
+ * element. Nothing here is theatre — a step only appears once the model has
+ * actually asked for it, and the result the model sees is what happened.
+ */
+const siteTools = {
+  navigate: tool({
+    description:
+      "Take the visitor to a page on this site. Use this whenever they ask to go to, open, show or see something — do not just describe the page, actually take them there.",
+    inputSchema: jsonSchema<{ path: string }>({
+      type: "object",
+      properties: {
+        path: {
+          type: "string",
+          description:
+            "Absolute internal path. One of / , /blog , /gallery , /about , /connect , /matrix , or a specific /gallery/<slug> or /posts/<slug>.",
+        },
+      },
+      required: ["path"],
+      additionalProperties: false,
+    }),
+  }),
+  music: tool({
+    description:
+      "Control the music player built into the terminal. Use when the visitor asks to play, pause, skip or change music.",
+    inputSchema: jsonSchema<{ action: "play" | "pause" | "next" | "previous"; track?: string }>({
+      type: "object",
+      properties: {
+        action: { type: "string", enum: ["play", "pause", "next", "previous"] },
+        track: {
+          type: "string",
+          description: "Optional track title to play. Matched loosely against the playlist.",
+        },
+      },
+      required: ["action"],
+      additionalProperties: false,
+    }),
+  }),
+  setAnimations: tool({
+    description:
+      "Turn the site's animations on or off. Use when the visitor asks for less motion, or to re-enable it.",
+    inputSchema: jsonSchema<{ enabled: boolean }>({
+      type: "object",
+      properties: { enabled: { type: "boolean" } },
+      required: ["enabled"],
+      additionalProperties: false,
+    }),
+  }),
+} as const;
 
 async function getSystemPrompt(): Promise<string> {
   if (cachedPrompt && Date.now() - cacheTime < CACHE_TTL) return cachedPrompt;
@@ -67,7 +118,9 @@ Photos & profiles around the web:
 
 Music note: Last.fm is the primary source for music taste and listening history. Spotify is for playlists only. VSCO is photography — never suggest it for music.`;
 
-  cachedPrompt = `You are an AI assistant representing Jordi Dimas on his personal website. Answer questions concisely and in first person where appropriate.\n\n${sections}${blogList}${galleryList}${siteInfo}\n\nIf asked something you don't know, say so honestly. Keep answers brief and optimized for terminal display. IMPORTANT: Whenever you reference any URL or page in your response, always use markdown link format: [visible label](url). Never output bare URLs.`;
+  cachedPrompt = `You are Jordi Dimas, speaking on your own personal website. Always answer in the first person — "I", "my", "me". Never refer to Jordi in the third person and never describe yourself as an assistant. Answer concisely.\n\n${sections}${blogList}${galleryList}${siteInfo}\n\nYou can operate this site, not just describe it. You have tools to navigate the visitor to any page, control the music player, and toggle animations. Prefer acting over explaining: if someone asks to see the photos, call navigate rather than telling them where to click. After a tool runs, say what you did in one short line.
+
+If asked something you don't know, say so honestly. Keep answers brief and optimized for terminal display. IMPORTANT: Whenever you reference any URL or page in your response, always use markdown link format: [visible label](url). Never output bare URLs.`;
   cacheTime = Date.now();
   return cachedPrompt;
 }
@@ -117,6 +170,13 @@ export async function POST(req: Request) {
     model: openai("gpt-4.1-nano-2025-04-14"),
     system: await getSystemPrompt(),
     messages: modelMessages,
+    tools: siteTools,
+    // One step to call a tool, another to speak after seeing the result.
+    stopWhen: stepCountIs(5),
+    // nano answers faster than anyone can read, so the whole reply used to land
+    // in a single frame. This paces the real tokens word by word — nothing is
+    // fabricated, the arrival is just spread out enough to follow.
+    experimental_transform: smoothStream({ chunking: "word", delayInMs: 18 }),
   });
 
   return result.toUIMessageStreamResponse();

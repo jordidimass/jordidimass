@@ -326,7 +326,16 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
   return (
     <>
       {/* ── Masonry grid ────────────────────────────────────────────────────── */}
-      <div ref={gridRef} data-gallery-grid data-hold className="columns-1 gap-4 space-y-4 sm:columns-2 lg:columns-3">
+      {/* suppressHydrationWarning: RELEASE_SCRIPT strips data-hold at parse
+          time, which on a warm cache happens before React hydrates. The
+          divergence is the whole point of shipping the hold in the HTML, so
+          the warning is noise — React leaves attribute mismatches unpatched. */}
+      <div
+        ref={gridRef}
+        data-gallery-grid data-hold
+        suppressHydrationWarning
+        className="columns-1 gap-4 space-y-4 sm:columns-2 lg:columns-3"
+      >
         {images.map((img, index) => (
           <GalleryTile
             key={img.key}

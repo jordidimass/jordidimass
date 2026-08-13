@@ -2,25 +2,19 @@
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport, isTextUIPart } from "ai";
+import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from "motion/react";
 import { X, SkipBack, SkipForward, Pause } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { TerminalIcon, type TerminalIconHandle } from "./TerminalIcon";
 import MusicPlayer from "./MusicPlayer";
+import AskSurface from "./AskSurface";
+import { parseInlineLinks } from "./TerminalMarkdown";
+import { C, MONO } from "./vesper";
 import { profileData } from "@/config/profile";
 import { useMotionContext } from "@/components/MotionProvider";
+import { EASE_OUT } from "@/lib/motion";
 import { TRACKS, TRACK_ORDER, type TrackKey } from "@/config/music";
-
-// ─── Vesper palette ────────────────────────────────────────────────────────────
-const C = {
-  bg: "#101010",
-  border: "#1e1e1e",
-  text: "#f5f5f5",
-  muted: "#4c4c4c",
-  accent: "#ff8800",
-  dim: "#2a2a2a",
-} as const;
 
 // ─── Output lines ──────────────────────────────────────────────────────────────
 type TextLine = { id: number; type: "text"; text: string; dim?: boolean };
@@ -36,27 +30,6 @@ const BOOT: Line[] = [
   mkLine('type "help" for available commands.', true),
 ];
 
-// ─── Inline link parser ([label](url) markdown → React nodes) ─────────────────
-function parseInlineLinks(text: string, router: ReturnType<typeof useRouter>): React.ReactNode {
-  const parts = text.split(/(\[[^\]]+\]\([^)]+\))/g);
-  if (parts.length === 1) return text;
-  return parts.map((part, i) => {
-    const m = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
-    if (!m) return <span key={i}>{part}</span>;
-    const [, label, href] = m;
-    const external = href.startsWith("http");
-    return (
-      <a key={i} href={href}
-        target={external ? "_blank" : "_self"}
-        rel={external ? "noopener noreferrer" : undefined}
-        onClick={external ? undefined : (e) => { e.preventDefault(); router.push(href); }}
-        style={{ color: C.accent, textDecoration: "none" }}
-        className="hover:underline hover:opacity-75 transition-opacity duration-150 cursor-pointer"
-      >{label}</a>
-    );
-  });
-}
-
 // ─── Desktop sizes ─────────────────────────────────────────────────────────────
 const MIN_W = 340;
 const MIN_H = 220;
@@ -66,6 +39,43 @@ const PULL_CUE_HEIGHT = 140;
 
 // ─── Stable transport ──────────────────────────────────────────────────────────
 const transport = new DefaultChatTransport({ api: "/api/terminal" });
+
+// ─── Site tools (executed here, in the browser) ───────────────────────────────
+type MusicToolInput = { action: "play" | "pause" | "next" | "previous"; track?: string };
+
+type SiteOps = {
+  navigate: (path: string) => string;
+  music: (input: MusicToolInput) => Promise<string>;
+  setAnimations: (enabled: boolean) => string;
+};
+
+/**
+ * The model only ever gets to move the visitor around this site. Anything that
+ * is not a same-origin path is refused before it reaches the router, so a bad
+ * or hallucinated argument cannot turn into an off-site redirect.
+ */
+function safeInternalPath(raw: string): string | null {
+  if (typeof raw !== "string") return null;
+  const path = raw.trim();
+  if (!path.startsWith("/") || path.startsWith("//")) return null;
+  try {
+    const url = new URL(path, window.location.origin);
+    if (url.origin !== window.location.origin) return null;
+    return url.pathname + url.search + url.hash;
+  } catch {
+    return null;
+  }
+}
+
+function findTrack(query: string): TrackKey | null {
+  const q = query.trim().toLowerCase();
+  if (!q) return null;
+  return (
+    TRACK_ORDER.find((k) => TRACKS[k].title.toLowerCase() === q) ??
+    TRACK_ORDER.find((k) => TRACKS[k].title.toLowerCase().includes(q)) ??
+    null
+  );
+}
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 function pickRandomTrack(exclude: TrackKey): TrackKey {
@@ -81,16 +91,17 @@ function fmtTime(s: number) {
 
 // ─── Shared output + input (used by both layouts) ─────────────────────────────
 function OutputArea({
-  lines, status, outputRef,
+  lines, outputRef, onScroll,
 }: {
   lines: Line[];
-  status: string;
   outputRef: React.RefObject<HTMLDivElement | null>;
+  onScroll: () => void;
 }) {
   const router = useRouter();
   return (
     <div
       ref={outputRef}
+      onScroll={onScroll}
       className="flex-1 overflow-y-auto px-4 py-3"
       style={{ scrollbarWidth: "none" }}
     >
@@ -120,9 +131,6 @@ function OutputArea({
           </div>
         );
       })}
-      {status === "streaming" && (
-        <span className="animate-pulse" style={{ fontSize: 12, color: C.muted }}>▌</span>
-      )}
     </div>
   );
 }
@@ -179,7 +187,7 @@ function MusicBar({
 }
 
 function InputRow({
-  input, setInput, onKey, onSubmit, inputRef, isMobile,
+  input, setInput, onKey, onSubmit, inputRef, isMobile, askMode,
 }: {
   input: string;
   setInput: (v: string) => void;
@@ -187,13 +195,25 @@ function InputRow({
   onSubmit: () => void;
   inputRef: React.RefObject<HTMLInputElement | null>;
   isMobile: boolean;
+  askMode: boolean;
 }) {
   return (
     <div
       className="flex items-center gap-2 px-4 py-2 shrink-0"
       style={{ borderTop: `1px solid ${C.border}`, ...(isMobile && { height: "60px" }) }}
     >
-      <span style={{ fontSize: 12, color: C.accent, userSelect: "none" }}>&gt;</span>
+      {/* λ is the matrix terminal's mark — same glyph, terminal accent. */}
+      <span
+        style={{
+          fontSize: askMode ? 14 : 12,
+          lineHeight: 1,
+          color: C.accent,
+          userSelect: "none",
+          transition: "opacity 140ms var(--ease-out)",
+        }}
+      >
+        {askMode ? "λ" : ">"}
+      </span>
       <input
         ref={inputRef}
         type="text"
@@ -202,12 +222,21 @@ function InputRow({
         onKeyDown={onKey}
         className="flex-1 bg-transparent border-none outline-none"
         style={{ fontSize: 16, color: C.text, caretColor: C.accent }}
+        placeholder={askMode ? "ask a follow-up…" : ""}
         autoComplete="off"
         autoCorrect="off"
         autoCapitalize="off"
         spellCheck={false}
-        aria-label="Terminal input"
+        aria-label={askMode ? "Ask input" : "Terminal input"}
       />
+      {askMode && !isMobile && (
+        <span
+          className="flex items-center gap-1.5"
+          style={{ fontSize: 10, color: C.muted, userSelect: "none", flexShrink: 0 }}
+        >
+          esc ·<span style={{ fontSize: 15, lineHeight: 1 }}>⏎</span>
+        </span>
+      )}
       {isMobile && (
         <button
           onPointerDown={(e) => { e.preventDefault(); onSubmit(); }}
@@ -243,6 +272,9 @@ export default function FloatingTerminal() {
   const [instantClose, setInstantClose] = useState(false);
   const [input, setInput] = useState("");
   const [lines, setLines] = useState<Line[]>(BOOT);
+  // Ask mode swaps the whole output surface for the chat view. The terminal log
+  // is kept intact underneath and comes back on exit.
+  const [askMode, setAskMode] = useState(false);
   const [cmdHistory, setCmdHistory] = useState<string[]>([]);
   const [histIdx, setHistIdx] = useState(-1);
 
@@ -283,9 +315,63 @@ export default function FloatingTerminal() {
   const outputRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const iconRef = useRef<TerminalIconHandle>(null);
-  const lastMsgId = useRef<string | null>(null);
+  const outputPinned = useRef(true);
 
-  const { messages, sendMessage, status } = useChat({ id: "ft", transport });
+  // The tool handlers below need callbacks that are defined further down this
+  // component. useChat captures onToolCall once, so it reads them through a ref
+  // that every render keeps current.
+  const siteOpsRef = useRef<SiteOps | null>(null);
+
+  const { messages, sendMessage, status, addToolResult } = useChat({
+    id: "ft",
+    transport,
+    // Hand the tool output back and let the model speak after seeing it.
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+    onToolCall: async ({ toolCall }) => {
+      const ops = siteOpsRef.current;
+      const name = toolCall.toolName as keyof SiteOps;
+      const done = (output: string) =>
+        addToolResult({ tool: name, toolCallId: toolCall.toolCallId, output });
+
+      if (!ops) {
+        addToolResult({
+          state: "output-error",
+          tool: name,
+          toolCallId: toolCall.toolCallId,
+          errorText: "terminal not ready",
+        });
+        return;
+      }
+
+      try {
+        switch (name) {
+          case "navigate":
+            done(ops.navigate((toolCall.input as { path: string }).path));
+            return;
+          case "music":
+            done(await ops.music(toolCall.input as MusicToolInput));
+            return;
+          case "setAnimations":
+            done(ops.setAnimations((toolCall.input as { enabled: boolean }).enabled));
+            return;
+          default:
+            addToolResult({
+              state: "output-error",
+              tool: name,
+              toolCallId: toolCall.toolCallId,
+              errorText: `unknown tool: ${String(name)}`,
+            });
+        }
+      } catch (err) {
+        addToolResult({
+          state: "output-error",
+          tool: name,
+          toolCallId: toolCall.toolCallId,
+          errorText: err instanceof Error ? err.message : "tool failed",
+        });
+      }
+    },
+  });
 
   // ── Mobile: bottom-edge pull → open terminal (release to trigger) ───────────
   const vPullRaw = useMotionValue(0);
@@ -449,27 +535,18 @@ export default function FloatingTerminal() {
     return audio;
   }, []);
 
-  // ── AI stream → lines ────────────────────────────────────────────────────────
-  useEffect(() => {
-    const last = messages[messages.length - 1];
-    if (!last || last.role !== "assistant") return;
-    const text = last.parts.filter(isTextUIPart).map((p) => p.text).join("");
-    if (lastMsgId.current !== last.id) {
-      lastMsgId.current = last.id;
-      setLines((prev) => [...prev, mkLine(text)]);
-    } else {
-      setLines((prev) => {
-        const next = [...prev];
-        next[next.length - 1] = mkLine(text);
-        return next;
-      });
-    }
-  }, [messages]);
-
   // ── Auto-scroll ──────────────────────────────────────────────────────────────
+  // Follow new output only while the reader is already at the bottom.
   useEffect(() => {
-    outputRef.current?.scrollTo({ top: outputRef.current.scrollHeight });
+    const el = outputRef.current;
+    if (el && outputPinned.current) el.scrollTop = el.scrollHeight;
   }, [lines]);
+
+  const onOutputScroll = useCallback(() => {
+    const el = outputRef.current;
+    if (!el) return;
+    outputPinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24;
+  }, []);
 
   // ── Focus on open ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -516,7 +593,7 @@ export default function FloatingTerminal() {
     if (isOpen) setInstantClose(false);
   }, [isOpen]);
 
-  // ── Keybinds: Cmd/Ctrl+K → clear; Escape → close ───────────────────────────
+  // ── Keybinds: Cmd/Ctrl+K → clear; Escape → leave ask mode, then close ──────
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: KeyboardEvent) => {
@@ -529,15 +606,21 @@ export default function FloatingTerminal() {
         if (document.querySelector("[cmdk-dialog]")) return;
         e.preventDefault();
         setLines([]);
-        lastMsgId.current = null;
       } else if (e.key === "Escape") {
+        // In ask mode the first Escape steps back to the terminal; only the
+        // second one closes the panel.
+        if (askMode) {
+          e.preventDefault();
+          setAskMode(false);
+          return;
+        }
         setInstantClose(true);
         setIsOpen(false);
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [isOpen]);
+  }, [isOpen, askMode]);
 
   // ── Icon blink ───────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -669,6 +752,55 @@ export default function FloatingTerminal() {
     setMusicStarted(false);
   }, []);
 
+  // ── Site tools, executed for real ────────────────────────────────────────────
+  // Kept in a ref because useChat captured onToolCall on its first render.
+  useEffect(() => {
+    siteOpsRef.current = {
+      navigate: (path) => {
+        const safe = safeInternalPath(path);
+        if (!safe) return `refused: "${path}" is not a page on this site`;
+        router.push(safe);
+        return `navigated to ${safe}`;
+      },
+
+      music: async ({ action, track }) => {
+        const audio = audioRef.current;
+        if (!audio) return "the player is not available";
+
+        if (action === "pause") {
+          if (!playing) return "already paused";
+          togglePlay();
+          return "paused";
+        }
+        if (action === "next") {
+          const key = await switchTrack(1);
+          return `playing ${TRACKS[key].title}`;
+        }
+        if (action === "previous") {
+          const key = await switchTrack(-1);
+          return `playing ${TRACKS[key].title}`;
+        }
+
+        if (track) {
+          const key = findTrack(track);
+          if (!key) return `no track matching "${track}". playlist: ${TRACK_ORDER.map((k) => TRACKS[k].title).join(", ")}`;
+          playTrack(key);
+          return `playing ${TRACKS[key].title}`;
+        }
+        if (playing) return `already playing ${TRACKS[trackRef.current].title}`;
+        ensureAudioSrc();
+        await audio.play().then(() => setPlaying(true)).catch(() => {});
+        return `playing ${TRACKS[trackRef.current].title}`;
+      },
+
+      setAnimations: (enabled) => {
+        if (enabled === motionEnabled) return `animations were already ${enabled ? "on" : "off"}`;
+        toggleMotion();
+        return `animations ${enabled ? "on" : "off"}`;
+      },
+    };
+  }, [router, playing, togglePlay, switchTrack, playTrack, ensureAudioSrc, motionEnabled, toggleMotion]);
+
   // ── Music control events from CommandPalette ─────────────────────────────────
   useEffect(() => {
     const audio = audioRef.current;
@@ -710,10 +842,11 @@ export default function FloatingTerminal() {
     if (lo === "help") {
       setLines((prev) => [...prev,
         mkLine("available commands:", true),
-        mkLine("  ask <query>      ask the AI a question"),
+        mkLine("  ask              start a conversation  (esc to leave)"),
+        mkLine("  ask <query>      start one with a question"),
         mkLine("  links            show social & profile links"),
         mkLine("  neofetch         system info"),
-        mkLine("  whoami           about jordi"),
+        mkLine("  whoami           who i am"),
         mkLine("  play             start audio playback"),
         mkLine("  pause            pause playback"),
         mkLine("  next             next track"),
@@ -760,7 +893,7 @@ export default function FloatingTerminal() {
         mkLine("experiences."),
       ]); return;
     }
-    if (lo === "clear") { setLines([]); lastMsgId.current = null; return; }
+    if (lo === "clear") { setLines([]); return; }
     if (lo === "exit") {
       setLines((prev) => [...prev, mkLine("closing terminal...", true)]);
       setTimeout(() => setIsOpen(false), 600); return;
@@ -799,10 +932,13 @@ export default function FloatingTerminal() {
       setLines((prev) => [...prev, ...art.map((a, i) => mkLine(`${a.padEnd(24)}  ${info[i] ?? ""}`)), mkLine(""), mkLine("Host   jordidimas.dev", true)]);
       return;
     }
+    if (lo === "ask") { setAskMode(true); return; }
     if (lo.startsWith("ask ")) {
       const q = cmd.slice(4).trim();
-      if (!q) { setLines((prev) => [...prev, mkLine("usage: ask <your question>", true)]); return; }
-      sendMessage({ text: q }); return;
+      if (!q) { setAskMode(true); return; }
+      setAskMode(true);
+      sendMessage({ text: q });
+      return;
     }
     setLines((prev) => [
       ...prev,
@@ -810,6 +946,19 @@ export default function FloatingTerminal() {
       mkLine('type "help" for available commands.', true),
     ]);
   }, [playing, switchTrack, togglePlay, sendMessage, router, motionEnabled, toggleMotion]);
+
+  // ── Submit ────────────────────────────────────────────────────────────────────
+  // In ask mode a bare line is a question. A leading "/" escapes back to the
+  // command processor, so `/clear` and `/help` stay reachable without leaving.
+  const submit = useCallback((raw: string) => {
+    const value = raw.trim();
+    if (!value) return;
+    if (!askMode) { run(value); return; }
+    if (value.startsWith("/")) { run(value.slice(1)); return; }
+    setCmdHistory((h) => [...h, value]);
+    setHistIdx(-1);
+    sendMessage({ text: value });
+  }, [askMode, run, sendMessage]);
 
   // ── Keyboard handler ──────────────────────────────────────────────────────────
   const onKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -822,10 +971,15 @@ export default function FloatingTerminal() {
       const idx = histIdx + 1;
       if (idx >= cmdHistory.length) { setHistIdx(-1); setInput(""); }
       else { setHistIdx(idx); setInput(cmdHistory[idx]); }
-    } else if (e.key === "Enter") { run(input); setInput(""); }
+    } else if (e.key === "Enter") { submit(input); setInput(""); }
   };
 
-  const onSubmit = () => { if (input.trim()) { run(input); setInput(""); } };
+  const onSubmit = () => { if (input.trim()) { submit(input); setInput(""); } };
+
+  // Suggestion chips and the empty state send straight through.
+  const onAskSend = useCallback((text: string) => {
+    sendMessage({ text });
+  }, [sendMessage]);
 
   // ── Desktop drag/resize starters ─────────────────────────────────────────────
   const onDragStart = (e: React.MouseEvent) => {
@@ -848,19 +1002,90 @@ export default function FloatingTerminal() {
   const onPillTouchEnd = (e: React.TouchEvent) => {
     if (swipeStartY.current === null) return;
     const dy = e.changedTouches[0].clientY - swipeStartY.current;
-    if (dy > 80) setIsOpen(false); // swipe down > 80px → close
+    // Mirrors Escape on desktop: the first swipe steps out of ask mode, the
+    // next one dismisses the sheet.
+    if (dy > 80) {
+      if (askMode) setAskMode(false);
+      else setIsOpen(false);
+    }
     swipeStartY.current = null;
   };
 
   // ── Hide on /matrix ───────────────────────────────────────────────────────────
   if (pathname === "/matrix") return null;
 
-  const mono = 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
-  const sharedPanelStyle: React.CSSProperties = { background: C.bg, fontFamily: mono, userSelect: "none" };
+  const sharedPanelStyle: React.CSSProperties = { background: C.bg, fontFamily: MONO, userSelect: "none" };
 
   const desktopPanelStyle: React.CSSProperties = pos
     ? { left: pos.x, top: pos.y, right: "auto", bottom: "auto" }
     : { right: 24, bottom: 80 };
+
+  const busy = status === "submitted" || status === "streaming";
+
+  // Both layouts share the same header label and output surface.
+  const titleNode = (
+    <div className="flex items-center gap-2 min-w-0">
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.span
+          key={askMode ? "ask" : "terminal"}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.14, ease: EASE_OUT }}
+          style={{ color: askMode ? C.text : C.muted, fontSize: 11, letterSpacing: "0.1em" }}
+        >
+          {askMode ? "ask · nano" : "terminal"}
+        </motion.span>
+      </AnimatePresence>
+      {askMode && (
+        <motion.span
+          aria-hidden
+          animate={busy ? { opacity: [1, 0.35, 1] } : { opacity: 0.35 }}
+          transition={busy
+            ? { duration: 1.2, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }
+            : { duration: 0.14, ease: EASE_OUT }}
+          style={{ width: 5, height: 5, borderRadius: 999, background: C.accent, flexShrink: 0 }}
+        />
+      )}
+    </div>
+  );
+
+  const surface = (
+    <AnimatePresence mode="wait" initial={false}>
+      {askMode ? (
+        <motion.div
+          key="ask"
+          initial={{ opacity: 0, y: motionEnabled ? 6 : 0, filter: motionEnabled ? "blur(2px)" : "blur(0px)" }}
+          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+          exit={{
+            opacity: 0,
+            filter: motionEnabled ? "blur(2px)" : "blur(0px)",
+            transition: { duration: 0.14, ease: EASE_OUT },
+          }}
+          transition={{ duration: 0.22, ease: EASE_OUT }}
+          className="flex-1 flex flex-col min-h-0"
+        >
+          <AskSurface
+            messages={messages}
+            status={status}
+            motionEnabled={motionEnabled}
+            onSend={onAskSend}
+          />
+        </motion.div>
+      ) : (
+        <motion.div
+          key="log"
+          initial={{ opacity: 0, y: motionEnabled ? 6 : 0 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, transition: { duration: 0.14, ease: EASE_OUT } }}
+          transition={{ duration: 0.22, ease: EASE_OUT }}
+          className="flex-1 flex flex-col min-h-0"
+        >
+          <OutputArea lines={lines} outputRef={outputRef} onScroll={onOutputScroll} />
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
 
   return (
     <>
@@ -978,7 +1203,7 @@ export default function FloatingTerminal() {
                 <div
                   className="shrink-0 flex items-center justify-between px-5 pb-2"
                 >
-                  <span style={{ color: C.muted, fontSize: 11, letterSpacing: "0.1em" }}>terminal</span>
+                  {titleNode}
                    <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -994,9 +1219,9 @@ export default function FloatingTerminal() {
 
                 <div style={{ borderTop: `1px solid ${C.border}` }} />
 
-                <OutputArea lines={lines} status={status} outputRef={outputRef} />
+                {surface}
                 <MusicBar playing={playing} trackDisplay={trackDisplay} remaining={remaining} progress={progress} switchTrack={switchTrack} togglePlay={togglePlay} />
-                <InputRow input={input} setInput={setInput} onKey={onKey} onSubmit={onSubmit} inputRef={inputRef} isMobile={isMobile} />
+                <InputRow input={input} setInput={setInput} onKey={onKey} onSubmit={onSubmit} inputRef={inputRef} isMobile={isMobile} askMode={askMode} />
               </motion.div>
             ) : (
               /* ── Desktop: floating panel ───────────────────────────────────── */
@@ -1025,7 +1250,7 @@ export default function FloatingTerminal() {
                   style={{ borderBottom: `1px solid ${C.border}` }}
                   onMouseDown={onDragStart}
                 >
-                  <span style={{ color: C.muted, fontSize: 11, letterSpacing: "0.1em" }}>terminal</span>
+                  {titleNode}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -1041,9 +1266,9 @@ export default function FloatingTerminal() {
                   </button>
                 </div>
 
-                <OutputArea lines={lines} status={status} outputRef={outputRef} />
+                {surface}
                 <MusicBar playing={playing} trackDisplay={trackDisplay} remaining={remaining} progress={progress} switchTrack={switchTrack} togglePlay={togglePlay} />
-                <InputRow input={input} setInput={setInput} onKey={onKey} onSubmit={onSubmit} inputRef={inputRef} isMobile={isMobile} />
+                <InputRow input={input} setInput={setInput} onKey={onKey} onSubmit={onSubmit} inputRef={inputRef} isMobile={isMobile} askMode={askMode} />
 
                 {/* Resize grip */}
                 <div

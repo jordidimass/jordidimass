@@ -4,16 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Minus, X } from "lucide-react";
 import { TRACKS, TRACK_ORDER, type TrackKey } from "@/config/music";
-
-// ─── Vesper palette (matches FloatingTerminal / matrixComponent) ──────────────
-const C = {
-  bg: "#101010",
-  border: "#1e1e1e",
-  text: "#f5f5f5",
-  muted: "#4c4c4c",
-  accent: "#ff8800",
-  dim: "#2a2a2a",
-} as const;
+import { C } from "./vesper";
 
 function fmtTime(s: number) {
   if (!isFinite(s) || isNaN(s)) return "0:00";
