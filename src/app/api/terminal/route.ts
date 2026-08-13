@@ -5,6 +5,8 @@ import { checkRateLimit } from "@/lib/rateLimit";
 import { slugFromKey } from "@/lib/gallery";
 import { TRACKS, TRACK_ORDER } from "@/config/music";
 import { getRecentScrobble, getTopMusic, PERIOD_LABEL, type TopKind, type TopPeriod } from "@/lib/lastfm";
+import { aiCommandCatalog } from "@/lib/commands";
+import { searchPosts } from "@/lib/postSearch";
 
 const MAX_MESSAGES = 20;
 const MAX_CONTENT_LENGTH = 2000;
@@ -120,31 +122,48 @@ const siteTools = {
         : output.reason,
     }),
   }),
-  music: tool({
+  runCommand: tool({
     description:
-      "Control the music player built into the terminal — the audio the visitor hears on this page. Use when they ask to play, pause, skip or change music. Not for questions about what I personally listen to; that is the nowPlaying tool.",
-    inputSchema: jsonSchema<{ action: "play" | "pause" | "next" | "previous"; track?: string }>({
+      `Run one of the terminal's own commands. This is how you operate the site: music, listings, navigation helpers and settings all go through here. Pass the command exactly as a visitor would type it.\n\nAvailable commands:\n${aiCommandCatalog()}\n\nExamples: "play Elliott Smith", "pause", "next", "tracks", "links", "neofetch", "whoami", "posts", "animation", "open gallery".`,
+    inputSchema: jsonSchema<{ command: string }>({
       type: "object",
       properties: {
-        action: { type: "string", enum: ["play", "pause", "next", "previous"] },
-        track: {
+        command: {
           type: "string",
-          description: "Optional track title to play. Matched loosely against the playlist.",
+          description: "The full command line, e.g. \"play swirlies\" or \"neofetch\".",
         },
       },
-      required: ["action"],
+      required: ["command"],
       additionalProperties: false,
     }),
   }),
-  setAnimations: tool({
+  openExternal: tool({
     description:
-      "Turn the site's animations on or off. Use when the visitor asks for less motion, or to re-enable it.",
-    inputSchema: jsonSchema<{ enabled: boolean }>({
+      "Open a link that leaves this site — scheduling, Telegram, X, Instagram, LinkedIn, GitHub, Spotify, Last.fm, Letterboxd, Goodreads, Unsplash, VSCO. The visitor is asked to confirm before anything opens, so call it when they clearly want to go somewhere off-site. For merely mentioning a link, write a markdown link instead.",
+    inputSchema: jsonSchema<{ url: string; label: string }>({
       type: "object",
-      properties: { enabled: { type: "boolean" } },
-      required: ["enabled"],
+      properties: {
+        url: { type: "string", description: "Absolute https URL, taken verbatim from the lists above." },
+        label: { type: "string", description: "Short human label, e.g. \"schedule a meeting\"." },
+      },
+      required: ["url", "label"],
       additionalProperties: false,
     }),
+  }),
+  searchPosts: tool({
+    description:
+      "Search the full text of my blog posts and get back the most relevant sections, each with a deep link to that exact heading. Use this for any question about what I have written, before readPost \u2014 it finds the passage instead of loading a whole post.",
+    inputSchema: jsonSchema<{ query: string }>({
+      type: "object",
+      properties: { query: { type: "string", description: "Natural language query." } },
+      required: ["query"],
+      additionalProperties: false,
+    }),
+    execute: async ({ query }: { query: string }) => {
+      const hits = await searchPosts(query);
+      if (!hits.length) return { ok: false as const, reason: "No matching sections." };
+      return { ok: true as const, query, hits };
+    },
   }),
 } as const;
 
@@ -211,10 +230,11 @@ The terminal player's playlist, exactly these ${TRACK_ORDER.length} tracks:
 ${TRACK_ORDER.map((k) => `- ${TRACKS[k].title}`).join("\n")}
 
 MUSIC RULES:
-- Any band, artist or song name from that list is a music request. "put some Title Fight on", "play Elliott Smith", "some Gomez" — all mean call the music tool with action "play" and that name as track. They are never page names, never a reason to navigate.
+- Any band, artist or song name from that list is a music request. "put some Title Fight on", "play Elliott Smith", "some Gomez" — all mean runCommand with "play <name>". They are never page names, never a reason to navigate.
 - "put on", "play", "throw on", "give me some" followed by a name = music, not navigation.
 - Match loosely: a band name alone is enough, I only have one track per artist.
 - If the name is not on that list, say I do not have it rather than playing something else, and never navigate instead.
+- Pause is "pause", skip is "next" or "prev", and the whole playlist is "tracks".
 
 NAVIGATION RULES — moving someone off the page they are reading is disruptive, so the bar is high:
 - Only call navigate when they ask to BE MOVED: "take me to", "go to", "open", "show me", "bring me to", "put X on screen".
@@ -232,7 +252,10 @@ WORKED EXAMPLES — follow these exactly:
 - "take me to your photos" → navigate /gallery.
 - "open your latest post" → navigate to the /posts/<slug> of the first post listed above.
 - "what is your latest post about?" → readPost with that slug, then answer in words.
-- "put some Title Fight on" → music, action play, track Title Fight.
+- "put some Title Fight on" → runCommand, command "play Title Fight".
+- "turn off the animations" → runCommand, command "animation".
+- "what do you say about feedback loops?" → searchPosts, then answer from the returned section and link to its url.
+- "can we set up a meeting?" → openExternal with the cal.com url. The visitor confirms; if they decline, accept it and move on.
 - "what have you listened to most this week?" → topMusic, kind artists, period 7day. Reply: "Most played this week:" and nothing more.
 - "your top songs of the year?" → topMusic, kind tracks, period 12month. Reply: "Top tracks this year:" and nothing more.
 - "what albums have you been playing this month?" → topMusic, kind albums, period 1month. Reply: "Most played albums this month:" and nothing more.
@@ -248,7 +271,7 @@ LINK RULES — these are absolute, a wrong path is a broken page:
 - If you do not have a slug for something, link to the index page instead — /blog or /gallery.
 - Always use relative paths starting with /. Never write the domain name.`;
 
-  cachedPrompt = `You are Jordi Dimas, speaking on your own personal website. Always answer in the first person — "I", "my", "me". Never refer to Jordi in the third person and never describe yourself as an assistant. Answer concisely.\n\n${sections}${blogList}${galleryList}${siteInfo}\n\nYou can operate this site, not just describe it. You have tools to navigate the visitor to any page, read the full text of a post, control the music player, and toggle animations. Prefer acting over explaining: if someone asks to see the photos, call navigate rather than telling them where to click. If they ask for my latest or most recent post, navigate straight to /posts/<slug> of the FIRST post in the list above — not to /blog. After a tool runs, say what you did in one short line.
+  cachedPrompt = `You are Jordi Dimas, speaking on your own personal website. Always answer in the first person — "I", "my", "me". Never refer to Jordi in the third person and never describe yourself as an assistant. Answer concisely.\n\n${sections}${blogList}${galleryList}${siteInfo}\n\nYou can operate this site, not just describe it. runCommand runs any of the terminal's own commands (music, listings, settings); navigate moves between pages; searchPosts finds the exact passage in my writing; openExternal asks the visitor before leaving the site. Prefer acting over explaining: if someone asks to see the photos, call navigate rather than telling them where to click. If they ask for my latest or most recent post, navigate straight to /posts/<slug> of the FIRST post in the list above — not to /blog. After a tool runs, say what you did in one short line.
 
 If asked something you don't know, say so honestly. Keep answers brief and optimized for terminal display. IMPORTANT: Whenever you reference any URL or page in your response, always use markdown link format: [visible label](url). Never output bare URLs.`;
   cacheTime = Date.now();
@@ -303,7 +326,8 @@ export async function POST(req: Request) {
     temperature: 0,
     tools: siteTools,
     // One step to call a tool, another to speak after seeing the result.
-    stopWhen: stepCountIs(5),
+    stopWhen: stepCountIs(6),
+    toolApproval: { openExternal: "user-approval" as const },
     // nano answers faster than anyone can read, so the whole reply used to land
     // in a single frame. This paces the real tokens word by word — nothing is
     // fabricated, the arrival is just spread out enough to follow.

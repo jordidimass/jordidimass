@@ -160,6 +160,42 @@ check('mobile sheet is sized from the visual viewport, never vh', () => {
   return null;
 });
 
+/* ── Command registry ─────────────────────────────────────────────────────── */
+
+check('help output is generated from the registry, not a literal list', () => {
+  const t = read('src/components/ui/FloatingTerminal.tsx');
+  if (/mkLine\("\s+ask\s/.test(t)) return 'the hardcoded help block is back in FloatingTerminal';
+  const c = read('src/lib/commands.ts');
+  if (!/name: "help"/.test(c)) return 'no help command in the registry';
+  if (!/COMMANDS\.filter\(\(c\) => !c\.hidden\)\.map/.test(c)) return 'help does not enumerate the registry';
+  return null;
+});
+
+check('every surface reads the one command registry', () => {
+  for (const [f, what] of [
+    ['src/components/ui/FloatingTerminal.tsx', 'terminal'],
+    ['src/components/CommandPalette.tsx', 'palette'],
+    ['src/components/ui/MobileAskDock.tsx', 'mobile slash menu'],
+  ]) {
+    if (!/from "@\/lib\/commands"/.test(read(f))) return `${what} does not import the registry`;
+  }
+  const route = read('src/app/api/terminal/route.ts');
+  if (!/aiCommandCatalog\(\)/.test(route)) return 'the AI tool description is not generated from the registry';
+  return null;
+});
+
+check('leaving the site asks the visitor first', () => {
+  const route = read('src/app/api/terminal/route.ts');
+  if (!/openExternal: "user-approval"/.test(route)) return 'openExternal is not gated behind an approval';
+  if (/needsApproval/.test(route)) return 'still using needsApproval, removed in AI SDK 7';
+  const surface = read('src/components/ui/AskSurface.tsx');
+  if (!/approval-requested/.test(surface)) return 'no UI for a pending approval';
+  const t = read('src/components/ui/FloatingTerminal.tsx');
+  if (!/addToolApprovalResponse/.test(t)) return 'approval responses are never sent back';
+  if (/addToolResult/.test(t)) return 'still using addToolResult, deprecated in AI SDK 7';
+  return null;
+});
+
 /* ── Phase 2: motion correctness ──────────────────────────────────────────── */
 
 check('motion easing tokens are defined', () => {

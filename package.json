@@ -4,14 +4,16 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node --env-file-if-exists=.env.local scripts/build-post-index.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "motion:audit": "node scripts/motion-audit.mjs"
+    "motion:audit": "node scripts/motion-audit.mjs",
+    "index:posts": "node --env-file-if-exists=.env.local scripts/build-post-index.mjs"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^3.0.30",
-    "@ai-sdk/react": "^3.0.139",
+    "@ai-sdk/openai": "^4.0.41",
+    "@ai-sdk/react": "^4.0.68",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^7.3.9",
@@ -21,7 +23,7 @@
     "@supabase/supabase-js": "^2.97.0",
     "@vercel/analytics": "^1.6.1",
     "@vercel/speed-insights": "^2.0.0",
-    "ai": "^6.0.97",
+    "ai": "^7.0.65",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "geist": "^1.7.0",
@@ -56,6 +58,7 @@
     "@types/three": "^0.183.1",
     "eslint": "^10.0.1",
     "eslint-config-next": "^16.1.6",
+    "github-slugger": "^2.0.0",
     "postcss": "^8",
     "tailwindcss": "^4.2.0",
     "typescript": "^5.9.3"

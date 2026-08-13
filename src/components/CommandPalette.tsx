@@ -6,6 +6,7 @@ import { Command } from "cmdk";
 import { createPortal } from "react-dom";
 import { profileData } from "@/config/profile";
 import { slugFromKey, type GalleryImage } from "@/lib/gallery";
+import { COMMANDS } from "@/lib/commands";
 import type { PostMetadata } from "@/lib/posts";
 import { useMotionContext } from "./MotionProvider";
 import { TRACKS as TRACK_DATA, TRACK_ORDER, type TrackKey } from "@/config/music";
@@ -450,6 +451,24 @@ export default function CommandPalette() {
                 ))}
               </Command.Group>
             )}
+
+            {/* Terminal commands — generated from the one registry */}
+            <Command.Group heading="Commands">
+              {COMMANDS.filter((c) => !c.hidden && c.group !== "ask").map((c) => (
+                <Command.Item
+                  key={c.name}
+                  value={`command ${c.name}`}
+                  keywords={[c.name, ...(c.aliases ?? []), ...c.summary.split(/\s+/)]}
+                  onSelect={() => runAndClose(() =>
+                    window.dispatchEvent(new CustomEvent("terminal-run", { detail: { command: c.name } }))
+                  )}
+                >
+                  <span className="jd-icon"><IconTerminal /></span>
+                  <span className="jd-label">{c.name}</span>
+                  <span className="jd-hint">{c.summary}</span>
+                </Command.Item>
+              ))}
+            </Command.Group>
 
             {/* Actions */}
             <Command.Group heading="Actions">

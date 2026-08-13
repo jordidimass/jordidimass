@@ -2,7 +2,11 @@
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } from "ai";
+import {
+  DefaultChatTransport,
+  lastAssistantMessageIsCompleteWithToolCalls,
+  lastAssistantMessageIsCompleteWithApprovalResponses,
+} from "ai";
 import { motion, AnimatePresence } from "motion/react";
 import { X, SkipBack, SkipForward, Pause, ChevronDown } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
@@ -15,6 +19,8 @@ import { C, MONO } from "./vesper";
 import { profileData } from "@/config/profile";
 import { useMotionContext } from "@/components/MotionProvider";
 import { isInternalRoute } from "@/lib/siteRoutes";
+import { slugFromKey } from "@/lib/gallery";
+import { execute, completionsFor, lookup, signature, type CommandContext, type OutputLine } from "@/lib/commands";
 import { EASE_OUT } from "@/lib/motion";
 import { TRACKS, TRACK_ORDER, type TrackKey } from "@/config/music";
 
@@ -26,6 +32,12 @@ type Line = TextLine | LinkLine;
 let _id = 0;
 const mkLine = (text: string, dim = false): TextLine => ({ id: _id++, type: "text", text, dim });
 const mkLink = (label: string, href: string, external = false): LinkLine => ({ id: _id++, type: "link", label, href, external });
+
+const toLine = (o: OutputLine): Line => {
+  if (o.kind === "link") return mkLink(o.label, o.href, o.external);
+  if (o.kind === "action") return mkLine(o.label);
+  return mkLine(o.text, o.dim);
+};
 
 const BOOT: Line[] = [
   mkLine("jordidimas terminal", true),
@@ -42,12 +54,12 @@ const DEFAULT_H = 380;
 const transport = new DefaultChatTransport({ api: "/api/terminal" });
 
 // ─── Site tools (executed here, in the browser) ───────────────────────────────
-type MusicToolInput = { action: "play" | "pause" | "next" | "previous"; track?: string };
+type ClientToolName = "navigate" | "runCommand" | "openExternal";
 
 type SiteOps = {
   navigate: (path: string) => string;
-  music: (input: MusicToolInput) => Promise<string>;
-  setAnimations: (enabled: boolean) => string;
+  runCommand: (command: string) => Promise<string>;
+  openExternal: (input: { url: string; label: string }) => string;
 };
 
 /**
@@ -245,7 +257,7 @@ function MusicBar({
 }
 
 function InputRow({
-  input, setInput, onKey, onSubmit, inputRef, isMobile, askMode,
+  input, setInput, onKey, onSubmit, inputRef, isMobile, askMode, hint, completions, histSearch,
 }: {
   input: string;
   setInput: (v: string) => void;
@@ -254,11 +266,28 @@ function InputRow({
   inputRef: React.RefObject<HTMLInputElement | null>;
   isMobile: boolean;
   askMode: boolean;
+  hint?: string | null;
+  completions?: string[];
+  histSearch?: string | null;
 }) {
   return (
+    <div className="shrink-0" style={{ borderTop: `1px solid ${C.border}` }}>
+    {completions && completions.length > 0 && (
+      <div className="flex flex-wrap gap-x-3 gap-y-1 px-4 pt-2" style={{ fontSize: 11, color: C.muted }}>
+        {completions.map((c) => <span key={c}>{c}</span>)}
+      </div>
+    )}
+    {hint && (
+      <div className="px-4 pt-2 truncate" style={{ fontSize: 11, color: C.muted }}>{hint}</div>
+    )}
+    {histSearch !== null && histSearch !== undefined && (
+      <div className="px-4 pt-2" style={{ fontSize: 11, color: C.accent }}>
+        history search: {histSearch || "…"}  <span style={{ color: C.muted }}>enter to run · esc to cancel</span>
+      </div>
+    )}
     <div
-      className="flex items-center gap-2 px-4 py-2 shrink-0"
-      style={{ borderTop: `1px solid ${C.border}`, ...(isMobile && { height: "60px" }) }}
+      className="flex items-center gap-2 px-4 py-2"
+      style={{ ...(isMobile && { height: "60px" }) }}
     >
       {/* λ is the matrix terminal's mark — same glyph, terminal accent. */}
       <span
@@ -280,7 +309,7 @@ function InputRow({
         onKeyDown={onKey}
         className="flex-1 bg-transparent border-none outline-none"
         style={{ fontSize: 16, color: C.text, caretColor: C.accent }}
-        placeholder={askMode ? "ask a follow-up…" : ""}
+        placeholder={askMode ? "ask a follow-up…  ( / for commands )" : ""}
         autoComplete="off"
         autoCorrect="off"
         autoCapitalize="off"
@@ -306,6 +335,7 @@ function InputRow({
           </svg>
         </button>
       )}
+    </div>
     </div>
   );
 }
@@ -341,6 +371,54 @@ export default function FloatingTerminal() {
   const [askMode, setAskMode] = useState(false);
   const [cmdHistory, setCmdHistory] = useState<string[]>([]);
   const [histIdx, setHistIdx] = useState(-1);
+  const [completions, setCompletions] = useState<string[]>([]);
+  const [histSearch, setHistSearch] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("jd-cmd-history");
+      if (saved) setCmdHistory(JSON.parse(saved).slice(-100));
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (!cmdHistory.length) return;
+    try {
+      localStorage.setItem("jd-cmd-history", JSON.stringify(cmdHistory.slice(-100)));
+    } catch {}
+  }, [cmdHistory]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (url && key && !postsRef.current.length) {
+      fetch(`${url}/rest/v1/posts?select=slug,title,date&order=date.desc`, {
+        headers: { apikey: key, Authorization: `Bearer ${key}` },
+      })
+        .then((r) => (r.ok ? r.json() : []))
+        .then((rows: { slug: string; title: string }[]) => {
+          if (!cancelled) postsRef.current = rows ?? [];
+        })
+        .catch(() => {});
+    }
+
+    const worker = process.env.NEXT_PUBLIC_GALLERY_WORKER_URL;
+    if (worker && !photoSlugsRef.current.length) {
+      fetch(worker)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data: { images?: { key: string }[] } | null) => {
+          if (!cancelled && data?.images) {
+            photoSlugsRef.current = data.images.map((i) => slugFromKey(i.key));
+          }
+        })
+        .catch(() => {});
+    }
+
+    return () => { cancelled = true; };
+  }, [isOpen]);
 
   // Desktop: position & size
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
@@ -384,59 +462,45 @@ export default function FloatingTerminal() {
   const inputRef = useRef<HTMLInputElement>(null);
   const iconRef = useRef<TerminalIconHandle>(null);
   const outputPinned = useRef(true);
+  const photoSlugsRef = useRef<string[]>([]);
+  const postsRef = useRef<{ slug: string; title: string }[]>([]);
 
   // The tool handlers below need callbacks that are defined further down this
   // component. useChat captures onToolCall once, so it reads them through a ref
   // that every render keeps current.
   const siteOpsRef = useRef<SiteOps | null>(null);
 
-  const { messages, sendMessage, status, addToolResult } = useChat({
+  const { messages, sendMessage, status, addToolOutput, addToolApprovalResponse } = useChat({
     id: "ft",
     transport,
-    // Hand the tool output back and let the model speak after seeing it.
-    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
-    onToolCall: async ({ toolCall }) => {
+    sendAutomaticallyWhen: ({ messages }) =>
+      lastAssistantMessageIsCompleteWithToolCalls({ messages }) ||
+      lastAssistantMessageIsCompleteWithApprovalResponses({ messages }),
+    onToolCall: async ({ toolCall }): Promise<void> => {
       const ops = siteOpsRef.current;
-      const name = toolCall.toolName as keyof SiteOps;
-      const done = (output: string) =>
-        addToolResult({ tool: name, toolCallId: toolCall.toolCallId, output });
+      const name = toolCall.toolName as ClientToolName;
+      const toolCallId = toolCall.toolCallId;
+      const fail = (errorText: string): void => {
+        addToolOutput({ state: "output-error", tool: name, toolCallId, errorText });
+      };
+      const done = (output: string): void => {
+        addToolOutput({ tool: name, toolCallId, output });
+      };
 
-      if (!ops) {
-        addToolResult({
-          state: "output-error",
-          tool: name,
-          toolCallId: toolCall.toolCallId,
-          errorText: "terminal not ready",
-        });
-        return;
-      }
+      if (!ops) { fail("terminal not ready"); return; }
 
       try {
-        switch (name) {
-          case "navigate":
-            done(ops.navigate((toolCall.input as { path: string }).path));
-            return;
-          case "music":
-            done(await ops.music(toolCall.input as MusicToolInput));
-            return;
-          case "setAnimations":
-            done(ops.setAnimations((toolCall.input as { enabled: boolean }).enabled));
-            return;
-          default:
-            addToolResult({
-              state: "output-error",
-              tool: name,
-              toolCallId: toolCall.toolCallId,
-              errorText: `unknown tool: ${String(name)}`,
-            });
+        if (name === "navigate") {
+          done(ops.navigate((toolCall.input as { path: string }).path));
+        } else if (name === "runCommand") {
+          done(await ops.runCommand((toolCall.input as { command: string }).command));
+        } else if (name === "openExternal") {
+          done(ops.openExternal(toolCall.input as { url: string; label: string }));
+        } else {
+          fail(`unknown tool: ${String(name)}`);
         }
       } catch (err) {
-        addToolResult({
-          state: "output-error",
-          tool: name,
-          toolCallId: toolCall.toolCallId,
-          errorText: err instanceof Error ? err.message : "tool failed",
-        });
+        fail(err instanceof Error ? err.message : "tool failed");
       }
     },
   });
@@ -478,6 +542,7 @@ export default function FloatingTerminal() {
     window.addEventListener("open-terminal", handler);
     return () => window.removeEventListener("open-terminal", handler);
   }, []);
+
 
   // ── Global toggle: Cmd+Shift+K / Ctrl+Shift+K ───────────────────────────────
   useEffect(() => {
@@ -668,8 +733,45 @@ export default function FloatingTerminal() {
     setMusicStarted(false);
   }, []);
 
-  // ── Site tools, executed for real ────────────────────────────────────────────
-  // Kept in a ref because useChat captured onToolCall on its first render.
+  const commandCtx = useCallback((): CommandContext => ({
+    navigate: (path) => router.push(path),
+    openExternal: (url) => window.open(url, "_blank", "noopener,noreferrer"),
+    print: (out) => setLines((prev) => [...prev, ...out.map(toLine)]),
+    clear: () => setLines([]),
+    closeTerminal: () => setIsOpen(false),
+    enterAsk: (question) => {
+      setAskMode(true);
+      if (question) sendMessage({ text: question });
+    },
+    runCommand: (input) => execute(input, commandCtx()),
+    music: {
+      play: async () => {
+        const audio = audioRef.current;
+        if (!audio) return "the player is not available";
+        if (playing) return `already playing ${TRACKS[trackRef.current].title}`;
+        if (!musicStarted) {
+          playTrack(TRACK_ORDER[0]);
+          return `playing ${TRACKS[TRACK_ORDER[0]].title}`;
+        }
+        ensureAudioSrc();
+        await audio.play().then(() => setPlaying(true)).catch(() => {});
+        return `playing ${TRACKS[trackRef.current].title}`;
+      },
+      pause: () => {
+        if (playing) togglePlay();
+        return "paused";
+      },
+      next: async () => TRACKS[await switchTrack(1)].title,
+      prev: async () => TRACKS[await switchTrack(-1)].title,
+      select: (key) => { playTrack(key); return `playing ${TRACKS[key].title}`; },
+      current: () => trackRef.current,
+      playing: () => playing,
+    },
+    motion: { enabled: () => motionEnabled, toggle: toggleMotion },
+    photoSlugs: () => photoSlugsRef.current,
+    postSlugs: () => postsRef.current,
+  }), [router, playing, musicStarted, playTrack, switchTrack, togglePlay, ensureAudioSrc, motionEnabled, toggleMotion, sendMessage]);
+
   useEffect(() => {
     siteOpsRef.current = {
       navigate: (path) => {
@@ -678,197 +780,35 @@ export default function FloatingTerminal() {
         router.push(safe);
         return `navigated to ${safe}`;
       },
-
-      music: async ({ action, track }) => {
-        const audio = audioRef.current;
-        if (!audio) return "the player is not available";
-
-        if (action === "pause") {
-          if (!playing) return "already paused";
-          togglePlay();
-          return "paused";
-        }
-        if (action === "next") {
-          const key = await switchTrack(1);
-          return `playing ${TRACKS[key].title}`;
-        }
-        if (action === "previous") {
-          const key = await switchTrack(-1);
-          return `playing ${TRACKS[key].title}`;
-        }
-
-        if (track) {
-          const key = findTrack(track);
-          if (!key) return `no track matching "${track}". playlist: ${TRACK_ORDER.map((k) => TRACKS[k].title).join(", ")}`;
-          playTrack(key);
-          return `playing ${TRACKS[key].title}`;
-        }
-        if (playing) return `already playing ${TRACKS[trackRef.current].title}`;
-        if (!musicStarted) {
-          const first = TRACK_ORDER[0];
-          playTrack(first);
-          return `playing ${TRACKS[first].title}`;
-        }
-        ensureAudioSrc();
-        await audio.play().then(() => setPlaying(true)).catch(() => {});
-        return `playing ${TRACKS[trackRef.current].title}`;
+      runCommand: async (command) => {
+        setLines((prev) => [...prev, mkLine(`> ${command}`, true)]);
+        return execute(command, commandCtx());
       },
-
-      setAnimations: (enabled) => {
-        if (enabled === motionEnabled) return `animations were already ${enabled ? "on" : "off"}`;
-        toggleMotion();
-        return `animations ${enabled ? "on" : "off"}`;
+      openExternal: ({ url, label }) => {
+        if (!/^https:\/\//i.test(url)) return `refused: "${url}" is not an https link`;
+        window.open(url, "_blank", "noopener,noreferrer");
+        return `opened ${label}`;
       },
     };
-  }, [router, playing, musicStarted, togglePlay, switchTrack, playTrack, ensureAudioSrc, motionEnabled, toggleMotion]);
-
-  // ── Music control events from CommandPalette ─────────────────────────────────
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    const onPlay = () => { ensureAudioSrc(); audio.play().then(() => setPlaying(true)).catch(() => {}); };
-    const onPause = () => { audio.pause(); setPlaying(false); };
-    const onNext = () => switchTrack(1);
-    const onPrev = () => switchTrack(-1);
-    const onTrack = (e: Event) => {
-      const key = (e as CustomEvent<{ track: TrackKey }>).detail?.track;
-      if (!key) return;
-      playTrack(key);
-    };
-
-    window.addEventListener("music-play", onPlay);
-    window.addEventListener("music-pause", onPause);
-    window.addEventListener("music-next", onNext);
-    window.addEventListener("music-prev", onPrev);
-    window.addEventListener("music-track", onTrack);
-    return () => {
-      window.removeEventListener("music-play", onPlay);
-      window.removeEventListener("music-pause", onPause);
-      window.removeEventListener("music-next", onNext);
-      window.removeEventListener("music-prev", onPrev);
-      window.removeEventListener("music-track", onTrack);
-    };
-  }, [switchTrack, playTrack]);
+  }, [router, commandCtx]);
 
   // ── Command processor ─────────────────────────────────────────────────────────
   const run = useCallback(async (raw: string) => {
-    const cmd = raw.trim();
-    if (!cmd) return;
-    setCmdHistory((h) => [...h, cmd]);
+    const line = raw.trim();
+    if (!line) return;
+    setCmdHistory((h) => (h[h.length - 1] === line ? h : [...h, line]));
     setHistIdx(-1);
-    setLines((prev) => [...prev, mkLine(`> ${cmd}`)]);
-    const lo = cmd.toLowerCase();
+    setLines((prev) => [...prev, mkLine(`> ${line}`)]);
 
-    if (lo === "help") {
-      setLines((prev) => [...prev,
-        mkLine("available commands:", true),
-        mkLine("  ask              start a conversation  (esc to leave)"),
-        mkLine("  play             start audio playback"),
-        mkLine("  links            show social & profile links"),
-        mkLine("  neofetch         system info"),
-        mkLine("  whoami           who i am"),
-        mkLine("  pause            pause playback"),
-        mkLine("  next             next track"),
-        mkLine("  prev             previous track"),
-        mkLine("  pages            show all site pages"),
-        mkLine("  toggle-matrix    open the matrix"),
-        mkLine("  animation        toggle animations on/off"),
-        mkLine("  clear            clear terminal  (Cmd/Ctrl+K)"),
-        mkLine("  exit             close terminal"),
-      ]); return;
-    }
-    if (lo === "pages") {
-      setLines((prev) => [...prev,
-        mkLine("site pages:", true),
-        mkLink("  home", "/"),
-        mkLink("  blog", "/blog"),
-        mkLink("  gallery", "/gallery"),
-        mkLink("  about", "/about"),
-        mkLink("  connect", "/connect"),
-      ]); return;
-    }
-    if (lo === "links") {
-      setLines((prev) => [...prev,
-        mkLine("social:", true),
-        ...profileData.socials.map((s) => mkLink(`  ${s.title}`, s.href, true)),
-        mkLine(""),
-        mkLine("around the web:", true),
-        ...profileData.links.map((l) => mkLink(`  ${l.title}`, l.href, true)),
-      ]); return;
-    }
-    if (lo === "whoami") {
-      setLines((prev) => [...prev,
-        mkLine("jordi dimas"),
-        mkLine("software developer from guatemala, with a deep fascination for physics,"),
-        mkLine("systems theory, and the intricate world of computer science."),
-        mkLine(""),
-        mkLine("i believe in the power of continuous learning and the beauty of elegant"),
-        mkLine("solutions. every line of code is an opportunity to create something"),
-        mkLine("meaningful, and every project is a chance to push the boundaries of"),
-        mkLine("what's possible."),
-        mkLine(""),
-        mkLine("always open to collaborating on innovative projects and connecting with"),
-        mkLine("fellow developers who share a passion for crafting exceptional digital"),
-        mkLine("experiences."),
-      ]); return;
-    }
-    if (lo === "clear") { setLines([]); return; }
-    if (lo === "exit") {
-      setLines((prev) => [...prev, mkLine("closing terminal...", true)]);
-      setTimeout(() => setIsOpen(false), 600); return;
-    }
-    if (lo === "toggle-matrix") {
-      setLines((prev) => [...prev, mkLine("entering the matrix...", true)]);
-      setTimeout(() => router.push("/matrix"), 700); return;
-    }
-    if (lo === "animation") {
-      toggleMotion();
-      const next = !motionEnabled;
-      setLines((prev) => [...prev, mkLine(`animations ${next ? "on" : "off"}`, true)]);
-      return;
-    }
-    if (lo === "play") {
-      const audio = audioRef.current;
-      if (!audio) return;
-      if (!playing) {
-        if (!musicStarted) playTrack(TRACK_ORDER[0]);
-        else { ensureAudioSrc(); audio.play().then(() => setPlaying(true)).catch(() => {}); }
+    for (const step of line.split("&&").map((p) => p.trim()).filter(Boolean)) {
+      try {
+        await execute(step, commandCtx());
+      } catch (err) {
+        setLines((prev) => [...prev, mkLine(err instanceof Error ? err.message : "command failed", true)]);
+        return;
       }
-      setLines((prev) => [...prev, mkLine(`playing: ${TRACKS[trackRef.current].title}`)]); return;
     }
-    if (lo === "pause") {
-      if (playing) togglePlay();
-      setLines((prev) => [...prev, mkLine("paused")]); return;
-    }
-    if (lo === "next") {
-      const next = await switchTrack(1);
-      setLines((prev) => [...prev, mkLine(`→ ${TRACKS[next].title}`)]); return;
-    }
-    if (lo === "prev") {
-      const prev = await switchTrack(-1);
-      setLines((prev2) => [...prev2, mkLine(`→ ${TRACKS[prev].title}`)]); return;
-    }
-    if (lo === "neofetch") {
-      const art = ["                    λ","                   λλ","                  λλλ","                 λλλλ","                λλλλλ","               λλλλλλ","              λλλλλλλ"];
-      const info = ["jordidimas@web","--------------","OS     Next.js App Router","Shell  React 19","DE     Tailwind CSS v4","AI     Vercel AI SDK v6","DB     Supabase"];
-      setLines((prev) => [...prev, ...art.map((a, i) => mkLine(`${a.padEnd(24)}  ${info[i] ?? ""}`)), mkLine(""), mkLine("Host   jordidimas.dev", true)]);
-      return;
-    }
-    if (lo === "ask") { setAskMode(true); return; }
-    if (lo.startsWith("ask ")) {
-      const q = cmd.slice(4).trim();
-      if (!q) { setAskMode(true); return; }
-      setAskMode(true);
-      sendMessage({ text: q });
-      return;
-    }
-    setLines((prev) => [
-      ...prev,
-      mkLine(`command not found: ${cmd}`, true),
-      mkLine('type "help" for available commands.', true),
-    ]);
-  }, [playing, musicStarted, playTrack, switchTrack, togglePlay, sendMessage, router, motionEnabled, toggleMotion]);
+  }, [commandCtx]);
 
   // ── Submit ────────────────────────────────────────────────────────────────────
   // In ask mode a bare line is a question. A leading "/" escapes back to the
@@ -885,24 +825,98 @@ export default function FloatingTerminal() {
 
   // ── Keyboard handler ──────────────────────────────────────────────────────────
   const onKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Tab") {
+      e.preventDefault();
+      if (askMode && !input.startsWith("/")) return;
+      const raw = askMode ? input.slice(1) : input;
+      const matches = completionsFor(raw, commandCtx());
+      if (!matches.length) return;
+      const parts = raw.split(/\s+/);
+      const head = parts.length <= 1 ? "" : `${parts[0]} `;
+      if (matches.length === 1) {
+        setInput(`${askMode ? "/" : ""}${head}${matches[0]} `);
+      } else {
+        setCompletions(matches.slice(0, 12));
+        const common = matches.reduce((acc, m) => {
+          let i = 0;
+          while (i < acc.length && i < m.length && acc[i].toLowerCase() === m[i].toLowerCase()) i++;
+          return acc.slice(0, i);
+        });
+        if (common.length) setInput(`${askMode ? "/" : ""}${head}${common}`);
+      }
+      return;
+    }
+
+    if (e.ctrlKey && e.key.toLowerCase() === "r") {
+      e.preventDefault();
+      setHistSearch((v) => (v === null ? "" : v));
+      return;
+    }
+
+    if (histSearch !== null) {
+      if (e.key === "Escape") { e.preventDefault(); setHistSearch(null); return; }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const hit = [...cmdHistory].reverse().find((c) => c.includes(histSearch));
+        setHistSearch(null);
+        if (hit) { submit(hit); setInput(""); }
+        return;
+      }
+    }
+
     if (e.key === "ArrowUp") {
       if (!cmdHistory.length) return;
+      e.preventDefault();
       const idx = histIdx === -1 ? cmdHistory.length - 1 : Math.max(0, histIdx - 1);
       setHistIdx(idx); setInput(cmdHistory[idx]);
     } else if (e.key === "ArrowDown") {
       if (histIdx === -1) return;
+      e.preventDefault();
       const idx = histIdx + 1;
       if (idx >= cmdHistory.length) { setHistIdx(-1); setInput(""); }
       else { setHistIdx(idx); setInput(cmdHistory[idx]); }
-    } else if (e.key === "Enter") { submit(input); setInput(""); }
+    } else if (e.key === "Enter") {
+      setCompletions([]);
+      submit(input);
+      setInput("");
+    } else {
+      setCompletions([]);
+    }
   };
 
   const onSubmit = () => { if (input.trim()) { submit(input); setInput(""); } };
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const command = (e as CustomEvent<{ command?: string }>).detail?.command;
+      if (!command) return;
+      setIsOpen(true);
+      void run(command);
+    };
+    window.addEventListener("terminal-run", handler);
+    return () => window.removeEventListener("terminal-run", handler);
+  }, [run]);
+
+  const commandHint = (() => {
+    const raw = askMode ? (input.startsWith("/") ? input.slice(1) : "") : input;
+    const name = raw.trim().split(/\s+/)[0];
+    if (!name) return null;
+    const cmd = lookup(name);
+    return cmd ? `${signature(cmd)} — ${cmd.summary}` : null;
+  })();
 
   // Suggestion chips and the empty state send straight through.
   const onAskSend = useCallback((text: string) => {
     sendMessage({ text });
   }, [sendMessage]);
+
+  const onApprove = useCallback((id: string, approved: boolean) => {
+    addToolApprovalResponse({ id, approved });
+  }, [addToolApprovalResponse]);
+
+  const onRunCommand = useCallback((command: string) => {
+    void run(command);
+  }, [run]);
 
   // ── Desktop drag/resize starters ─────────────────────────────────────────────
   const onDragStart = (e: React.MouseEvent) => {
@@ -993,6 +1007,8 @@ export default function FloatingTerminal() {
             status={status}
             motionEnabled={motionEnabled}
             onSend={onAskSend}
+            onRunCommand={onRunCommand}
+            onApprove={onApprove}
           />
         </motion.div>
       ) : (
@@ -1037,6 +1053,7 @@ export default function FloatingTerminal() {
           motionEnabled={motionEnabled}
           onSend={onAskSend}
           onCommand={run}
+          onApprove={onApprove}
           lead={lines.length ? <LogRows lines={lines} /> : null}
           hideTrigger={playerExpanded}
         />
@@ -1114,7 +1131,7 @@ export default function FloatingTerminal() {
 
                 {surface}
                 <MusicBar playing={playing} trackDisplay={trackDisplay} remaining={remaining} progress={progress} switchTrack={switchTrack} togglePlay={togglePlay} onSelectTrack={playTrack} />
-                <InputRow input={input} setInput={setInput} onKey={onKey} onSubmit={onSubmit} inputRef={inputRef} isMobile={isMobile} askMode={askMode} />
+                <InputRow input={histSearch !== null ? histSearch : input} setInput={histSearch !== null ? setHistSearch : setInput} onKey={onKey} onSubmit={onSubmit} inputRef={inputRef} isMobile={isMobile} askMode={askMode} hint={commandHint} completions={completions} histSearch={histSearch} />
 
                 {/* Resize grip */}
                 <div

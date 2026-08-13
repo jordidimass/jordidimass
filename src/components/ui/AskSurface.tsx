@@ -29,6 +29,9 @@ function describeTool(part: ToolUIPart): string {
   if (name === "readPost") return `read ${input.slug ?? "post"}`;
   if (name === "nowPlaying") return "checking last.fm";
   if (name === "topMusic") return `top ${input.kind ?? "artists"}`;
+  if (name === "runCommand") return String(input.command ?? "command");
+  if (name === "searchPosts") return `search "${input.query ?? ""}"`;
+  if (name === "openExternal") return `open ${input.label ?? input.url ?? "link"}`;
   if (name === "music") {
     return `music ${[input.action, input.track].filter(Boolean).join(" ")}`.trim();
   }
@@ -46,6 +49,149 @@ type Scrobble = {
   image: string | null;
   playedAt: number | null;
 };
+
+type PostHit = {
+  postSlug: string;
+  postTitle: string;
+  headingId: string;
+  headingText: string;
+  url: string;
+  snippet: string;
+  score: number;
+};
+type PostSearch = { ok: true; query: string; hits: PostHit[] };
+
+function postSearchOf(part: ToolUIPart): PostSearch | null {
+  if (getToolName(part) !== "searchPosts") return null;
+  if (part.state !== "output-available") return null;
+  const out = part.output as PostSearch | { ok: false } | undefined;
+  return out && out.ok ? (out as PostSearch) : null;
+}
+
+function PostHitsCard({
+  data, motionEnabled, onRun,
+}: {
+  data: PostSearch;
+  motionEnabled: boolean;
+  onRun?: (command: string) => void;
+}) {
+  return (
+    <motion.div
+      initial={motionEnabled ? { opacity: 0, y: 6, filter: "blur(2px)" } : { opacity: 0 }}
+      animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+      transition={{ duration: 0.22, ease: EASE_OUT }}
+      className="flex flex-col gap-2"
+      style={{
+        marginLeft: 12,
+        marginTop: 2,
+        padding: "8px 10px 10px",
+        border: `1px solid ${C.border}`,
+        borderRadius: 12,
+        background: C.bg,
+      }}
+    >
+      <span style={{ fontSize: 10, color: C.accent, letterSpacing: "0.08em" }}>
+        from my writing
+      </span>
+      {data.hits.map((hit, i) => (
+        <motion.div
+          key={`${hit.postSlug}-${hit.headingId}-${i}`}
+          initial={{ opacity: 0, y: motionEnabled ? 4 : 0 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.22, ease: EASE_OUT, delay: Math.min(i, 4) * 0.04 }}
+          className="flex flex-col gap-0.5"
+        >
+          <a
+            href={hit.url}
+            style={{ fontSize: 12, color: C.text, textDecoration: "none" }}
+            className="hover:underline"
+          >
+            {hit.headingText}
+          </a>
+          <span style={{ fontSize: 10, color: C.muted }}>{hit.postTitle}</span>
+          {onRun && (
+            <button
+              onClick={() => onRun(`open ${hit.postSlug}`)}
+              className="jd-pressable self-start"
+              style={{
+                marginTop: 3,
+                fontSize: 10,
+                color: C.muted,
+                border: `1px solid ${C.border}`,
+                borderRadius: 999,
+                padding: "3px 9px",
+                minHeight: 26,
+              }}
+            >
+              open post
+            </button>
+          )}
+        </motion.div>
+      ))}
+    </motion.div>
+  );
+}
+
+function ApprovalRow({
+  part, motionEnabled, onRespond,
+}: {
+  part: ToolUIPart;
+  motionEnabled: boolean;
+  onRespond?: (id: string, approved: boolean) => void;
+}) {
+  const input = (part.input ?? {}) as { url?: string; label?: string };
+  const approval = part.approval as { id: string; approved?: boolean } | undefined;
+  const answered = part.state === "approval-responded";
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: motionEnabled ? 4 : 0 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.22, ease: EASE_OUT }}
+      className="flex flex-col gap-2"
+      style={{
+        marginLeft: 12,
+        marginTop: 2,
+        padding: "8px 10px",
+        border: `1px solid ${C.dim}`,
+        borderRadius: 12,
+        background: C.bg,
+      }}
+    >
+      <span style={{ fontSize: 11, color: C.text }}>
+        open <span style={{ color: C.accent }}>{input.label ?? input.url}</span>?
+      </span>
+      <span className="truncate" style={{ fontSize: 10, color: C.muted }}>{input.url}</span>
+      {answered ? (
+        <span style={{ fontSize: 10, color: C.muted }}>
+          {approval?.approved ? "opened" : "left it closed"}
+        </span>
+      ) : (
+        <div className="flex gap-2">
+          <button
+            onClick={() => approval && onRespond?.(approval.id, true)}
+            className="jd-pressable"
+            style={{
+              fontSize: 11, color: C.accent, border: `1px solid ${C.accent}`,
+              borderRadius: 999, padding: "0 14px", minHeight: 34,
+            }}
+          >
+            open
+          </button>
+          <button
+            onClick={() => approval && onRespond?.(approval.id, false)}
+            className="jd-pressable"
+            style={{
+              fontSize: 11, color: C.muted, border: `1px solid ${C.border}`,
+              borderRadius: 999, padding: "0 14px", minHeight: 34,
+            }}
+          >
+            not now
+          </button>
+        </div>
+      )}
+    </motion.div>
+  );
+}
 
 type TopEntry = { name: string; detail: string | null; plays: number; url: string | null };
 type TopMusic = { ok: true; kind: "artists" | "albums" | "tracks"; period: string; entries: TopEntry[] };
@@ -404,16 +550,41 @@ function AssistantTurn({
   tools,
   streaming,
   motionEnabled,
+  onRunCommand,
+  onApprove,
 }: {
   text: string;
   tools: ToolUIPart[];
   streaming: boolean;
   motionEnabled: boolean;
+  onRunCommand?: (command: string) => void;
+  onApprove?: (id: string, approved: boolean) => void;
 }) {
   return (
     <div className="flex flex-col gap-0.5">
       <AssistantLabel />
       {tools.map((part) => {
+        if (part.state === "approval-requested" || part.state === "approval-responded") {
+          return (
+            <ApprovalRow
+              key={part.toolCallId}
+              part={part}
+              motionEnabled={motionEnabled}
+              onRespond={onApprove}
+            />
+          );
+        }
+        const hits = postSearchOf(part);
+        if (hits) {
+          return (
+            <PostHitsCard
+              key={part.toolCallId}
+              data={hits}
+              motionEnabled={motionEnabled}
+              onRun={onRunCommand}
+            />
+          );
+        }
         const scrobble = scrobbleOf(part);
         if (scrobble) {
           return <ScrobbleCard key={part.toolCallId} data={scrobble} motionEnabled={motionEnabled} />;
@@ -448,12 +619,16 @@ export default function AskSurface({
   motionEnabled,
   onSend,
   lead,
+  onRunCommand,
+  onApprove,
 }: {
   messages: UIMessage[];
   status: string;
   motionEnabled: boolean;
   onSend: (text: string) => void;
   lead?: React.ReactNode;
+  onRunCommand?: (command: string) => void;
+  onApprove?: (id: string, approved: boolean) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   // Only follow the stream while the reader is already at the bottom. Yanking
@@ -467,8 +642,9 @@ export default function AskSurface({
   const busy = status === "submitted" || status === "streaming";
   // Once a tool step is on screen it is the progress indicator; two spinners
   // running at once reads as two things happening.
+  const awaitingApproval = lastTools.some((t) => t.state === "approval-requested");
   const showThinking =
-    busy && (!lastIsAssistant || (lastText.length === 0 && lastTools.length === 0));
+    busy && !awaitingApproval && (!lastIsAssistant || (lastText.length === 0 && lastTools.length === 0));
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -510,6 +686,8 @@ export default function AskSurface({
             tools={toolsOf(m)}
             streaming={isLast && status === "streaming"}
             motionEnabled={motionEnabled}
+            onRunCommand={onRunCommand}
+            onApprove={onApprove}
           />
         );
       })}

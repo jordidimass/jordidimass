@@ -7,6 +7,7 @@ import type { UIMessage } from "ai";
 import { EASE_OUT } from "@/lib/motion";
 import { useVisualViewport } from "@/hooks/useVisualViewport";
 import { useScrollLock } from "@/hooks/useScrollLock";
+import { COMMANDS } from "@/lib/commands";
 import AskSurface from "./AskSurface";
 import SiteMark from "./SiteMark";
 import { C, MONO } from "./vesper";
@@ -17,16 +18,11 @@ const RUBBER_CONSTANT = 0.55;
 const ENTER = { duration: 0.18, ease: EASE_OUT };
 const EXIT = { duration: 0.12, ease: EASE_OUT };
 
-const SLASH_COMMANDS = [
-  { cmd: "help", label: "help" },
-  { cmd: "whoami", label: "who i am" },
-  { cmd: "links", label: "links" },
-  { cmd: "pages", label: "pages" },
-  { cmd: "neofetch", label: "neofetch" },
-  { cmd: "animation", label: "animations" },
-  { cmd: "clear", label: "clear" },
-  { cmd: "toggle-matrix", label: "matrix" },
-];
+const SLASH_COMMANDS = COMMANDS.filter((c) => !c.hidden && c.group !== "ask").map((c) => ({
+  cmd: c.name,
+  label: c.name,
+  summary: c.summary,
+}));
 
 function project(velocity: number, decelerationRate = 0.998) {
   return (velocity / 1000) * decelerationRate / (1 - decelerationRate);
@@ -48,13 +44,14 @@ export type MobileAskDockProps = {
   motionEnabled: boolean;
   onSend: (text: string) => void;
   onCommand: (cmd: string) => void;
+  onApprove?: (id: string, approved: boolean) => void;
   lead?: React.ReactNode;
   hideTrigger?: boolean;
 };
 
 export default function MobileAskDock({
   open, onOpen, onClose,
-  messages, status, motionEnabled, onSend, onCommand, lead, hideTrigger = false,
+  messages, status, motionEnabled, onSend, onCommand, onApprove, lead, hideTrigger = false,
 }: MobileAskDockProps) {
   const [input, setInput] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -65,7 +62,7 @@ export default function MobileAskDock({
   const slashOpen = open && input.startsWith("/");
   const slashQuery = slashOpen ? input.slice(1).trim().toLowerCase() : "";
   const slashMatches = slashOpen
-    ? SLASH_COMMANDS.filter((c) => !slashQuery || c.cmd.includes(slashQuery) || c.label.includes(slashQuery))
+    ? SLASH_COMMANDS.filter((c) => !slashQuery || c.cmd.includes(slashQuery) || c.summary.includes(slashQuery))
     : [];
 
   const viewportHeight = viewport.height || (typeof window !== "undefined" ? window.innerHeight : 0);
@@ -216,6 +213,8 @@ export default function MobileAskDock({
                   motionEnabled={motionEnabled}
                   onSend={onSend}
                   lead={lead}
+                  onRunCommand={onCommand}
+                  onApprove={onApprove}
                 />
 
                 <AnimatePresence initial={false}>
@@ -228,7 +227,10 @@ export default function MobileAskDock({
                       className="shrink-0 overflow-hidden"
                       style={{ borderTop: `1px solid ${C.border}` }}
                     >
-                      <div className="flex flex-wrap gap-1.5 px-4 py-2.5">
+                      <div className="px-4 pt-2" style={{ fontSize: 10, color: C.muted, letterSpacing: "0.08em" }}>
+                        terminal commands
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 px-4 pt-1.5 pb-2.5">
                         {slashMatches.map((c) => (
                           <button
                             key={c.cmd}
@@ -278,7 +280,7 @@ export default function MobileAskDock({
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
-                      placeholder="ask me anything…"
+                      placeholder="ask me anything…  ( / for commands )"
                       className="flex-1 min-w-0 bg-transparent border-none outline-none"
                       style={{ fontSize: 16, color: C.text, caretColor: C.accent }}
                       autoComplete="off"

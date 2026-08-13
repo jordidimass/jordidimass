@@ -40,8 +40,12 @@ export default function ShortcutsHelp() {
         {
           group: "Terminal",
           items: [
-            { label: "Close", keys: ["Esc"] },
+            { label: "Complete command or argument", keys: ["Tab"] },
+            { label: "Command history", keys: ["\u2191", "\u2193"] },
+            { label: "Search history", keys: ["Ctrl", "R"] },
+            { label: "Chain commands", keys: ["&&"] },
             { label: "Clear (when focused)", keys: ["Cmd/Ctrl", "K"] },
+            { label: "Leave ask mode, then close", keys: ["Esc"] },
           ],
         },
       ] as const,
