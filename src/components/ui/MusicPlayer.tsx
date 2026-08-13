@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Minus, X } from "lucide-react";
 import { TRACKS, TRACK_ORDER, type TrackKey } from "@/config/music";
@@ -69,15 +69,50 @@ export default function MusicPlayer({
     return () => window.removeEventListener("keydown", onKey);
   }, [expanded, onExpandedChange]);
 
-  const elapsed = Math.max(0, duration - remaining);
+  const [scrub, setScrub] = useState<number | null>(null);
+  const scrubbing = useRef(false);
 
-  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+  const fractionAt = (clientX: number) => {
     const el = barRef.current;
-    if (!el) return;
+    if (!el) return 0;
     const rect = el.getBoundingClientRect();
-    const fraction = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+    return Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+  };
+
+  const onScrubDown = (e: React.PointerEvent) => {
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    scrubbing.current = true;
+    setScrub(fractionAt(e.clientX));
+  };
+
+  const onScrubMove = (e: React.PointerEvent) => {
+    if (!scrubbing.current) return;
+    setScrub(fractionAt(e.clientX));
+  };
+
+  const onScrubUp = (e: React.PointerEvent) => {
+    if (!scrubbing.current) return;
+    scrubbing.current = false;
+    const fraction = fractionAt(e.clientX);
+    setScrub(fraction);
     seek(fraction);
   };
+
+  const played = scrub ?? (isFinite(progress) ? progress / 100 : 0);
+
+  useEffect(() => {
+    if (scrub === null || scrubbing.current) return;
+    if (Math.abs(progress / 100 - scrub) < 0.015) {
+      setScrub(null);
+      return;
+    }
+    const t = setTimeout(() => setScrub(null), 700);
+    return () => clearTimeout(t);
+  }, [progress, scrub]);
+
+  const elapsed = scrub !== null
+    ? scrub * duration
+    : Math.max(0, duration - remaining);
 
   const enter = motionEnabled ? ENTER : { duration: 0 };
   const exit = motionEnabled ? EXIT : { duration: 0 };
@@ -156,17 +191,60 @@ export default function MusicPlayer({
                   </div>
                 </div>
 
-                <div className="px-3 pt-3">
+                <div className="px-3 pt-2">
                   <div
-                    ref={barRef}
-                    onClick={handleSeek}
-                    className="cursor-pointer"
-                    style={{ height: isMobile ? 6 : 4, background: C.dim, borderRadius: 3 }}
+                    onPointerDown={onScrubDown}
+                    onPointerMove={onScrubMove}
+                    onPointerUp={onScrubUp}
+                    onPointerCancel={onScrubUp}
+                    className="flex items-center cursor-pointer"
+                    style={{ height: isMobile ? 28 : 20, touchAction: "none" }}
+                    role="slider"
+                    aria-label="Seek"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={Math.round(played * 100)}
+                    tabIndex={0}
                   >
-                    <div style={{ width: `${progress}%`, height: "100%", background: C.accent, borderRadius: 3 }} />
+                    <div
+                      ref={barRef}
+                      className="relative w-full"
+                      style={{
+                        height: scrub !== null ? 6 : 4,
+                        background: C.dim,
+                        borderRadius: 3,
+                        transition: "height 120ms var(--ease-out)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: `${played * 100}%`,
+                          height: "100%",
+                          background: C.accent,
+                          borderRadius: 3,
+                        }}
+                      />
+                      <div
+                        aria-hidden
+                        style={{
+                          position: "absolute",
+                          top: "50%",
+                          left: `${played * 100}%`,
+                          width: 12,
+                          height: 12,
+                          marginLeft: -6,
+                          marginTop: -6,
+                          borderRadius: 999,
+                          background: C.accent,
+                          opacity: scrub !== null ? 1 : 0,
+                          transform: `scale(${scrub !== null ? 1 : 0.9})`,
+                          transition: "opacity 120ms var(--ease-out), transform 120ms var(--ease-out)",
+                        }}
+                      />
+                    </div>
                   </div>
-                  <div className="flex justify-between" style={{ marginTop: 6, fontSize: 10, color: C.muted }}>
-                    <span>{fmtTime(elapsed)}</span>
+                  <div className="flex justify-between" style={{ fontSize: 10, color: C.muted }}>
+                    <span style={{ color: scrub !== null ? C.text : C.muted }}>{fmtTime(elapsed)}</span>
                     <span>{fmtTime(duration)}</span>
                   </div>
                 </div>
