@@ -5,9 +5,11 @@ import { motion, AnimatePresence } from "motion/react";
 import { Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Minus, X } from "lucide-react";
 import { TRACKS, TRACK_ORDER, type TrackKey } from "@/config/music";
 import { EASE_OUT } from "@/lib/motion";
+import { useScrollLock } from "@/hooks/useScrollLock";
 import { C } from "./vesper";
 
-const SHELL_SPRING = { type: "spring" as const, bounce: 0.2, duration: 0.3 };
+const ENTER = { duration: 0.18, ease: EASE_OUT };
+const EXIT = { duration: 0.12, ease: EASE_OUT };
 
 function fmtTime(s: number) {
   if (!isFinite(s) || isNaN(s)) return "0:00";
@@ -40,6 +42,7 @@ export default function MusicPlayer({
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
+  useScrollLock(isMobile && expanded);
 
   useEffect(() => {
     if (!expanded || isMobile) return;
@@ -76,8 +79,9 @@ export default function MusicPlayer({
     seek(fraction);
   };
 
-  const shellTransition = motionEnabled ? SHELL_SPRING : { duration: 0 };
-  const contentTransition = { duration: 0.14, ease: EASE_OUT, delay: 0.04 };
+  const enter = motionEnabled ? ENTER : { duration: 0 };
+  const exit = motionEnabled ? EXIT : { duration: 0 };
+  const rise = motionEnabled ? 6 : 0;
 
   const outerStyle: React.CSSProperties = isMobile
     ? {
@@ -96,42 +100,34 @@ export default function MusicPlayer({
         {isMobile && expanded && (
           <motion.div
             key="player-scrim"
-            className="fixed inset-0 z-40"
+            className="fixed inset-0 z-[62]"
             style={{ background: "rgba(0,0,0,0.45)" }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0, transition: { duration: 0.14 } }}
-            transition={{ duration: 0.22, ease: EASE_OUT }}
+            exit={{ opacity: 0, transition: exit }}
+            transition={enter}
             onClick={() => onExpandedChange(false)}
           />
         )}
       </AnimatePresence>
 
-      <div ref={rootRef} className="fixed z-50 pointer-events-none" style={outerStyle}>
-        <motion.div
-          layout
-          transition={shellTransition}
-          className="pointer-events-auto overflow-hidden"
-          style={{
-            width: expanded ? (isMobile ? "100%" : 260) : "auto",
-            maxWidth: isMobile ? (expanded ? "100%" : "calc(100vw - 144px)") : 260,
-            background: C.bg,
-            border: `1px solid ${expanded ? C.dim : C.border}`,
-            borderRadius: expanded ? 14 : 999,
-            boxShadow: expanded
-              ? "0 18px 60px rgba(0,0,0,0.8)"
-              : "0 6px 24px rgba(0,0,0,0.55)",
-          }}
-        >
-          <AnimatePresence mode="wait" initial={false}>
+      <div ref={rootRef} className="fixed z-[65] pointer-events-none" style={outerStyle}>
+        <AnimatePresence mode="wait" initial={false}>
             {expanded ? (
               <motion.div
                 key="panel"
-                layout="position"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0, transition: { duration: 0.1 } }}
-                transition={contentTransition}
+                initial={{ opacity: 0, y: rise }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: rise, transition: exit }}
+                transition={enter}
+                className="pointer-events-auto overflow-hidden"
+                style={{
+                  width: isMobile ? "100%" : 260,
+                  background: C.bg,
+                  border: `1px solid ${C.dim}`,
+                  borderRadius: 14,
+                  boxShadow: "0 18px 60px rgba(0,0,0,0.8)",
+                }}
               >
                 <div
                   className="flex items-center justify-between px-3 py-2.5"
@@ -248,13 +244,19 @@ export default function MusicPlayer({
             ) : (
               <motion.div
                 key="pill"
-                layout="position"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                exit={{ opacity: 0, transition: { duration: 0.1 } }}
-                transition={contentTransition}
-                className="flex items-center"
-                style={{ padding: "6px 6px 6px 12px" }}
+                exit={{ opacity: 0, transition: exit }}
+                transition={enter}
+                className="pointer-events-auto flex items-center overflow-hidden"
+                style={{
+                  padding: "6px 6px 6px 12px",
+                  maxWidth: isMobile ? "calc(100vw - 144px)" : 260,
+                  background: C.bg,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 999,
+                  boxShadow: "0 6px 24px rgba(0,0,0,0.55)",
+                }}
               >
                 <button
                   onClick={(e) => { e.stopPropagation(); togglePlay(); }}
@@ -288,8 +290,7 @@ export default function MusicPlayer({
                 </button>
               </motion.div>
             )}
-          </AnimatePresence>
-        </motion.div>
+        </AnimatePresence>
       </div>
     </>
   );

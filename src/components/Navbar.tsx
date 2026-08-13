@@ -19,6 +19,7 @@ export default function Navbar() {
 
   useEffect(() => {
     const handleScroll = () => {
+      if (document.documentElement.hasAttribute('data-scroll-locked')) return;
       const next = window.scrollY > 50;
       setIsScrolled((prev) => (prev === next ? prev : next));
     };

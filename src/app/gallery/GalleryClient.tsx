@@ -363,7 +363,7 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
         {selectedImage && (
         <motion.div
           key="gallery-modal"
-          className="fixed inset-0 z-50 flex flex-col bg-brand-bg/95 backdrop-blur-sm"
+          className="fixed inset-0 z-[90] flex flex-col bg-brand-bg/95 backdrop-blur-sm"
           onClick={() => setSelected(null)}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

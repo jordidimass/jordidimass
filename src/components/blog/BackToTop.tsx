@@ -9,7 +9,10 @@ export default function BackToTop() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    const handleScroll = () => setVisible(window.scrollY > 600);
+    const handleScroll = () => {
+      if (document.documentElement.hasAttribute('data-scroll-locked')) return;
+      setVisible(window.scrollY > 600);
+    };
     handleScroll();
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);

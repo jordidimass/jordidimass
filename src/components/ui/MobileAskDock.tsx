@@ -6,6 +6,7 @@ import { X } from "lucide-react";
 import type { UIMessage } from "ai";
 import { EASE_OUT } from "@/lib/motion";
 import { useVisualViewport } from "@/hooks/useVisualViewport";
+import { useScrollLock } from "@/hooks/useScrollLock";
 import AskSurface from "./AskSurface";
 import SiteMark from "./SiteMark";
 import { C, MONO } from "./vesper";
@@ -13,7 +14,8 @@ import { C, MONO } from "./vesper";
 const EDGE = 20;
 const DISMISS_FRACTION = 0.4;
 const RUBBER_CONSTANT = 0.55;
-const SHEET_SPRING = { type: "spring" as const, bounce: 0.2, duration: 0.3 };
+const ENTER = { duration: 0.18, ease: EASE_OUT };
+const EXIT = { duration: 0.12, ease: EASE_OUT };
 
 const SLASH_COMMANDS = [
   { cmd: "help", label: "help" },
@@ -58,6 +60,7 @@ export default function MobileAskDock({
   const inputRef = useRef<HTMLInputElement>(null);
   const dragY = useMotionValue(0);
   const viewport = useVisualViewport(open);
+  useScrollLock(open);
 
   const slashOpen = open && input.startsWith("/");
   const slashQuery = slashOpen ? input.slice(1).trim().toLowerCase() : "";
@@ -76,7 +79,7 @@ export default function MobileAskDock({
       return;
     }
     dragY.set(0);
-    const t = setTimeout(() => inputRef.current?.focus(), 260);
+    const t = setTimeout(() => inputRef.current?.focus(), 200);
     return () => clearTimeout(t);
   }, [open, dragY]);
 
@@ -88,7 +91,6 @@ export default function MobileAskDock({
   const drag = useRef<{ id: number; startY: number; history: { y: number; t: number }[] } | null>(null);
 
   const onPointerDown = (e: React.PointerEvent) => {
-    if (!open) return;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     drag.current = { id: e.pointerId, startY: e.clientY, history: [{ y: e.clientY, t: performance.now() }] };
   };
@@ -117,7 +119,7 @@ export default function MobileAskDock({
 
     if (projected > sheetHeight * DISMISS_FRACTION) {
       close();
-      animate(dragY, 0, { type: "spring", bounce: 0, duration: 0.3, velocity });
+      animate(dragY, 0, { duration: 0.12, ease: EASE_OUT });
       return;
     }
     animate(dragY, 0, { type: "spring", bounce: 0.2, duration: 0.3, velocity });
@@ -134,7 +136,9 @@ export default function MobileAskDock({
     onSend(value);
   };
 
-  const transition = motionEnabled ? SHEET_SPRING : { duration: 0 };
+  const enter = motionEnabled ? ENTER : { duration: 0 };
+  const exit = motionEnabled ? EXIT : { duration: 0 };
+  const rise = motionEnabled ? 6 : 0;
 
   return (
     <>
@@ -142,48 +146,45 @@ export default function MobileAskDock({
         {open && (
           <motion.div
             key="scrim"
-            className="fixed inset-0 z-40"
+            className="fixed inset-0 z-[62]"
             style={{ background: "rgba(0,0,0,0.55)" }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0, transition: { duration: 0.14 } }}
-            transition={{ duration: 0.22, ease: EASE_OUT }}
+            exit={{ opacity: 0, transition: exit }}
+            transition={enter}
             onClick={close}
           />
         )}
       </AnimatePresence>
 
-      <div className="fixed inset-0 z-50 pointer-events-none">
-        <motion.div
-          layout
-          data-jd-terminal=""
-          transition={transition}
-          className="absolute pointer-events-auto flex flex-col overflow-hidden"
-          style={{
-            y: dragY,
-            left: open ? 0 : "auto",
-            right: open ? 0 : EDGE,
-            bottom: open ? viewport.keyboardInset : `calc(${EDGE}px + env(safe-area-inset-bottom))`,
-            height: open ? sheetHeight : undefined,
-            borderRadius: open ? "18px 18px 0 0" : 999,
-            background: open ? C.bg : "rgba(16,16,16,0.6)",
-            backdropFilter: open ? "none" : "blur(16px) saturate(180%)",
-            WebkitBackdropFilter: open ? "none" : "blur(16px) saturate(180%)",
-            border: `1px solid ${C.border}`,
-            boxShadow: open ? "0 -10px 48px rgba(0,0,0,0.7)" : "0 4px 20px rgba(0,0,0,0.45)",
-            fontFamily: MONO,
-          }}
-        >
-          <AnimatePresence mode="wait" initial={false}>
-            {open ? (
+      <div className="fixed inset-0 z-[65] pointer-events-none">
+        <AnimatePresence mode="wait" initial={false}>
+          {open ? (
+            <motion.div
+              key="sheet"
+              data-jd-terminal=""
+              initial={{ opacity: 0, y: rise }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: rise, transition: exit }}
+              transition={enter}
+              className="absolute pointer-events-auto"
+              style={{
+                left: 0,
+                right: 0,
+                bottom: viewport.keyboardInset,
+                height: sheetHeight,
+              }}
+            >
               <motion.div
-                key="sheet"
-                layout="position"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0, transition: { duration: 0.1 } }}
-                transition={{ duration: 0.14, ease: EASE_OUT, delay: 0.04 }}
-                className="flex flex-col min-h-0 flex-1"
+                className="flex flex-col h-full overflow-hidden"
+                style={{
+                  y: dragY,
+                  borderRadius: "18px 18px 0 0",
+                  background: C.bg,
+                  border: `1px solid ${C.border}`,
+                  boxShadow: "0 -10px 48px rgba(0,0,0,0.7)",
+                  fontFamily: MONO,
+                }}
               >
                 <div
                   onPointerDown={onPointerDown}
@@ -222,18 +223,15 @@ export default function MobileAskDock({
                     <motion.div
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0, transition: { duration: 0.15, ease: EASE_OUT } }}
-                      transition={{ duration: 0.25, ease: EASE_OUT }}
+                      exit={{ height: 0, opacity: 0, transition: exit }}
+                      transition={enter}
                       className="shrink-0 overflow-hidden"
                       style={{ borderTop: `1px solid ${C.border}` }}
                     >
                       <div className="flex flex-wrap gap-1.5 px-4 py-2.5">
-                        {slashMatches.map((c, i) => (
-                          <motion.button
+                        {slashMatches.map((c) => (
+                          <button
                             key={c.cmd}
-                            initial={{ opacity: 0, y: motionEnabled ? 4 : 0 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.22, ease: EASE_OUT, delay: Math.min(i, 4) * 0.04 }}
                             onClick={() => { setInput(""); onCommand(c.cmd); }}
                             className="jd-pressable"
                             style={{
@@ -246,7 +244,7 @@ export default function MobileAskDock({
                             }}
                           >
                             {c.label}
-                          </motion.button>
+                          </button>
                         ))}
                       </div>
                     </motion.div>
@@ -254,68 +252,93 @@ export default function MobileAskDock({
                 </AnimatePresence>
 
                 <div
-                  className="shrink-0 flex items-center gap-2 pl-4 pr-1"
+                  className="shrink-0"
                   style={{
                     borderTop: `1px solid ${C.border}`,
-                    minHeight: 54,
-                    paddingBottom: viewport.keyboardOpen ? 0 : "env(safe-area-inset-bottom)",
+                    padding: "8px 12px",
+                    paddingBottom: viewport.keyboardOpen
+                      ? 8
+                      : "calc(10px + env(safe-area-inset-bottom))",
                   }}
                 >
-                  <span style={{ fontSize: 14, color: C.accent, lineHeight: 1 }}>λ</span>
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
-                    placeholder="ask me anything…"
-                    className="flex-1 bg-transparent border-none outline-none"
-                    style={{ fontSize: 16, color: C.text, caretColor: C.accent }}
-                    autoComplete="off"
-                    autoCorrect="off"
-                    autoCapitalize="sentences"
-                    spellCheck={false}
-                    enterKeyHint="send"
-                    aria-label="Ask input"
-                  />
-                  <button
-                    onPointerDown={(e) => { e.preventDefault(); submit(); }}
-                    aria-label="Send"
-                    className="jd-pressable flex items-center justify-center"
+                  <div
+                    className="flex items-center gap-2 pl-3 pr-1"
                     style={{
-                      color: input.trim() ? C.accent : C.muted,
-                      width: 44,
-                      height: 44,
-                      transition: "color 150ms var(--ease-out)",
+                      minHeight: 46,
+                      borderRadius: 999,
+                      background: "#181818",
+                      border: `1px solid ${input.trim() ? C.dim : C.border}`,
+                      transition: "border-color 150ms var(--ease-out)",
                     }}
                   >
-                    <svg width="18" height="18" viewBox="0 0 14 14" fill="none">
-                      <path d="M1 7h10M7 3l4 4-4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </button>
+                    <span style={{ fontSize: 14, color: C.accent, lineHeight: 1, flexShrink: 0 }}>λ</span>
+                    <input
+                      ref={inputRef}
+                      type="text"
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
+                      placeholder="ask me anything…"
+                      className="flex-1 min-w-0 bg-transparent border-none outline-none"
+                      style={{ fontSize: 16, color: C.text, caretColor: C.accent }}
+                      autoComplete="off"
+                      autoCorrect="off"
+                      autoCapitalize="sentences"
+                      spellCheck={false}
+                      enterKeyHint="send"
+                      aria-label="Ask input"
+                    />
+                    <button
+                      onPointerDown={(e) => { e.preventDefault(); submit(); }}
+                      aria-label="Send"
+                      className="jd-pressable flex items-center justify-center"
+                      style={{
+                        color: input.trim() ? C.accent : C.muted,
+                        width: 40,
+                        height: 40,
+                        flexShrink: 0,
+                        transition: "color 150ms var(--ease-out)",
+                      }}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 14 14" fill="none">
+                        <path d="M1 7h10M7 3l4 4-4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               </motion.div>
-            ) : hideTrigger ? null : (
-              <motion.button
-                key="bar"
-                type="button"
-                onClick={onOpen}
-                aria-label="Ask anything"
-                layout="position"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0, transition: { duration: 0.1 } }}
-                transition={{ duration: 0.14, ease: EASE_OUT, delay: 0.04 }}
-                className="jd-pressable flex items-center justify-center"
-                style={{ width: 44, height: 44, color: C.accent }}
-              >
-                <span className="jd-mark-spin flex" style={{ lineHeight: 0 }}>
-                  <SiteMark size={19} />
-                </span>
-              </motion.button>
-            )}
-          </AnimatePresence>
-        </motion.div>
+            </motion.div>
+          ) : hideTrigger ? null : (
+            <motion.button
+              key="bar"
+              type="button"
+              onClick={onOpen}
+              aria-label="Ask anything"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0, transition: exit }}
+              transition={enter}
+              className="jd-pressable absolute pointer-events-auto flex items-center justify-center"
+              style={{
+                right: EDGE,
+                bottom: `calc(${EDGE}px + env(safe-area-inset-bottom))`,
+                width: 44,
+                height: 44,
+                borderRadius: 999,
+                color: C.accent,
+                background: "rgba(16,16,16,0.6)",
+                backdropFilter: "blur(16px) saturate(180%)",
+                WebkitBackdropFilter: "blur(16px) saturate(180%)",
+                border: `1px solid ${C.border}`,
+                boxShadow: "0 4px 20px rgba(0,0,0,0.45)",
+              }}
+            >
+              <span className="jd-mark-spin flex" style={{ lineHeight: 0 }}>
+                <SiteMark size={19} />
+              </span>
+            </motion.button>
+          )}
+        </AnimatePresence>
       </div>
     </>
   );

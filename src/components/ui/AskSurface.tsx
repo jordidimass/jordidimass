@@ -488,7 +488,7 @@ export default function AskSurface({
       className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3"
       // The panel sets user-select: none so dragging it never selects text.
       // An answer you cannot copy is useless, so opt back in here.
-      style={{ scrollbarWidth: "none", userSelect: "text" }}
+      style={{ scrollbarWidth: "none", userSelect: "text", overscrollBehavior: "contain" }}
     >
       {lead}
 

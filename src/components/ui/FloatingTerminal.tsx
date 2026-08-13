@@ -359,8 +359,8 @@ export default function FloatingTerminal() {
 
   // Audio — fully imperative, no src prop on <audio>
   const audioRef = useRef<HTMLAudioElement>(null);
-  const trackRef = useRef<TrackKey>("volumes_dream");
-  const [trackDisplay, setTrackDisplay] = useState<TrackKey>("volumes_dream");
+  const trackRef = useRef<TrackKey>(TRACK_ORDER[0]);
+  const [trackDisplay, setTrackDisplay] = useState<TrackKey>(TRACK_ORDER[0]);
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [remaining, setRemaining] = useState(0);
@@ -704,6 +704,11 @@ export default function FloatingTerminal() {
           return `playing ${TRACKS[key].title}`;
         }
         if (playing) return `already playing ${TRACKS[trackRef.current].title}`;
+        if (!musicStarted) {
+          const first = TRACK_ORDER[0];
+          playTrack(first);
+          return `playing ${TRACKS[first].title}`;
+        }
         ensureAudioSrc();
         await audio.play().then(() => setPlaying(true)).catch(() => {});
         return `playing ${TRACKS[trackRef.current].title}`;
@@ -715,7 +720,7 @@ export default function FloatingTerminal() {
         return `animations ${enabled ? "on" : "off"}`;
       },
     };
-  }, [router, playing, togglePlay, switchTrack, playTrack, ensureAudioSrc, motionEnabled, toggleMotion]);
+  }, [router, playing, musicStarted, togglePlay, switchTrack, playTrack, ensureAudioSrc, motionEnabled, toggleMotion]);
 
   // ── Music control events from CommandPalette ─────────────────────────────────
   useEffect(() => {
@@ -826,7 +831,10 @@ export default function FloatingTerminal() {
     if (lo === "play") {
       const audio = audioRef.current;
       if (!audio) return;
-      if (!playing) { ensureAudioSrc(); audio.play().then(() => setPlaying(true)).catch(() => {}); }
+      if (!playing) {
+        if (!musicStarted) playTrack(TRACK_ORDER[0]);
+        else { ensureAudioSrc(); audio.play().then(() => setPlaying(true)).catch(() => {}); }
+      }
       setLines((prev) => [...prev, mkLine(`playing: ${TRACKS[trackRef.current].title}`)]); return;
     }
     if (lo === "pause") {
@@ -860,7 +868,7 @@ export default function FloatingTerminal() {
       mkLine(`command not found: ${cmd}`, true),
       mkLine('type "help" for available commands.', true),
     ]);
-  }, [playing, switchTrack, togglePlay, sendMessage, router, motionEnabled, toggleMotion]);
+  }, [playing, musicStarted, playTrack, switchTrack, togglePlay, sendMessage, router, motionEnabled, toggleMotion]);
 
   // ── Submit ────────────────────────────────────────────────────────────────────
   // In ask mode a bare line is a question. A leading "/" escapes back to the
