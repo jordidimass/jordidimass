@@ -139,6 +139,23 @@ body {
   color: #4c4c4c;
 }
 
+@keyframes jd-eq {
+  0%, 100% { transform: scaleY(0.3); }
+  50%      { transform: scaleY(1); }
+}
+
+.jd-eq-bar {
+  width: 2px;
+  height: 9px;
+  background: #ff8800;
+  transform-origin: bottom;
+  animation: jd-eq 900ms ease-in-out infinite;
+}
+.jd-eq-bar:nth-child(2) { animation-delay: 150ms; }
+.jd-eq-bar:nth-child(3) { animation-delay: 300ms; }
+
+[data-motion="off"] .jd-eq-bar { transform: scaleY(0.6); }
+
 /* The entrance runs in CSS, off the main thread and straight from the
    prerendered HTML. Driving it from Motion meant the tiles rendered at
    opacity 0 and stayed invisible until hydration finished — which, on a slow

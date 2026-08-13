@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { slugFromKey } from "@/lib/gallery";
 import { TRACKS, TRACK_ORDER } from "@/config/music";
+import { getRecentScrobble, getTopMusic, PERIOD_LABEL, type TopKind, type TopPeriod } from "@/lib/lastfm";
 
 const MAX_MESSAGES = 20;
 const MAX_CONTENT_LENGTH = 2000;
@@ -15,6 +16,8 @@ const CACHE_TTL = 60_000;
 const GALLERY_WORKER_URL = process.env.NEXT_PUBLIC_GALLERY_WORKER_URL ?? "";
 
 const POST_BODY_LIMIT = 6000;
+
+const kindLabel = (kind: TopKind) => kind;
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -80,9 +83,46 @@ const siteTools = {
       return `"${data.title}" (${formatDate(data.date)}) — /posts/${slug}\n\n${body}`;
     },
   }),
+  nowPlaying: tool({
+    description:
+      "Look up what I am actually listening to right now, from my real Last.fm scrobbles. Use this for 'what are you listening to', 'what music are you into lately', 'what did you last play'. This is about MY listening history — it is not the terminal's own player, so never use the music tool for these questions and never mention the terminal playlist in the answer. A card showing the track, artist and artwork is rendered automatically underneath your reply. Because of that your reply must be a single short lead-in of at most six words — 'Right now:' or 'Last thing I played:' — and must never contain the song title or the artist name.",
+    inputSchema: jsonSchema<Record<string, never>>({
+      type: "object",
+      properties: {},
+      additionalProperties: false,
+    }),
+    execute: async () => getRecentScrobble(),
+    toModelOutput: ({ output }) => ({
+      type: "text",
+      value: output.ok
+        ? `A card showing the ${output.nowPlaying ? "track I am playing right now" : "last track I played"} — with its title, artist and artwork — is now on screen. You cannot see the title and must not invent it. Reply with only a short lead-in: ${output.nowPlaying ? '"Right now:"' : '"Last thing I played:"'}`
+        : output.reason,
+    }),
+  }),
+  topMusic: tool({
+    description:
+      "What I have listened to MOST over a period, from my real Last.fm history. Use for 'what have you listened to this week', 'your top artists', 'what have you had on repeat lately', 'what music are you into this month'. Choose kind from the wording: 'albums', 'records' or 'LPs' mean albums; 'songs' or 'tracks' mean tracks; anything else means artists. Map the wording to a period: this week/lately → 7day, this month → 1month, this year → 12month, ever/of all time → overall. A ranked card with the names and play counts is rendered automatically, so your reply must be a single short lead-in of at most eight words and must never list the names or counts yourself.",
+    inputSchema: jsonSchema<{ kind: TopKind; period: TopPeriod }>({
+      type: "object",
+      properties: {
+        kind: { type: "string", enum: ["artists", "albums", "tracks"] },
+        period: { type: "string", enum: ["7day", "1month", "3month", "6month", "12month", "overall"] },
+      },
+      required: ["kind", "period"],
+      additionalProperties: false,
+    }),
+    execute: async ({ kind, period }: { kind: TopKind; period: TopPeriod }) =>
+      getTopMusic(kind, period),
+    toModelOutput: ({ output }) => ({
+      type: "text",
+      value: output.ok
+        ? `A card listing my top ${output.entries.length} ${kindLabel(output.kind)} for ${PERIOD_LABEL[output.period]} is now on screen. You cannot see the names and must not invent them. Reply with only a short lead-in.`
+        : output.reason,
+    }),
+  }),
   music: tool({
     description:
-      "Control the music player built into the terminal. Use when the visitor asks to play, pause, skip or change music.",
+      "Control the music player built into the terminal — the audio the visitor hears on this page. Use when they ask to play, pause, skip or change music. Not for questions about what I personally listen to; that is the nowPlaying tool.",
     inputSchema: jsonSchema<{ action: "play" | "pause" | "next" | "previous"; track?: string }>({
       type: "object",
       properties: {
@@ -193,6 +233,11 @@ WORKED EXAMPLES — follow these exactly:
 - "open your latest post" → navigate to the /posts/<slug> of the first post listed above.
 - "what is your latest post about?" → readPost with that slug, then answer in words.
 - "put some Title Fight on" → music, action play, track Title Fight.
+- "what have you listened to most this week?" → topMusic, kind artists, period 7day. Reply: "Most played this week:" and nothing more.
+- "your top songs of the year?" → topMusic, kind tracks, period 12month. Reply: "Top tracks this year:" and nothing more.
+- "what albums have you been playing this month?" → topMusic, kind albums, period 1month. Reply: "Most played albums this month:" and nothing more.
+- Whenever a tool renders a card, the card is the answer. Never restate its contents, in that turn or any later one.
+- "what are you listening to?" → nowPlaying, then reply with ONE short lead-in line and nothing else. If nowPlaying is true: "Right now:". If it is false: "Last thing I played:". The card underneath already shows the track, artist and artwork — repeating them is wrong, and so is mentioning the terminal's playlist, which has nothing to do with my scrobbles.
 
 LINK RULES — these are absolute, a wrong path is a broken page:
 - The visible label must name the destination: [schedule a meeting](...), [Telegram](...), [Harness your Agent](...). Never "this link", "here", "this page", "click here".
