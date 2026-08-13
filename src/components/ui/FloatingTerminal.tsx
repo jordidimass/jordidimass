@@ -309,7 +309,7 @@ function InputRow({
         onKeyDown={onKey}
         className="flex-1 bg-transparent border-none outline-none"
         style={{ fontSize: 16, color: C.text, caretColor: C.accent }}
-        placeholder={askMode ? "ask a follow-up…  ( / for commands )" : ""}
+        placeholder={askMode ? "ask a follow-up…" : ""}
         autoComplete="off"
         autoCorrect="off"
         autoCapitalize="off"

@@ -280,7 +280,7 @@ export default function MobileAskDock({
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
-                      placeholder="ask me anything…  ( / for commands )"
+                      placeholder="ask me anything…"
                       className="flex-1 min-w-0 bg-transparent border-none outline-none"
                       style={{ fontSize: 16, color: C.text, caretColor: C.accent }}
                       autoComplete="off"
