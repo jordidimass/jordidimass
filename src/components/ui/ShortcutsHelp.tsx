@@ -12,7 +12,7 @@ function Kbd({ children, className }: { children: React.ReactNode; className?: s
   return (
     <kbd
       className={cn(
-        "inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 py-1",
+        "inline-flex items-center gap-1 rounded-md border border-glass-border bg-glass px-2 py-1",
         "font-mono text-[11px] text-brand-white",
         className
       )}
@@ -42,8 +42,6 @@ export default function ShortcutsHelp() {
           items: [
             { label: "Complete command or argument", keys: ["Tab"] },
             { label: "Command history", keys: ["\u2191", "\u2193"] },
-            { label: "Search history", keys: ["Ctrl", "R"] },
-            { label: "Chain commands", keys: ["&&"] },
             { label: "Clear (when focused)", keys: ["Cmd/Ctrl", "K"] },
             { label: "Leave ask mode, then close", keys: ["Esc"] },
           ],
@@ -95,9 +93,9 @@ export default function ShortcutsHelp() {
           // Keep the original "designed" look when open.
           open && "h-11 w-11 flex items-center justify-center rounded-full",
           open && "text-brand-muted hover:text-brand-white transition-colors duration-200",
-          open && "bg-white/0 hover:bg-white/5",
-          open && "border border-white/10 hover:border-white/20",
-          open && "shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)]"
+          open && "bg-transparent hover:bg-glass",
+          open && "border border-glass-border hover:border-glass-border",
+          open && "shadow-[inset_0_1px_0_0_var(--color-glass-hairline)]"
         )}
         aria-label="Shortcuts help"
         aria-expanded={open}
@@ -122,8 +120,8 @@ export default function ShortcutsHelp() {
               key="panel"
               className={cn(
                 "fixed left-6 bottom-[84px] z-50 w-[320px]",
-                "rounded-xl border border-white/10 bg-white/5 backdrop-blur-md",
-                "shadow-[0_16px_56px_rgba(0,0,0,0.55)]"
+                "rounded-xl border border-glass-border bg-glass backdrop-blur-md",
+                "shadow-[0_16px_56px_var(--color-scrim)]"
               )}
               initial={{ opacity: 0, y: 8, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -134,7 +132,7 @@ export default function ShortcutsHelp() {
               aria-label="Shortcuts"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="px-4 pt-4 pb-3 border-b border-white/10 flex items-center justify-between">
+              <div className="px-4 pt-4 pb-3 border-b border-glass-border flex items-center justify-between">
                 <div>
                   <div className="text-brand-white text-sm tracking-wide">Shortcuts</div>
                   <div className="text-brand-muted text-xs">Press Esc to close</div>
@@ -163,7 +161,7 @@ export default function ShortcutsHelp() {
                   </div>
                 ))}
 
-                <div className="text-[11px] text-brand-muted pt-2 border-t border-white/10">
+                <div className="text-[11px] text-brand-muted pt-2 border-t border-glass-border">
                   Tip: Inside the terminal, <span className="text-brand-white/80">Cmd/Ctrl+K</span> clears the screen.
                 </div>
               </div>

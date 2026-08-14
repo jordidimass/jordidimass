@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef } from "react";
 import { useMotionContext } from "@/components/MotionProvider";
+import { useTheme } from "@/components/ThemeProvider";
 
 interface ParticlesProps {
   className?: string;
@@ -193,8 +194,10 @@ const ParticlesCanvas: React.FC<ParticlesProps> = ({
 // Outer gate: unmounts ParticlesCanvas entirely when motion is off so hooks reset cleanly on re-enable
 const Particles: React.FC<ParticlesProps> = (props) => {
   const { motionEnabled } = useMotionContext();
+  const { theme } = useTheme();
   if (!motionEnabled) return null;
-  return <ParticlesCanvas {...props} />;
+  const color = props.color ?? (theme === "light" ? "#1C1614" : "#ffffff");
+  return <ParticlesCanvas {...props} color={color} />;
 };
 
 export default Particles;

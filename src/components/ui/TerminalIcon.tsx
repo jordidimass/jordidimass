@@ -6,6 +6,7 @@ import type { HTMLAttributes } from "react";
 import { forwardRef, useCallback, useImperativeHandle, useRef } from "react";
 
 import { cn } from "@/lib/utils";
+import { useMotionContext } from "@/components/MotionProvider";
 
 export interface TerminalIconHandle {
   startAnimation: () => void;
@@ -32,12 +33,15 @@ const TerminalIcon = forwardRef<TerminalIconHandle, TerminalIconProps>(
   ({ onMouseEnter, onMouseLeave, className, size = 28, ...props }, ref) => {
     const controls = useAnimation();
     const isControlledRef = useRef(false);
+    const { motionEnabled } = useMotionContext();
 
     useImperativeHandle(ref, () => {
       isControlledRef.current = true;
 
       return {
-        startAnimation: () => controls.start("animate"),
+        startAnimation: () => {
+          if (motionEnabled) controls.start("animate");
+        },
         stopAnimation: () => controls.start("normal"),
       };
     });
@@ -46,11 +50,11 @@ const TerminalIcon = forwardRef<TerminalIconHandle, TerminalIconProps>(
       (e: React.MouseEvent<HTMLDivElement>) => {
         if (isControlledRef.current) {
           onMouseEnter?.(e);
-        } else {
+        } else if (motionEnabled) {
           controls.start("animate");
         }
       },
-      [controls, onMouseEnter]
+      [controls, motionEnabled, onMouseEnter]
     );
 
     const handleMouseLeave = useCallback(

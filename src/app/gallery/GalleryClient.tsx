@@ -202,8 +202,8 @@ function GalleryTile({
           blurDataURL={img.blurDataURL}
           className="h-auto w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03]"
         />
-        <div className="absolute inset-0 flex items-end bg-brand-bg/0 transition-colors duration-200 group-hover:bg-brand-bg/40">
-          <p className="w-full truncate px-3 py-2 text-xs font-light tracking-widest text-brand-text lowercase opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+        <div className="absolute inset-0 flex items-end bg-black/0 transition-colors duration-200 group-hover:bg-black/40">
+          <p className="w-full truncate px-3 py-2 text-xs font-light tracking-widest text-[#E8E0D8] lowercase opacity-0 transition-opacity duration-200 group-hover:opacity-100">
             {label(img.key)}
           </p>
         </div>
@@ -363,7 +363,7 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
         {selectedImage && (
         <motion.div
           key="gallery-modal"
-          className="fixed inset-0 z-[90] flex flex-col bg-brand-bg/95 backdrop-blur-sm"
+          className="fixed inset-0 z-[90] flex flex-col bg-black/20 backdrop-blur-2xl"
           onClick={() => setSelected(null)}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

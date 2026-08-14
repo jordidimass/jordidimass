@@ -5,6 +5,7 @@ import RouteScopedFloatingTerminal from "@/components/RouteScopedFloatingTermina
 import RouteScopedShortcutsHelp from "@/components/RouteScopedShortcutsHelp";
 import CommandPaletteClient from '@/components/CommandPaletteClient';
 import MotionProvider from '@/components/MotionProvider';
+import ThemeProvider from '@/components/ThemeProvider';
 import { Cormorant } from 'next/font/google';
 import { GeistSans } from 'geist/font/sans';
 import { Analytics } from "@vercel/analytics/react";
@@ -59,7 +60,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-        <script dangerouslySetInnerHTML={{ __html: `try{var s=localStorage.getItem('jd-motion');var on=s===null?!window.matchMedia('(prefers-reduced-motion: reduce)').matches:s!=='false';document.documentElement.setAttribute('data-motion',on?'on':'off')}catch(e){}` }} />
+        <script dangerouslySetInnerHTML={{ __html: `try{var s=localStorage.getItem('jd-motion');var on=s===null?!window.matchMedia('(prefers-reduced-motion: reduce)').matches:s!=='false';document.documentElement.setAttribute('data-motion',on?'on':'off');var t=localStorage.getItem('jd-theme');var light=t==='light'||(t!=='dark'&&window.matchMedia('(prefers-color-scheme: light)').matches);document.documentElement.setAttribute('data-theme',light?'light':'dark');document.documentElement.style.colorScheme=light?'light':'dark'}catch(e){}` }} />
         <link rel="preconnect" href="https://gallery-worker.jordidimas.workers.dev" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <script
@@ -95,6 +96,7 @@ export default function RootLayout({
       </head>
       <body className={`${cormorant.variable} ${GeistSans.variable} font-sans antialiased`}>
         <MotionProvider>
+        <ThemeProvider>
           <Navbar />
           <main className="pt-16">
             {children}
@@ -110,6 +112,7 @@ export default function RootLayout({
             <RouteScopedShortcutsHelp />
           </Suspense>
           <CommandPaletteClient />
+        </ThemeProvider>
         </MotionProvider>
       </body>
     </html>

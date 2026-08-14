@@ -9,6 +9,7 @@ import { slugFromKey, type GalleryImage } from "@/lib/gallery";
 import { COMMANDS } from "@/lib/commands";
 import type { PostMetadata } from "@/lib/posts";
 import { useMotionContext } from "./MotionProvider";
+import { useTheme } from "./ThemeProvider";
 import { TRACKS as TRACK_DATA, TRACK_ORDER, type TrackKey } from "@/config/music";
 
 // ── Icons ────────────────────────────────────────────────────────────────────
@@ -156,21 +157,21 @@ const CMDK_STYLES = `
     padding-top: 20vh;
     padding-left: 16px;
     padding-right: 16px;
-    background: rgba(0,0,0,0.65);
+    background: var(--color-scrim);
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
   }
   .jd-cmdk-panel {
     width: 100%;
     max-width: 560px;
-    background: #111010;
-    border: 1px solid rgba(172,139,139,0.22);
+    background: var(--color-brand-bg);
+    border: 1px solid var(--color-glass-border);
     border-radius: 14px;
-    box-shadow: 0 25px 60px rgba(0,0,0,0.85);
+    box-shadow: 0 25px 60px var(--color-scrim);
     overflow: hidden;
   }
   .jd-cmdk-panel [cmdk-input-wrapper] {
-    border-bottom: 1px solid rgba(172,139,139,0.15);
+    border-bottom: 1px solid var(--color-glass-border);
   }
   .jd-cmdk-panel [cmdk-input] {
     width: 100%;
@@ -179,18 +180,18 @@ const CMDK_STYLES = `
     border: none;
     outline: none;
     font-size: 15px;
-    color: #E8E0D8;
+    color: var(--color-brand-text);
     font-family: var(--font-geist-sans);
   }
   .jd-cmdk-panel [cmdk-input]::placeholder {
-    color: #6b5e5e;
+    color: var(--color-brand-muted);
   }
   .jd-cmdk-panel [cmdk-list] {
     max-height: 360px;
     overflow-y: auto;
     padding: 8px;
     scrollbar-width: thin;
-    scrollbar-color: rgba(172,139,139,0.25) transparent;
+    scrollbar-color: color-mix(in srgb, var(--color-brand-muted) 40%, transparent) transparent;
   }
   .jd-cmdk-panel [cmdk-list]::-webkit-scrollbar {
     width: 4px;
@@ -199,7 +200,7 @@ const CMDK_STYLES = `
     background: transparent;
   }
   .jd-cmdk-panel [cmdk-list]::-webkit-scrollbar-thumb {
-    background: rgba(172,139,139,0.25);
+    background: color-mix(in srgb, var(--color-brand-muted) 40%, transparent);
     border-radius: 2px;
   }
   .jd-cmdk-panel [cmdk-group-heading] {
@@ -208,7 +209,7 @@ const CMDK_STYLES = `
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: #6b5e5e;
+    color: var(--color-brand-muted);
     font-family: var(--font-geist-sans);
     user-select: none;
   }
@@ -220,26 +221,26 @@ const CMDK_STYLES = `
     border-radius: 8px;
     cursor: pointer;
     font-size: 13.5px;
-    color: #E8E0D8;
+    color: var(--color-brand-text);
     font-family: var(--font-geist-sans);
     outline: none;
     transition: background 0.1s, color 0.1s;
   }
   .jd-cmdk-panel [cmdk-item][aria-selected="true"] {
-    background: rgba(255,188,188,0.09);
-    color: #FFBCBC;
+    background: color-mix(in srgb, var(--color-brand-accent) 12%, transparent);
+    color: var(--color-brand-accent);
   }
   .jd-cmdk-panel [cmdk-item][aria-selected="true"] .jd-icon {
-    color: #FFBCBC;
+    color: var(--color-brand-accent);
   }
   .jd-cmdk-panel [cmdk-item]:hover {
-    background: rgba(255,188,188,0.06);
+    background: color-mix(in srgb, var(--color-brand-accent) 8%, transparent);
   }
   .jd-cmdk-panel [cmdk-empty] {
     padding: 28px;
     text-align: center;
     font-size: 13px;
-    color: #6b5e5e;
+    color: var(--color-brand-muted);
     font-family: var(--font-geist-sans);
   }
   .jd-cmdk-footer {
@@ -247,30 +248,30 @@ const CMDK_STYLES = `
     gap: 12px;
     align-items: center;
     padding: 8px 14px;
-    border-top: 1px solid rgba(172,139,139,0.12);
+    border-top: 1px solid var(--color-glass-border);
   }
   .jd-cmdk-footer kbd {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     padding: 2px 5px;
-    background: rgba(172,139,139,0.1);
-    border: 1px solid rgba(172,139,139,0.18);
+    background: var(--color-glass);
+    border: 1px solid var(--color-glass-border);
     border-radius: 4px;
     font-size: 10px;
-    color: #AC8B8B;
+    color: var(--color-brand-muted);
     font-family: var(--font-geist-sans);
   }
   .jd-cmdk-footer span {
     font-size: 11px;
-    color: #6b5e5e;
+    color: var(--color-brand-muted);
     font-family: var(--font-geist-sans);
   }
   .jd-icon {
     flex-shrink: 0;
     display: flex;
     align-items: center;
-    color: #AC8B8B;
+    color: var(--color-brand-muted);
     transition: color 0.1s;
   }
   .jd-label {
@@ -281,7 +282,7 @@ const CMDK_STYLES = `
   }
   .jd-hint {
     font-size: 11px;
-    color: #6b5e5e;
+    color: var(--color-brand-muted);
     flex-shrink: 0;
   }
 `;
@@ -291,6 +292,7 @@ const CMDK_STYLES = `
 export default function CommandPalette() {
   const router = useRouter();
   const { motionEnabled, toggleMotion } = useMotionContext();
+  const { theme, toggleTheme } = useTheme();
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [posts, setPosts] = useState<PostMetadata[]>([]);
@@ -378,6 +380,11 @@ export default function CommandPalette() {
   const handleToggleMotion = useCallback(
     () => runAndClose(toggleMotion),
     [runAndClose, toggleMotion]
+  );
+
+  const handleToggleTheme = useCallback(
+    () => runAndClose(toggleTheme),
+    [runAndClose, toggleTheme]
   );
 
   const musicPlay = useCallback(
@@ -496,6 +503,14 @@ export default function CommandPalette() {
               >
                 <span className="jd-icon"><IconZap /></span>
                 <span className="jd-label">{motionEnabled ? 'Animations Off' : 'Animations On'}</span>
+              </Command.Item>
+              <Command.Item
+                value={theme === 'dark' ? 'light mode' : 'dark mode'}
+                keywords={["theme", "light", "dark", "appearance", "mode", "contrast"]}
+                onSelect={handleToggleTheme}
+              >
+                <span className="jd-icon"><IconZap /></span>
+                <span className="jd-label">{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
               </Command.Item>
             </Command.Group>
 

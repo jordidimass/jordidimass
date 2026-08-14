@@ -92,9 +92,9 @@ export default function Navbar() {
             >
               <div className="relative flex overflow-hidden items-center justify-center w-[20px] h-[20px]">
                 <div className={`flex flex-col justify-between w-[20px] h-[20px] transform transition-transform duration-200 origin-center overflow-hidden ${isOpen ? 'translate-x-1.5' : ''}`}>
-                  <div className={`bg-white h-[2px] w-7 transform transition-transform duration-200 origin-left ${isOpen ? 'rotate-[42deg] scale-x-[0.476] -translate-y-1' : ''}`}></div>
-                  <div className={`bg-white h-[2px] w-7 rounded transition-opacity duration-200 ${isOpen ? 'opacity-0' : ''}`}></div>
-                  <div className={`bg-white h-[2px] w-7 transform transition-transform duration-200 origin-left ${isOpen ? '-rotate-[42deg] scale-x-[0.476] translate-y-1' : ''}`}></div>
+                  <div className={`bg-brand-white h-[2px] w-7 transform transition-transform duration-200 origin-left ${isOpen ? 'rotate-[42deg] scale-x-[0.476] -translate-y-1' : ''}`}></div>
+                  <div className={`bg-brand-white h-[2px] w-7 rounded transition-opacity duration-200 ${isOpen ? 'opacity-0' : ''}`}></div>
+                  <div className={`bg-brand-white h-[2px] w-7 transform transition-transform duration-200 origin-left ${isOpen ? '-rotate-[42deg] scale-x-[0.476] translate-y-1' : ''}`}></div>
                 </div>
               </div>
             </button>

@@ -110,13 +110,11 @@ export const COMMANDS: Command[] = [
         text("terminal:", true),
         text("  Tab               complete command or argument"),
         text("  ↑ ↓               command history"),
-        text("  Ctrl R            search history"),
         text("  Cmd/Ctrl K        clear"),
         text("  Esc               leave ask mode, then close"),
-        text("  &&                chain commands"),
         text("  / + command       run any of these without leaving ask mode"),
       ]);
-      return "Cmd+K palette, Cmd+Shift+K terminal, Tab complete, Ctrl+R history, && chains";
+      return "Cmd+K palette, Cmd+Shift+K terminal, Tab complete, arrows for history";
     },
   },
   {

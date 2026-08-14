@@ -54,10 +54,10 @@ function CodeFigure(props: ComponentPropsWithoutRef<'figure'> & Record<string, u
   const label = titleEl ? getPlainText(titleEl) : preProps['data-language'];
 
   return (
-    <figure className="not-prose my-6 overflow-hidden rounded-lg border border-brand-muted/25 bg-black/20">
-      <div className="flex items-center justify-between gap-3 border-b border-brand-muted/25 px-4 py-2">
-        <small className="text-brand-muted">{label}</small>
-        <CopyButton code={rawCode} />
+    <figure className="not-prose my-6 overflow-hidden rounded-lg border border-white/10 bg-[var(--color-code-bg)]">
+      <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-2">
+        <small className="text-[#AC8B8B]">{label}</small>
+        <CopyButton code={rawCode} className="text-[#AC8B8B] hover:text-[#FFBCBC]" />
       </div>
       {preEl}
     </figure>

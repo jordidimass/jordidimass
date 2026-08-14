@@ -17,7 +17,6 @@ export default function ConnectPage() {
           quantity={450}
           staticity={10}
           ease={60}
-          color="#ffffff"
         />
       </div>
       <div className="relative flex mx-auto items-center justify-start flex-col w-full min-h-screen px-8 max-w-2xl z-10 pt-24 md:pt-4 pb-4"> 

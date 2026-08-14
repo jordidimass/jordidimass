@@ -29,9 +29,13 @@ type TextLine = { id: number; type: "text"; text: string; dim?: boolean };
 type LinkLine = { id: number; type: "link"; label: string; href: string; external?: boolean };
 type Line = TextLine | LinkLine;
 
-let _id = 0;
-const mkLine = (text: string, dim = false): TextLine => ({ id: _id++, type: "text", text, dim });
-const mkLink = (label: string, href: string, external = false): LinkLine => ({ id: _id++, type: "link", label, href, external });
+const nextLineId = () => {
+  const g = globalThis as typeof globalThis & { __jdFtLineId?: number };
+  g.__jdFtLineId = (g.__jdFtLineId ?? 0) + 1;
+  return g.__jdFtLineId;
+};
+const mkLine = (text: string, dim = false): TextLine => ({ id: nextLineId(), type: "text", text, dim });
+const mkLink = (label: string, href: string, external = false): LinkLine => ({ id: nextLineId(), type: "link", label, href, external });
 
 const toLine = (o: OutputLine): Line => {
   if (o.kind === "link") return mkLink(o.label, o.href, o.external);
@@ -107,11 +111,11 @@ function LogRows({ lines }: { lines: Line[] }) {
   const router = useRouter();
   return (
     <>
-      {lines.map((l) => {
+      {lines.map((l, i) => {
         if (l.type === "link") {
           return (
             <a
-              key={l.id}
+              key={`${l.id}-${i}`}
               href={l.href}
               target={l.external ? "_blank" : "_self"}
               rel={l.external ? "noopener noreferrer" : undefined}
@@ -125,7 +129,7 @@ function LogRows({ lines }: { lines: Line[] }) {
         }
         return (
           <div
-            key={l.id}
+            key={`${l.id}-${i}`}
             className="leading-5 whitespace-pre-wrap break-words"
             style={{ fontSize: 12, color: l.dim ? C.muted : C.text }}
           >
@@ -968,7 +972,7 @@ export default function FloatingTerminal() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.14, ease: EASE_OUT }}
+          transition={{ duration: motionEnabled ? 0.14 : 0, ease: EASE_OUT }}
           style={{ color: askMode ? C.text : C.muted, fontSize: 11, letterSpacing: "0.1em" }}
         >
           {askMode ? "ask mode" : "terminal"}
@@ -977,10 +981,10 @@ export default function FloatingTerminal() {
       {askMode && (
         <motion.span
           aria-hidden
-          animate={busy ? { opacity: [1, 0.35, 1] } : { opacity: 0.35 }}
-          transition={busy
+          animate={busy && motionEnabled ? { opacity: [1, 0.35, 1] } : { opacity: busy ? 1 : 0.35 }}
+          transition={busy && motionEnabled
             ? { duration: 1.2, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }
-            : { duration: 0.14, ease: EASE_OUT }}
+            : { duration: 0 }}
           style={{ width: 5, height: 5, borderRadius: 999, background: C.accent, flexShrink: 0 }}
         />
       )}
@@ -997,9 +1001,9 @@ export default function FloatingTerminal() {
           exit={{
             opacity: 0,
             filter: motionEnabled ? "blur(2px)" : "blur(0px)",
-            transition: { duration: 0.14, ease: EASE_OUT },
+            transition: { duration: motionEnabled ? 0.14 : 0, ease: EASE_OUT },
           }}
-          transition={{ duration: 0.22, ease: EASE_OUT }}
+          transition={{ duration: motionEnabled ? 0.22 : 0, ease: EASE_OUT }}
           className="flex-1 flex flex-col min-h-0"
         >
           <AskSurface
@@ -1016,8 +1020,8 @@ export default function FloatingTerminal() {
           key="log"
           initial={{ opacity: 0, y: motionEnabled ? 6 : 0 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, transition: { duration: 0.14, ease: EASE_OUT } }}
-          transition={{ duration: 0.22, ease: EASE_OUT }}
+          exit={{ opacity: 0, transition: { duration: motionEnabled ? 0.14 : 0, ease: EASE_OUT } }}
+          transition={{ duration: motionEnabled ? 0.22 : 0, ease: EASE_OUT }}
           className="flex-1 flex flex-col min-h-0"
         >
           <OutputArea lines={lines} outputRef={outputRef} onScroll={onOutputScroll} />

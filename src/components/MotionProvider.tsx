@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
-import { MotionConfig } from 'motion/react';
+import { MotionConfig, MotionGlobalConfig } from 'motion/react';
 
 interface MotionContextValue {
   motionEnabled: boolean;
@@ -23,14 +23,17 @@ function readMotionEnabled(): boolean {
   return document.documentElement.getAttribute('data-motion') !== 'off';
 }
 
+if (typeof window !== 'undefined') {
+  MotionGlobalConfig.skipAnimations = document.documentElement.getAttribute('data-motion') === 'off';
+}
+
 export default function MotionProvider({ children }: { children: React.ReactNode }) {
   // Sync read on client — avoids the async useEffect gap where animations flash
   const [motionEnabled, setMotionEnabled] = useState(readMotionEnabled);
 
   useEffect(() => {
-    // Keep the attribute in sync when state changes (toggleMotion already does this,
-    // but this covers the initial SSR→hydration case)
     document.documentElement.setAttribute('data-motion', motionEnabled ? 'on' : 'off');
+    MotionGlobalConfig.skipAnimations = !motionEnabled;
   }, [motionEnabled]);
 
   const toggleMotion = () => {
@@ -38,13 +41,17 @@ export default function MotionProvider({ children }: { children: React.ReactNode
       const next = !prev;
       localStorage.setItem('jd-motion', String(next));
       document.documentElement.setAttribute('data-motion', next ? 'on' : 'off');
+      MotionGlobalConfig.skipAnimations = !next;
       return next;
     });
   };
 
   return (
     <MotionContext.Provider value={{ motionEnabled, toggleMotion }}>
-      <MotionConfig reducedMotion={motionEnabled ? 'never' : 'always'}>
+      <MotionConfig
+        reducedMotion={motionEnabled ? 'never' : 'always'}
+        transition={motionEnabled ? undefined : { duration: 0 }}
+      >
         {children}
       </MotionConfig>
     </MotionContext.Provider>
