@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import Image, { type ImageProps } from "next/image";
 
 /**
@@ -22,6 +22,13 @@ export default function GalleryImage({
   ...props
 }: ImageProps) {
   const [loaded, setLoaded] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  useLayoutEffect(() => {
+    if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) {
+      setLoaded(true);
+    }
+  }, []);
 
   return (
     <div className="relative overflow-hidden">
@@ -38,6 +45,7 @@ export default function GalleryImage({
       )}
       <Image
         {...props}
+        ref={imgRef}
         data-gallery-photo=""
         placeholder="empty"
         onLoad={(e) => {
