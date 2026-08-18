@@ -2,13 +2,25 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence, useInView } from "motion/react";
 import { slugFromKey, columnStarts, aboveFoldIndices, FALLBACK_WIDTH, FALLBACK_HEIGHT, type GalleryImage } from "@/lib/gallery";
-import { imageSource } from "@/lib/galleryLoader";
+import { imageSource, preloadDerivedVariant } from "@/lib/galleryLoader";
 import { EASE_OUT } from "@/lib/motion";
+import GalleryImageComponent from "@/components/GalleryImage";
+
+const MODAL_DESKTOP_MEDIA = "(min-width: 768px)";
+
+function preloadModalVariant(img: GalleryImage) {
+  const isDesktop = window.matchMedia(MODAL_DESKTOP_MEDIA).matches;
+  preloadDerivedVariant(img, isDesktop ? window.innerWidth * 0.8 : window.innerWidth);
+}
+
+function preloadDetailVariant(img: GalleryImage) {
+  const isMobile = !window.matchMedia(MODAL_DESKTOP_MEDIA).matches;
+  preloadDerivedVariant(img, isMobile ? window.innerWidth : window.innerWidth * 0.9);
+}
 
 const STAGGERED_TILES = 9;
 const STAGGER_STEP = 0.05;
@@ -44,7 +56,12 @@ const OpenPageIcon = (
   </svg>
 );
 
-const HOLD_TIMEOUT_MS = 4000;
+// Cold-cache image fetches on the gallery worker run 300-600ms; the hold
+// waits for the *slowest* of the group, so both knobs stay small — a long
+// timeout or an uncapped group turns one slow image into a multi-second
+// stall instead of the fast group-cascade this was built for.
+const HOLD_TIMEOUT_MS = 1200;
+const HOLD_MAX_IMAGES = 6;
 
 /**
  * Runs at HTML parse time, long before hydration.
@@ -70,8 +87,9 @@ const RELEASE_SCRIPT = `(function(){
     var tiles=g.querySelectorAll('[data-gallery-tile]');
     for(var i=0;i<tiles.length;i++){
       if(tiles[i].getBoundingClientRect().top>=vh) continue;
-      var im=tiles[i].querySelector('img');
+      var im=tiles[i].querySelector('img[data-gallery-photo]');
       if(im) imgs.push(im);
+      if(imgs.length>=${HOLD_MAX_IMAGES}) break;
     }
     if(!imgs.length){ fire(); return; }
     var left=imgs.length;
@@ -117,8 +135,9 @@ function useGalleryReveal(gridRef: React.RefObject<HTMLDivElement | null>, count
     if (!singleColumn && !(grid as HTMLDivElement & { __jdHoldManaged?: boolean }).__jdHoldManaged) {
       const firstScreen = tiles.filter((el) => el.getBoundingClientRect().top < viewport);
       const imgs = firstScreen
-        .map((el) => el.querySelector("img"))
-        .filter((el): el is HTMLImageElement => el !== null);
+        .map((el) => el.querySelector("img[data-gallery-photo]"))
+        .filter((el): el is HTMLImageElement => el !== null)
+        .slice(0, HOLD_MAX_IMAGES);
       let left = imgs.length;
       const release = () => grid.removeAttribute("data-hold");
       const tick = () => { if (--left <= 0) release(); };
@@ -186,19 +205,19 @@ function GalleryTile({
       <button
         type="button"
         onClick={onSelect}
+        onPointerEnter={() => preloadModalVariant(img)}
+        onPointerDown={() => preloadModalVariant(img)}
         className="relative block w-full cursor-pointer overflow-hidden rounded-sm text-left"
       >
-        <Image
+        <GalleryImageComponent
           {...imageSource(img)}
           alt={label(img.key)}
           width={img.width ?? FALLBACK_WIDTH}
           height={img.height ?? FALLBACK_HEIGHT}
-          quality={82}
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           priority={priority}
           loading={eager ? "eager" : "lazy"}
           fetchPriority={eager ? "high" : "auto"}
-          placeholder={img.blurDataURL ? "blur" : "empty"}
           blurDataURL={img.blurDataURL}
           className="h-auto w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03]"
         />
@@ -314,6 +333,7 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
       {/* Link (not button) — enables hover prefetch + proper soft navigation */}
       <Link
         href={`/gallery/${slugFromKey(selectedImage.key)}`}
+        onPointerEnter={() => preloadDetailVariant(selectedImage)}
         onClick={() => { document.body.style.overflow = ""; }}
         className="jd-pressable select-none text-brand-muted/60 transition-colors duration-200 hover:text-brand-accent active:text-brand-accent"
         aria-label="open image page"
@@ -390,14 +410,13 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
             transition={{ duration: MODAL_IN, ease: EASE_OUT }}
           >
             <div className="flex flex-1 items-center justify-center overflow-hidden px-4 pb-4 pt-14">
-              <Image
+              <GalleryImageComponent
+                key={selectedImage.key}
                 {...imageSource(selectedImage)}
                 alt={label(selectedImage.key)}
                 width={selectedImage.width ?? FALLBACK_WIDTH}
                 height={selectedImage.height ?? FALLBACK_HEIGHT}
-                quality={86}
                 sizes="100vw"
-                placeholder={selectedImage.blurDataURL ? "blur" : "empty"}
                 blurDataURL={selectedImage.blurDataURL}
                 className="max-h-full w-full rounded-[4px] object-contain"
                 style={{ maxHeight: "calc(100dvh - 160px)" }}
@@ -452,19 +471,17 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
               exit={{ opacity: 0, scale: 0.98, transition: { duration: MODAL_OUT, ease: EASE_OUT } }}
               transition={{ duration: MODAL_IN, ease: EASE_OUT }}
             >
-              <Image
+              <GalleryImageComponent
                 key={selectedImage.url}
                 {...imageSource(selectedImage)}
                 alt={label(selectedImage.key)}
                 width={selectedImage.width ?? FALLBACK_WIDTH}
                 height={selectedImage.height ?? FALLBACK_HEIGHT}
-                quality={88}
                 sizes="80vw"
                 priority
-                placeholder={selectedImage.blurDataURL ? "blur" : "empty"}
                 blurDataURL={selectedImage.blurDataURL}
                 onLoad={() => markLoaded(selectedImage.url)}
-                className={`max-w-full rounded-[4px] object-contain transition-opacity duration-200 ${imageLoaded ? "opacity-100" : "opacity-0"}`}
+                className="max-w-full rounded-[4px] object-contain"
                 style={{ maxHeight: "calc(100vh - 72px)" }}
               />
               {!imageLoaded && (
