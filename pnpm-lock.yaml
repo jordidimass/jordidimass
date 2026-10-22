@@ -104,6 +104,9 @@ importers:
       tailwindcss-animate:
         specifier: ^1.0.7
         version: 1.0.7(tailwindcss@4.2.0)
+      thinking-orbs:
+        specifier: ^0.3.2
+        version: 0.3.2(react@19.2.4)
       three:
         specifier: ^0.183.2
         version: 0.183.2
@@ -3330,6 +3333,11 @@ packages:
   tapable@2.3.0:
     resolution: {integrity: sha512-g9ljZiwki/LfxmQADO3dEY1CbpmXT5Hm2fJ+QaGKwSXUylMybePR7/67YW7jOrrvjEgL1Fmz5kzyAjWVWLlucg==}
     engines: {node: '>=6'}
+
+  thinking-orbs@0.3.2:
+    resolution: {integrity: sha512-QZFeBaPEzqhjiZoXy961EvDgaXk2WgXacF3Rbz+Sj5IfzDzBvTC86vdREUHniBffYibJFKSwbfllxLUdI/Xv6g==}
+    peerDependencies:
+      react: '>=18.0.0'
 
   three-mesh-bvh@0.8.3:
     resolution: {integrity: sha512-4G5lBaF+g2auKX3P0yqx+MJC6oVt6sB5k+CchS6Ob0qvH0YIhuUk1eYr7ktsIpY+albCqE80/FVQGV190PmiAg==}
@@ -7408,6 +7416,10 @@ snapshots:
   tapable@2.2.1: {}
 
   tapable@2.3.0: {}
+
+  thinking-orbs@0.3.2(react@19.2.4):
+    dependencies:
+      react: 19.2.4
 
   three-mesh-bvh@0.8.3(three@0.183.2):
     dependencies:

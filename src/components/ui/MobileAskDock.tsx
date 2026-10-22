@@ -10,6 +10,7 @@ import { useScrollLock } from "@/hooks/useScrollLock";
 import { COMMANDS } from "@/lib/commands";
 import AskSurface from "./AskSurface";
 import SiteMark from "./SiteMark";
+import { ThinkingOrb } from "thinking-orbs";
 import { C, MONO } from "./vesper";
 
 const EDGE = 20;
@@ -324,20 +325,11 @@ export default function MobileAskDock({
               style={{
                 right: EDGE,
                 bottom: `calc(${EDGE}px + env(safe-area-inset-bottom))`,
-                width: 44,
-                height: 44,
-                borderRadius: 999,
-                color: C.accent,
-                background: "rgba(16,16,16,0.6)",
-                backdropFilter: "blur(16px) saturate(180%)",
-                WebkitBackdropFilter: "blur(16px) saturate(180%)",
-                border: `1px solid ${C.border}`,
-                boxShadow: "0 4px 20px rgba(0,0,0,0.45)",
+                width: 64,
+                height: 64,
               }}
             >
-              <span className="jd-mark-spin flex" style={{ lineHeight: 0 }}>
-                <SiteMark size={19} />
-              </span>
+              <ThinkingOrb state="composing" size={64} theme="dark" aria-hidden="true" />
             </motion.button>
           )}
         </AnimatePresence>

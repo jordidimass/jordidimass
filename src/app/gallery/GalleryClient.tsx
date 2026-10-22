@@ -44,59 +44,13 @@ const OpenPageIcon = (
   </svg>
 );
 
-const HOLD_TIMEOUT_MS = 4000;
-
 /**
- * Runs at HTML parse time, long before hydration.
+ * Fades below-fold tiles in as they scroll into view.
  *
- * The reveal has to wait for the first screenful to decode, but on a slow
- * connection React does not hydrate until well after the images have started
- * arriving — so a React effect released the hold far too late to matter, and
- * the grid revealed itself piecemeal. This is inline and synchronous instead.
- */
-const RELEASE_SCRIPT = `(function(){
-  var g=document.querySelector('[data-gallery-grid][data-hold]');
-  if(!g) return;
-  var reduce=!window.matchMedia('(min-width: 640px)').matches
-    || window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    || document.documentElement.getAttribute('data-motion')==='off';
-  g.__jdHoldManaged = true;
-  var release=function(){ g.removeAttribute('data-hold'); };
-  if(reduce){ release(); return; }
-  var done=false, fire=function(){ if(!done){ done=true; release(); } };
-  setTimeout(fire, ${HOLD_TIMEOUT_MS});
-  var start=function(){
-    var vh=window.innerHeight, imgs=[];
-    var tiles=g.querySelectorAll('[data-gallery-tile]');
-    for(var i=0;i<tiles.length;i++){
-      if(tiles[i].getBoundingClientRect().top>=vh) continue;
-      var im=tiles[i].querySelector('img');
-      if(im) imgs.push(im);
-    }
-    if(!imgs.length){ fire(); return; }
-    var left=imgs.length;
-    var tick=function(){ if(--left<=0) fire(); };
-    for(var j=0;j<imgs.length;j++){
-      if(imgs[j].complete && imgs[j].naturalWidth>0){ tick(); continue; }
-      imgs[j].addEventListener('load', tick, {once:true});
-      imgs[j].addEventListener('error', tick, {once:true});
-    }
-  };
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', start, {once:true});
-  else start();
-})();`;
-
-/**
- * Holds the first screenful until every one of its images has decoded, then
- * releases them together so the CSS row delays play as one cascade.
- *
- * Without this the reveal follows network arrival order, so the gallery filled
- * in piecemeal and looked different on every load. Releasing as a group makes
- * the entrance deterministic.
- *
- * Everything here is additive: the hold is only ever applied by script, so if
- * this never runs the tiles animate straight from the prerendered HTML. A
- * timeout releases them regardless, so a stalled image cannot strand the page.
+ * The first screenful is never held back: each tile paints straight from the
+ * prerendered HTML with its blur placeholder, and the image swaps in the
+ * moment it arrives. Gating the screen on every image decoding meant the
+ * slowest request decided when anything showed up at all.
  */
 function useGalleryReveal(gridRef: React.RefObject<HTMLDivElement | null>, count: number) {
   useLayoutEffect(() => {
@@ -109,27 +63,6 @@ function useGalleryReveal(gridRef: React.RefObject<HTMLDivElement | null>, count
     const viewport = window.innerHeight;
     const deferred = tiles.filter((el) => el.getBoundingClientRect().top >= viewport * 1.2);
     for (const el of deferred) el.setAttribute("data-pending", "");
-
-    let timer = 0;
-    const singleColumn = !window.matchMedia("(min-width: 640px)").matches;
-    if (singleColumn) grid.removeAttribute("data-hold");
-
-    if (!singleColumn && !(grid as HTMLDivElement & { __jdHoldManaged?: boolean }).__jdHoldManaged) {
-      const firstScreen = tiles.filter((el) => el.getBoundingClientRect().top < viewport);
-      const imgs = firstScreen
-        .map((el) => el.querySelector("img"))
-        .filter((el): el is HTMLImageElement => el !== null);
-      let left = imgs.length;
-      const release = () => grid.removeAttribute("data-hold");
-      const tick = () => { if (--left <= 0) release(); };
-      for (const img of imgs) {
-        if (img.complete && img.naturalWidth > 0) { tick(); continue; }
-        img.addEventListener("load", tick, { once: true });
-        img.addEventListener("error", tick, { once: true });
-      }
-      if (!imgs.length) release();
-      timer = window.setTimeout(release, HOLD_TIMEOUT_MS);
-    }
 
     let io: IntersectionObserver | undefined;
     if (deferred.length) {
@@ -146,10 +79,7 @@ function useGalleryReveal(gridRef: React.RefObject<HTMLDivElement | null>, count
       deferred.forEach((el) => io!.observe(el));
     }
 
-    return () => {
-      window.clearTimeout(timer);
-      io?.disconnect();
-    };
+    return () => io?.disconnect();
   }, [gridRef, count]);
 }
 
@@ -197,7 +127,6 @@ function GalleryTile({
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           priority={priority}
           loading={eager ? "eager" : "lazy"}
-          fetchPriority={eager ? "high" : "auto"}
           placeholder={img.blurDataURL ? "blur" : "empty"}
           blurDataURL={img.blurDataURL}
           className="h-auto w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03]"
@@ -326,14 +255,9 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
   return (
     <>
       {/* ── Masonry grid ────────────────────────────────────────────────────── */}
-      {/* suppressHydrationWarning: RELEASE_SCRIPT strips data-hold at parse
-          time, which on a warm cache happens before React hydrates. The
-          divergence is the whole point of shipping the hold in the HTML, so
-          the warning is noise — React leaves attribute mismatches unpatched. */}
       <div
         ref={gridRef}
-        data-gallery-grid data-hold
-        suppressHydrationWarning
+        data-gallery-grid
         className="columns-1 gap-4 space-y-4 sm:columns-2 lg:columns-3"
       >
         {images.map((img, index) => (
@@ -352,10 +276,6 @@ export default function GalleryClient({ images }: { images: GalleryImage[] }) {
           />
         ))}
       </div>
-      <noscript>
-        <style>{`[data-gallery-grid][data-hold] .jd-tile-content{animation:jd-tile-in 300ms var(--ease-out) both}[data-gallery-grid][data-hold] .jd-skeleton{opacity:0}`}</style>
-      </noscript>
-      <script dangerouslySetInnerHTML={{ __html: RELEASE_SCRIPT }} />
 
       {/* ── Modal ───────────────────────────────────────────────────────────── */}
       {mounted && createPortal(

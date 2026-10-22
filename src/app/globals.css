@@ -135,14 +135,12 @@ html, body {
 }
 
 [data-motion="off"] .jd-tile-content,
-[data-motion="off"] [data-gallery-grid][data-hold] .jd-tile-content,
 [data-motion="off"] .jd-tile[data-pending] .jd-tile-content {
   animation: none !important;
   opacity: 1 !important;
   transform: none !important;
 }
 
-[data-motion="off"] [data-gallery-grid][data-hold] .jd-skeleton,
 [data-motion="off"] .jd-tile[data-pending] .jd-skeleton,
 [data-motion="off"] .jd-skeleton {
   animation: none !important;
@@ -274,16 +272,12 @@ html, body {
   pointer-events: none;
 }
 
-/* data-hold: first screenful, waiting for all of its images to decode so the
-   cascade plays as one group. data-pending: below-fold, waiting for the
-   viewport. Both are set by script only, so a tile is always visible if the
-   script never runs. */
-[data-gallery-grid][data-hold] .jd-tile-content,
+/* data-pending: below-fold, waiting for the viewport. Set by script only, so a
+   tile is always visible if the script never runs. */
 .jd-tile[data-pending] .jd-tile-content {
   animation: none;
   opacity: 0;
 }
-[data-gallery-grid][data-hold] .jd-skeleton,
 .jd-tile[data-pending] .jd-skeleton {
   opacity: 1;
   animation: jd-skeleton 1.6s ease-in-out infinite;
@@ -291,7 +285,6 @@ html, body {
 
 @media (prefers-reduced-motion: reduce) {
   .jd-tile-content { animation-delay: 0ms; }
-  [data-gallery-grid][data-hold] .jd-skeleton,
   .jd-tile[data-pending] .jd-skeleton { animation: none; opacity: 1; }
 }
 

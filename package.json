@@ -44,6 +44,7 @@
     "shiki": "^4.4.1",
     "tailwind-merge": "^3.5.0",
     "tailwindcss-animate": "^1.0.7",
+    "thinking-orbs": "^0.3.2",
     "three": "^0.183.2",
     "unified": "^11.0.5"
   },
