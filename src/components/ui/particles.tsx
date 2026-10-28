@@ -68,6 +68,7 @@ const ParticlesCanvas: React.FC<ParticlesProps> = ({
     const canvasSize = { w: 0, h: 0 };
     let circles: Circle[] = [];
     let rafId = 0;
+    let lastFrame = 0;
 
     const circleParams = (): Circle => ({
       x: Math.floor(Math.random() * canvasSize.w),
@@ -122,7 +123,12 @@ const ParticlesCanvas: React.FC<ParticlesProps> = ({
       return Math.max(remapped, 0);
     };
 
-    const animate = () => {
+    const animate = (time: number) => {
+      if (time - lastFrame < 1000 / 30) {
+        rafId = window.requestAnimationFrame(animate);
+        return;
+      }
+      lastFrame = time;
       clearContext();
       for (let i = circles.length - 1; i >= 0; i--) {
         const circle = circles[i];

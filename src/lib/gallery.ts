@@ -1,4 +1,4 @@
-const WORKER_URL = process.env.NEXT_PUBLIC_GALLERY_WORKER_URL ?? "";
+import { GALLERY_WORKER_URL } from "@/lib/galleryLoader";
 
 export interface GalleryImage {
   key: string;
@@ -30,9 +30,9 @@ export function slugFromKey(key: string): string {
 }
 
 export async function getGalleryImages(): Promise<GalleryImage[]> {
-  if (!WORKER_URL) return [];
+  if (!GALLERY_WORKER_URL) return [];
   try {
-    const res = await fetch(WORKER_URL, { next: { revalidate: 300 } });
+    const res = await fetch(GALLERY_WORKER_URL, { next: { revalidate: 300 } });
     if (!res.ok) return [];
     const data = (await res.json()) as { images?: GalleryImage[]; version?: string };
     const images = (data.images ?? []).map((img) => ({ ...img, version: data.version }));

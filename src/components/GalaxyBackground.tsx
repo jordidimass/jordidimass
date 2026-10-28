@@ -6,8 +6,8 @@ import * as THREE from 'three';
 import { useMotionContext } from './MotionProvider';
 import { useTheme } from './ThemeProvider';
 
-const PARTICLE_COUNT = 25000;
-const MOBILE_PARTICLE_COUNT = 10000;
+const PARTICLE_COUNT = 16000;
+const MOBILE_PARTICLE_COUNT = 6000;
 const HIT_RADIUS = 1.75;
 
 function makeGalaxy(count: number): Float32Array {
@@ -212,7 +212,7 @@ const fragmentShader = `
 `;
 
 function Particles({ isMobile, light }: { isMobile: boolean; light: boolean }) {
-  const { gl, camera, raycaster } = useThree();
+  const { gl, camera, raycaster, invalidate } = useThree();
   const groupRef = useRef<THREE.Group>(null!);
   const meshRef  = useRef<THREE.Points>(null!);
   const geoRef   = useRef<THREE.BufferGeometry>(null!);
@@ -276,6 +276,11 @@ function Particles({ isMobile, light }: { isMobile: boolean; light: boolean }) {
     uMouse3D:     { value: new THREE.Vector3(0, 0, 0) },
     uMouseActive: { value: 0 },
   }), [gl]);
+
+  useEffect(() => {
+    const id = window.setInterval(invalidate, 1000 / 30);
+    return () => window.clearInterval(id);
+  }, [invalidate]);
 
   useLayoutEffect(() => {
     const geo = geoRef.current;
@@ -517,7 +522,7 @@ function GalaxyCanvas() {
       }}
     >
       <Canvas
-        frameloop={hidden ? 'never' : 'always'}
+        frameloop={hidden ? 'never' : 'demand'}
         camera={{ position: [0, 0, 5], fov: 40, near: 0.1, far: 100 }}
         gl={{
           antialias: !isMobile,
@@ -526,7 +531,7 @@ function GalaxyCanvas() {
           toneMappingExposure: light ? 1.15 : 2.2,
         }}
         onCreated={({ gl }) => {
-          gl.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2));
+          gl.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.25 : 1.5));
           setVisible(true);
         }}
         style={{ position: 'absolute', inset: 0, background: 'transparent', pointerEvents: 'none' }}

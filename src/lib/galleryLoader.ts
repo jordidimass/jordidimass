@@ -1,6 +1,6 @@
 import type { ImageLoaderProps } from "next/image";
 
-const WORKER_URL = process.env.NEXT_PUBLIC_GALLERY_WORKER_URL ?? "";
+export const GALLERY_WORKER_URL = (process.env.NEXT_PUBLIC_GALLERY_WORKER_URL ?? "").trim();
 
 export const GALLERY_WIDTHS = [640, 828, 1280, 1920, 2560, 3200] as const;
 
@@ -19,15 +19,15 @@ function snapWidth(requested: number): number {
  * no Vercel optimizer quota is consumed.
  */
 export function galleryLoader({ src, width }: ImageLoaderProps): string {
-  if (!WORKER_URL) return src;
+  if (!GALLERY_WORKER_URL) return src;
   const [key, version] = src.split("\u0000");
   const suffix = version ? `?v=${version}` : "";
-  return `${WORKER_URL}/v/${snapWidth(width)}/${encodeURIComponent(key)}${suffix}`;
+  return `${GALLERY_WORKER_URL}/v/${snapWidth(width)}/${encodeURIComponent(key)}${suffix}`;
 }
 
 export function originalUrl(key: string): string {
-  if (!WORKER_URL) return key;
-  return `${WORKER_URL}/image/${encodeURIComponent(key)}`;
+  if (!GALLERY_WORKER_URL) return key;
+  return `${GALLERY_WORKER_URL}/image/${encodeURIComponent(key)}`;
 }
 
 /**
@@ -57,7 +57,7 @@ export const OG_WIDTH = 1200;
 export const OG_HEIGHT = 630;
 
 export function ogCardUrl(img: { key: string; og?: boolean; version?: string }): string | null {
-  if (!WORKER_URL || !img.og) return null;
+  if (!GALLERY_WORKER_URL || !img.og) return null;
   const v = img.version ? `?v=${img.version}` : "";
-  return `${WORKER_URL}/v/og/${encodeURIComponent(img.key)}${v}`;
+  return `${GALLERY_WORKER_URL}/v/og/${encodeURIComponent(img.key)}${v}`;
 }
