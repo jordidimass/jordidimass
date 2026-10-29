@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { useMotionContext } from './MotionProvider';
 import { useTheme } from './ThemeProvider';
 
-const PARTICLE_COUNT = 16000;
+const PARTICLE_COUNT = 10000;
 const MOBILE_PARTICLE_COUNT = 6000;
 const HIT_RADIUS = 1.75;
 
@@ -525,7 +525,7 @@ function GalaxyCanvas() {
         frameloop={hidden ? 'never' : 'demand'}
         camera={{ position: [0, 0, 5], fov: 40, near: 0.1, far: 100 }}
         gl={{
-          antialias: !isMobile,
+          antialias: false,
           alpha: true,
           toneMapping: THREE.ACESFilmicToneMapping,
           toneMappingExposure: light ? 1.15 : 2.2,
