@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import { preconnect } from "react-dom";
 import { getGalleryImages, slugFromKey } from "@/lib/gallery";
-import { ogCardUrl, OG_WIDTH, OG_HEIGHT } from "@/lib/galleryLoader";
+import { ogCardUrl, OG_WIDTH, OG_HEIGHT, GALLERY_WORKER_URL } from "@/lib/galleryLoader";
 import DownloadButton from "./DownloadButton";
 import PhotoView from "./PhotoView";
 
@@ -65,6 +66,7 @@ export default async function ImagePage({ params }: Props) {
   const image = images[index];
   const prev = index > 0 ? images[index - 1] : null;
   const next = index < images.length - 1 ? images[index + 1] : null;
+  if (GALLERY_WORKER_URL) preconnect(GALLERY_WORKER_URL);
 
   return (
     <div className="flex min-h-screen flex-col bg-brand-bg text-brand-text">

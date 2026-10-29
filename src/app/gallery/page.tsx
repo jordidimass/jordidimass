@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
+import { preconnect } from "react-dom";
 import GalleryClient from "./GalleryClient";
 import { getGalleryImages } from "@/lib/gallery";
-import { ogCardUrl, OG_WIDTH, OG_HEIGHT } from "@/lib/galleryLoader";
+import { ogCardUrl, OG_WIDTH, OG_HEIGHT, GALLERY_WORKER_URL } from "@/lib/galleryLoader";
 
 export const revalidate = 300;
 
@@ -36,6 +37,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function GalleryPage() {
   const images = await getGalleryImages();
+  if (GALLERY_WORKER_URL) preconnect(GALLERY_WORKER_URL);
 
   return (
     <div className="min-h-screen bg-brand-bg text-brand-text py-8 px-8">

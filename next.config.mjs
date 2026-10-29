@@ -13,6 +13,7 @@ const nextConfig = {
     ],
   },
   experimental: {
+    inlineCss: true,
     optimizePackageImports: ['@mui/icons-material', 'lucide-react', 'motion', '@react-three/drei'],
   },
   async headers() {
